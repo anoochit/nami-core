@@ -11,7 +11,7 @@ This skill provides a centralized help interface for the Nami CLI.
 The Nami CLI offers comprehensive support for managing your workflow. Access the help information by using the standard command:
 
 ```bash
-nami --help
+nami help
 ```
 
 ## Available Commands

@@ -1,6 +1,7 @@
 use crate::utils;
 use adk_rust::prelude::*;
 use adk_tool::mcp::McpServerManager;
+use adk_tool::toolset::PrefixedToolset;
 use std::sync::Arc;
 
 /// Loads MCP tools from `mcp.json` if it exists and attaches them to the agent builder.
@@ -36,8 +37,8 @@ pub async fn load_mcp_tools(mut builder: LlmAgentBuilder) -> anyhow::Result<LlmA
             }
         }
 
-        // Attach the started manager to the agent as a toolset
-        builder = builder.toolset(mcp_manager);
+        // Attach the started manager to the agent as a toolset with a prefix to avoid collisions
+        builder = builder.toolset(Arc::new(PrefixedToolset::new(mcp_manager, "mcp")));
     }
 
     Ok(builder)
