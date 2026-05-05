@@ -1,4 +1,4 @@
-use crate::utils::get_workspace_dir;
+use crate::utils::{get_workspace_dir, ignore::NamiIgnore};
 use adk_rust::prelude::*;
 use adk_rust::serde::Deserialize;
 use adk_tool::tool;
@@ -37,6 +37,16 @@ async fn sandbox(user_path: &str) -> std::result::Result<PathBuf, AdkError> {
     if !normalized.starts_with(&root) {
         return Err(AdkError::tool(format!(
             "Security Error: Path '{}' attempts to escape sandbox.",
+            user_path
+        )));
+    }
+
+    // 4. .namiignore Check
+    let relative_to_root = normalized.strip_prefix(&root).unwrap_or(&normalized);
+    let ignore = NamiIgnore::load().await;
+    if ignore.is_ignored(relative_to_root) {
+        return Err(AdkError::tool(format!(
+            "Access Denied: Path '{}' is ignored by .namiignore policy.",
             user_path
         )));
     }

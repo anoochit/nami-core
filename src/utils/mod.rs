@@ -2,6 +2,8 @@ use adk_rust::prelude::*;
 use std::path::PathBuf;
 use tokio::fs;
 
+pub mod ignore;
+
 const WORKSPACE_NAME: &str = "workspace";
 
 /// Returns the absolute path to the sandbox directory.
