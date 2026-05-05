@@ -159,5 +159,11 @@ The bot includes built-in skills to compile your workspace documents into distri
 
 * **LLM Providers**: Gemini is the default model. You can configure or switch to other supported models in `src/agent/mod.rs`.
 * **Adding Tools**: Add new modules to `src/tools/` and register them in `src/agent/mod.rs`.
+* **Custom Skills**: You can add new high-level capabilities by creating specialized scripts in the `.skills/` directory. Nami is configured to discover and prioritize these automatically.
 * **Sandbox**: Workspace files and wiki are stored in `./workspace/` by default.
 * **Production**: For high-traffic bots, migrate `teloxide` from polling to webhooks.
+* **Future Extension Ideas**:
+    * **RAG Integration**: Connect the `wiki/` vault to a vector database (like Qdrant or Milvus) for semantic search and long-term memory retrieval.
+    * **Vision & Multi-modal**: Enable vision tools to allow Nami to analyze screenshots or images sent via Telegram.
+    * **Voice Mode**: Integrate Whisper for voice-to-text, allowing you to talk to Nami directly.
+    * **Automated Evaluations**: Build an `eval/` suite to test Nami's tool-calling accuracy across different model versions.
