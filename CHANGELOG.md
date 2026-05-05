@@ -2,6 +2,23 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.6.0] - 2026-05-05
+
+### Added
+
+- **Pretty CLI Error Rendering**: Implemented a new error display system in CLI mode. Errors are now styled with `crossterm` and include **Intelligent Hints** for common issues like Gemini's `exclusiveMaximum` JSON schema limitations, API quota limits, and authentication failures.
+- **Obsidian Wiki Automation**: `add_wiki_page` now automatically generates YAML frontmatter (title, date, tags) and ensures a level-1 Markdown header is present if missing. It also enforces Title Case with spaces for filenames.
+
+### Changed
+
+- **MCP Tool Namespacing**: All tools imported from MCP servers are now prefixed with `mcp_` (e.g., `mcp_read_file`) using `PrefixedToolset` to resolve naming collisions with built-in system tools.
+- **Persona Optimization**: Updated `AGENT.md` and `MEMORIES.md` to enforce strict plain text output for chat responses (optimized for Telegram) while maintaining standard Markdown for the wiki vault and file editing.
+- **Project Synchronization**: Synchronized `AGENT.md`, `USER.md`, and `MEMORIES.md` to align with the new plain-text and Obsidian-formatting rules.
+
+### Fixed
+
+- **Tool Name Collisions**: Resolved a critical "Duplicate tool name 'read_file'" error when loading MCP servers.
+
 ## [0.5.0] - 2026-05-04
 
 ### Added
