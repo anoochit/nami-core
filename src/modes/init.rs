@@ -1,31 +1,49 @@
-use rustyline::DefaultEditor;
 use termimad::{mad_print_inline, MadSkin};
 use std::fs::File;
 use std::io::Write;
 use adk_session::SqliteSessionService;
+use inquire::{Select, Text, Password};
 
 
 pub async fn initialize_project() -> anyhow::Result<()> {
-    let mut rl = DefaultEditor::new()?;
     let skin = MadSkin::default();
 
     skin.print_text("# AI Agent Initializer\n");
 
     // 1. Choose LLM Provider
-    skin.print_text("*Choose LLM Provider (gemini, openai, openrouter, thaillm):*");
-    let provider = rl.readline(">> ")?.trim().to_lowercase();
+    let providers = vec!["gemini", "openai", "openrouter", "thaillm", "custom"];
+    let provider_selection = Select::new("Choose LLM Provider:", providers).prompt()?;
+
+    let provider = if provider_selection == "custom" {
+        Text::new("Enter Custom Provider:").prompt()?
+    } else {
+        provider_selection.to_string()
+    };
 
     // 2. Choose Model
-    skin.print_text("\n*Enter Model Name (e.g., gemini-3-flash-preview):*");
-    let model_name = rl.readline(">> ")?.trim().to_string();
+    let models = match provider.as_str() {
+        "gemini" => vec!["gemini-2.0-flash", "gemini-2.0-pro-exp", "gemini-1.5-flash", "gemini-1.5-pro", "gemini-2.5-flash", "custom"],
+        "openai" => vec!["gpt-4o", "gpt-4o-mini", "o1-preview", "o1-mini", "custom"],
+        "openrouter" => vec!["anthropic/claude-3.5-sonnet", "google/gemini-2.0-flash-001", "openai/gpt-4o", "custom"],
+        "thaillm" => vec!["openthaigpt-1.5-7b-instruct", "custom"],
+        _ => vec!["custom"],
+    };
+
+    let model_selection = Select::new("Choose Model Name:", models).prompt()?;
+
+    let model_name = if model_selection == "custom" {
+        Text::new("Enter Model Name:").prompt()?
+    } else {
+        model_selection.to_string()
+    };
 
     // 3. Enter LLM API Key
-    skin.print_text("\n*Enter LLM API Key:*");
-    let api_key = rl.readline(">> ")?.trim().to_string();
+    let api_key = Password::new("Enter LLM API Key:")
+        .with_display_mode(inquire::PasswordDisplayMode::Masked)
+        .prompt()?;
 
     // 4. Enter Telegram API Key (Optional)
-    skin.print_text("\n*Enter Telegram API Key (Optional, press Enter to skip):*");
-    let telegram_key = rl.readline(">> ")?.trim().to_string();
+    let telegram_key = Text::new("Enter Telegram API Key (Optional):").prompt()?;
 
     // Determine Env Var Name based on provider
     let api_key_env = match provider.as_str() {

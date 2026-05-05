@@ -6,6 +6,7 @@ All notable changes to this project will be documented in this file.
 
 ### Added
 
+- **Interactive Project Initialization**: Refactored the `init` mode to use `inquire`, providing arrow-navigable selection menus for LLM providers and models, and masked input for API keys.
 - **Wiki Templates**: Introduced new Markdown templates for `Blog Post` and `Task Log` in `workspace/wiki/Templates/` to standardize recurring wiki entries.
 
 ### Changed
