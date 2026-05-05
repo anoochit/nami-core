@@ -17,7 +17,7 @@ A modular, extensible AI-powered `Nami` built on top of [adk-rust](https://githu
 * **Modular Tools**: Organized architecture for adding capabilities (Weather, Search, Shell, Wiki, etc.).
 * **Live Web Search**: Integrated Google Search via Serper.dev.
 * **Todo Management**: Integrated task tracking and list management.
-* **Sandboxed Environment**: Integrated filesystem tools for agent tasks within a `workspace/` directory, including the ability to merge multiple documents together using `merge_files`.
+* **Sandboxed Environment**: Integrated filesystem tools for agent tasks within a `workspace/` directory, now protected by a **`.namiignore` policy** (similar to `.gitignore`) to control access permissions.
 
 ## 🛠 Prerequisites
 
