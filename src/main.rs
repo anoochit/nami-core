@@ -37,12 +37,9 @@ async fn main() -> anyhow::Result<()> {
         pretty_env_logger::init();
     }
 
-    match cli.command {
-        Commands::Init => {
-            modes::init::initialize_project().await?;
-            return Ok(());
-        }
-        _ => {}
+    if let Commands::Init = cli.command {
+        modes::init::initialize_project().await?;
+        return Ok(());
     }
 
     log::info!("Application starting...");

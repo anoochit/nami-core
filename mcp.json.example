@@ -32,6 +32,9 @@
       "args": [
         "mcp-server-time"
       ]
+    },
+    "remote": {
+      "url": "https://mcp.example.com/v1"
     }
   }
 }

@@ -16,7 +16,7 @@ schemars = "1.2.1"
 
 teloxide = { version = "0.17.0", features = ["macros"] }
 adk-session = { version = "0.7.0", features = ["sqlite"] }
-adk-tool = "0.7.0"
+adk-tool = { version = "0.7.0", features = ["http-transport"] }
 adk-runner = "0.7.0"
 urlencoding = "2.1.3"
 pretty_env_logger = "0.5.0"

@@ -37,8 +37,7 @@ impl Completer for NamiHelper {
             rustyline::completion::extract_word(line, pos, None, |c| c == ' ' || c == '\t');
 
 
-        if word.starts_with('@') {
-            let path_part = &word[1..];
+        if let Some(path_part) = word.strip_prefix('@') {
             let mut matches = Vec::new();
 
             // Search for files in the workspace directory
@@ -48,8 +47,8 @@ impl Completer for NamiHelper {
                     .max_depth(5) // Don't go too deep to keep it fast
                     .into_iter()
                     .filter_map(|e| e.ok()) {
-                    if entry.file_type().is_file() {
-                        if let Ok(relative_path) = entry.path().strip_prefix(workspace_path) {
+                    if entry.file_type().is_file()
+                        && let Ok(relative_path) = entry.path().strip_prefix(workspace_path) {
                             let path_str = relative_path.to_string_lossy().replace("\\", "/");
 
                             if path_str.to_lowercase().contains(&path_part.to_lowercase()) {
@@ -59,7 +58,6 @@ impl Completer for NamiHelper {
                                 });
                             }
                         }
-                    }
                 }
             }
 
@@ -133,8 +131,8 @@ async fn process_file_references(input: &str) -> String {
         let workspace_path = std::path::Path::new("workspace");
         let path = workspace_path.join(file_path_str);
 
-        if path.exists() && path.is_file() {
-            if let Ok(metadata) = std::fs::metadata(&path) {
+        if path.exists() && path.is_file()
+            && let Ok(metadata) = std::fs::metadata(&path) {
                 let size = metadata.len();
                 // Threshold: 4KB
                 if size < 4096 {
@@ -157,7 +155,6 @@ async fn process_file_references(input: &str) -> String {
                     );
                 }
             }
-        }
     }
 
     if !appended_context.is_empty() {
@@ -191,7 +188,7 @@ fn render_banner(provider: &str, model_name: &str) {
             .magenta(),
         style::style(format!("({}) using {}", provider, model_name)).dim()
     );
-    println!("\n{}", "Type /exit to quit, /clear to wipe terminal, /new to start a new chat.");
+    println!("\nType /exit to quit, /clear to wipe terminal, /new to start a new chat.");
     println!("Type @ followed by path to reference files (use Tab for completion).");
     println!("Press ESC during a request to cancel it.\n");
 }
@@ -397,12 +394,11 @@ async fn handle_chat_loop(
                             }
                         }
                         maybe_event = reader.next().fuse() => {
-                            if let Some(Ok(Event::Key(key))) = maybe_event {
-                                if key.code == KeyCode::Esc && key.kind == KeyEventKind::Press {
+                            if let Some(Ok(Event::Key(key))) = maybe_event
+                                && key.code == KeyCode::Esc && key.kind == KeyEventKind::Press {
                                     cancelled = true;
                                     break;
                                 }
-                            }
                         }
                     }
                 }

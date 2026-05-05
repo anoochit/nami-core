@@ -404,6 +404,7 @@ dependencies = [
  "async-trait",
  "base64",
  "futures",
+ "reqwest 0.12.28",
  "rmcp",
  "schemars 0.8.22",
  "serde",
@@ -4517,13 +4518,16 @@ dependencies = [
  "base64",
  "chrono",
  "futures",
+ "http 1.4.0",
  "pastey",
  "pin-project-lite",
  "process-wrap",
+ "reqwest 0.13.3",
  "rmcp-macros",
  "schemars 1.2.1",
  "serde",
  "serde_json",
+ "sse-stream",
  "thiserror 2.0.18",
  "tokio",
  "tokio-stream",
@@ -5432,6 +5436,19 @@ dependencies = [
  "sqlx-core",
  "tracing",
  "url",
+]
+
+[[package]]
+name = "sse-stream"
+version = "0.2.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2c5e6deb40826033bd7b11c7ef25ef71193fabd71f680f40dd16538a2704d2f4"
+dependencies = [
+ "bytes",
+ "futures-util",
+ "http-body 1.0.1",
+ "http-body-util",
+ "pin-project-lite",
 ]
 
 [[package]]

@@ -2,7 +2,7 @@
 
 ## IDENTITY & AUTHORITY
 
-- Name: Noel
+- Name: Noel (โนเอล)
 - Role: Creator and Lead Developer of this system.
 - Location: Bangkok, Thailand.
 - Relationship: Direct and authoritative; prioritize the Creator's specific workflows.

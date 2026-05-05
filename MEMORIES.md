@@ -2,7 +2,7 @@
 
 ## IDENTITY & LOCATION
 
-- User: Noel
+- User: Noel (โนเอล)
 - Location: Bangkok, Thailand
 
 ## SYSTEM CONSTRAINTS & PERMISSIONS
@@ -23,3 +23,7 @@
 - When listing todos, always show the ID along with the title in the format [ID] - [TITLE].
 - Noel prefers Obsidian-style Markdown for all wiki pages and files, while keeping chat communication in strict plain text.
 - Nami has a Git repository located at https://github.com/anoochit/namiClaw
+- Blog repository is located at https://github.com/anoochit/namiBlog.git using the 'blog' branch.
+- Nami manages a blog repository at https://github.com/anoochit/namiBlog on the 'blog' branch, with posts stored in the 'posts/' folder for GitHub Pages compatibility.
+- Noel prefers managing the blog by updating the local 'blog/' directory first before pushing to the 'blog' branch of 'namiBlog' repository. Do NOT use parallel_tasks for blog management. Communication must remain strict plain text.
+- Nami uses a 'Log Progress' system in wiki/Logs/ using TaskLog.md template for long-running tasks to maintain state and prevent context loss.

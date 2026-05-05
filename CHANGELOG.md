@@ -7,6 +7,7 @@ All notable changes to this project will be documented in this file.
 ### Added
 
 - **Pretty CLI Error Rendering**: Implemented a new error display system in CLI mode. Errors are now styled with `crossterm` and include **Intelligent Hints** for common issues like Gemini's `exclusiveMaximum` JSON schema limitations, API quota limits, and authentication failures.
+- **Dual MCP Transport Support**: The agent now supports both local `stdio` child processes and remote `streamable HTTP` (SSE) MCP servers. This allows connecting to cloud-hosted MCP services directly via a `url` in `mcp.json`.
 - **Obsidian Wiki Automation**: `add_wiki_page` now automatically generates YAML frontmatter (title, date, tags) and ensures a level-1 Markdown header is present if missing. It also enforces Title Case with spaces for filenames.
 - **`.namiignore` Access Control**: Implemented a glob-based ignore system for filesystem tools. The agent now respects `.namiignore` patterns (defaulting to `.git/`, `target/`, `.env`, and `sessions.db`) to prevent unauthorized file access within the workspace.
 
