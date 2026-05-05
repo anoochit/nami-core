@@ -40,10 +40,3 @@ serde_yaml = "0.9.34"
 indexmap = "2.14.0"
 toml = "1.1.2"
 uuid = { version = "1.23.1", features = ["v4"] }
-
-[target.aarch64-unknown-linux-gnu]
-pre-build = [
-    "dpkg --add-architecture arm64",
-    "apt-get update",
-    "apt-get install --assume-yes libssl-dev:arm64"
-]

@@ -223,6 +223,42 @@ async fn ensure_session(
     Ok(())
 }
 
+fn render_error(e: anyhow::Error) {
+    println!(
+        "\n{} {}",
+        style::style(" ❌ Oh no! Nami encountered a hiccup:").bold().red(),
+        style::style(e.to_string()).red()
+    );
+
+    let err_debug = format!("{:?}", e);
+
+    // Provide helpful hints for common issues
+    if err_debug.contains("exclusiveMaximum") || err_debug.contains("exclusiveMinimum") {
+        println!(
+            "{}",
+            style
+                ::style(
+                    " 💡 Hint: It looks like Gemini rejected a tool's parameter schema (unsupported constraints like 'exclusiveMaximum')."
+                )
+                .yellow()
+                .dim()
+        );
+    } else if err_debug.contains("401") || err_debug.contains("unauthorized") {
+        println!(
+            "{}",
+            style::style(" 💡 Hint: This might be an API key issue. Check your .env file!").yellow().dim()
+        );
+    } else if err_debug.contains("quota") || err_debug.contains("429") {
+        println!(
+            "{}",
+            style
+                ::style(" 💡 Hint: You've hit a rate limit. Take a quick break and try again!")
+                .yellow()
+                .dim()
+        );
+    }
+}
+
 pub(crate) async fn run_cli(
     agent: Arc<dyn Agent>,
     sessions: Arc<dyn SessionService>,
@@ -331,6 +367,7 @@ async fn handle_chat_loop(
 
                 let mut reader = EventStream::new();
                 let mut cancelled = false;
+                let mut stream_error = None;
 
                 terminal::enable_raw_mode()?;
 
@@ -353,7 +390,7 @@ async fn handle_chat_loop(
                                     }
                                 }
                                 Some(Err(e)) => {
-                                    log::error!("Stream error: {:?}", e);
+                                    stream_error = Some(e);
                                     break;
                                 }
                                 None => break,
@@ -376,7 +413,9 @@ async fn handle_chat_loop(
                 print!("\r\x1B[K");
                 io::stdout().flush().ok();
 
-                if cancelled {
+                if let Some(e) = stream_error {
+                    render_error(e.into());
+                } else if cancelled {
                     println!("\n{}", style::style("--- Request cancelled ---").dim());
                 } else {
                     println!("\n{}", style::style("Nami").bold().magenta());
