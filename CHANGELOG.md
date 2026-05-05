@@ -2,6 +2,22 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.6.1] - 2026-05-05
+
+### Added
+
+- **Wiki Templates**: Introduced new Markdown templates for `Blog Post` and `Task Log` in `workspace/wiki/Templates/` to standardize recurring wiki entries.
+
+### Changed
+
+- **Code Quality**: Applied `clippy` optimizations across the codebase to ensure idiomatic Rust patterns and better performance.
+- **Repository Maintenance**: Removed `mcp.json` from version control to prevent local configuration leakage; updated `mcp.json.example` with remote SSE transport examples.
+- **Documentation**: Added future extension ideas to developer tips and improved documentation for the `.namiignore` access control system.
+
+### Fixed
+
+- **Compilation & Stability**: Resolved various compilation issues and type mismatches in the MCP transport layer.
+
 ## [0.6.0] - 2026-05-05
 
 ### Added
