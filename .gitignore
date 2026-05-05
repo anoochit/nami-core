@@ -4,7 +4,7 @@ sessions.db
 .cli*
 /workspace/*
 !/workspace/.skills/
-!/workspace/wiki/Templates/DailyTemplate.md
+!/workspace/wiki/Templates/
 MEMORIES.md
 /ref
 workspace/wiki/
