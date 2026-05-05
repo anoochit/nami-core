@@ -189,7 +189,33 @@ async fn add_wiki_page(args: AddWikiArgs) -> std::result::Result<Value, AdkError
             json!({"status": "success", "message": format!("Appended to wiki page '{}'", args.title)}),
         )
     } else {
-        fs::write(&path, &args.content)
+        let mut final_content = args.content.trim().to_string();
+
+        // If it's a new file (or overwrite) and doesn't start with frontmatter, add it.
+        // We also ensure there's a level-1 header.
+        if !final_content.starts_with("---") {
+            let today = Utc::now();
+            let date_str = format!("{}-{:02}-{:02}", today.year(), today.month(), today.day());
+            let title_basename = Path::new(&sanitized_title)
+                .file_stem()
+                .unwrap_or_default()
+                .to_string_lossy();
+
+            let frontmatter = format!(
+                "---\ntitle: {}\ndate: {}\ntags: []\n---\n\n",
+                title_basename, date_str
+            );
+
+            if !final_content.starts_with('#') && !final_content.is_empty() {
+                final_content = format!("{}# {}\n\n{}", frontmatter, title_basename, final_content);
+            } else if final_content.is_empty() {
+                final_content = format!("{}# {}\n\n", frontmatter, title_basename);
+            } else {
+                final_content = format!("{}{}", frontmatter, final_content);
+            }
+        }
+
+        fs::write(&path, &final_content)
             .await
             .map_err(|e| AdkError::tool(format!("Failed to write wiki page: {}", e)))?;
         Ok(json!({"status": "success", "message": format!("Saved wiki page '{}'", args.title)}))
