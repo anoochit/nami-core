@@ -13,14 +13,16 @@ jobs:
       fail-fast: false
       matrix:
         include:
+          # Linux amd64 — native
           - os: ubuntu-latest
             target: x86_64-unknown-linux-gnu
             use-cross: false
             extension: ""
           
-          - os: ubuntu-latest
+          # Linux arm64 — native arm64 runner, no cross needed!
+          - os: ubuntu-24.04-arm
             target: aarch64-unknown-linux-gnu
-            use-cross: true
+            use-cross: false
             extension: ""
           
           - os: macos-latest
@@ -52,25 +54,14 @@ jobs:
         with:
           targets: ${{ matrix.target }}
 
-      - name: Install System Dependencies (native Linux only)
-        if: runner.os == 'Linux' && !matrix.use-cross
+      - name: Install System Dependencies
+        if: runner.os == 'Linux'
         run: |
           sudo apt-get update
           sudo apt-get install -y libdbus-1-dev pkg-config libssl-dev
 
-      - name: Install cross
-        if: matrix.use-cross
-        uses: taiki-e/install-action@cross
-
       - name: Build
-        if: '!matrix.use-cross'
         run: cargo build --release --target ${{ matrix.target }}
-
-      - name: Build with cross
-        if: matrix.use-cross
-        env:
-          OPENSSL_VENDORED: "1"
-        run: cross build --release --target ${{ matrix.target }}
 
       - name: Upload Artifacts
         uses: actions/upload-artifact@v4
