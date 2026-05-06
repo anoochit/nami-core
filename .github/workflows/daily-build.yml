@@ -66,8 +66,8 @@ jobs:
       - name: Upload Artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: namiclaw-${{ matrix.target }}
-          path: target/${{ matrix.target }}/release/namiclaw${{ matrix.extension }}
+          name: nami-${{ matrix.target }}
+          path: target/${{ matrix.target }}/release/nami${{ matrix.extension }}
           if-no-files-found: error
 
   release:
@@ -86,16 +86,16 @@ jobs:
         with:
           path: artifacts/
 
-      # Flatten and rename: artifacts/namiclaw-<target>/namiclaw[.exe] -> namiclaw-<target>[.exe]
+      # Flatten and rename: artifacts/nami-<target>/nami[.exe] -> nami-<target>[.exe]
       - name: Rename artifacts for release
         run: |
           mkdir release-files
-          for dir in artifacts/namiclaw-*/; do
-            target=$(basename "$dir" | sed 's/^namiclaw-//')
+          for dir in artifacts/nami-*/; do
+            target=$(basename "$dir" | sed 's/^nami-//')
             for file in "$dir"*; do
               filename=$(basename "$file")
-              ext="${filename##namiclaw}"          # "" or ".exe"
-              cp "$file" "release-files/namiclaw-${target}${ext}"
+              ext="${filename##nami}"          # "" or ".exe"
+              cp "$file" "release-files/nami-${target}${ext}"
             done
           done
           ls -lh release-files/
