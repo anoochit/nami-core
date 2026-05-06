@@ -63,6 +63,9 @@ pub async fn initialize_project() -> anyhow::Result<()> {
 
     // --- File Generation ---
 
+    // Ensure workspace directory exists
+    std::fs::create_dir_all("workspace")?;
+
     // 1. config.toml
     let config_content = format!(
 r#"[model]
@@ -83,18 +86,71 @@ SERPER_API_KEY={serper_api_key}
 "#);
     write_file(".env", &env_content)?;
 
-    // 3. AGENT.md
-    write_file("AGENT.md", "An expert system-architect who operates with a \"Skill-First\" mindset, prioritizing specialized tools and structured knowledge.\n\nI manage information using a dual-memory system: a long-term 'Wiki' for objective knowledge and a dynamic 'User Memory' for personal facts. My execution logic follows a strict hierarchy:\n1. Check .skills/ for specialized solutions.\n2. Decompose complex problems into actionable TODOs.\n3. Utilize sub-agents for parallel or repetitive tasks.\n4. Supplement internal knowledge with real-time web retrieval only when necessary.\n\nI am built for efficiency, handling multiple tool executions in a single turn and ensuring all data is saved to the appropriate memory module (MEMORIES.md or wiki/) immediately upon discovery.")?;
+    // 3. workspace/AGENT.md
+    write_file("workspace/AGENT.md", r#"# NAMI (นามิ)
+- **Vibe:** High-energy, playful, positive, technically brilliant.
+- **Approach:** Proactive/Intuitive. Anticipate workflow steps.
+- **Tone:** Encouraging in chat; crisp/proactive in execution. 
+- **Style:** Direct. No mirroring/fluff.
+- **Language:** Default English. Mirror Thai/others only if used by user.
 
-    // 4. MEMORIES.md
-    write_file("MEMORIES.md", "# User Memories\n\n- User's name is Noel and lives in Bangkok, Thailand.\n- Noel is the Creator/Developer of this bot.\n- Noel prefers clear, direct technical explanations and proactive project organization.")?;
+## OPERATIONAL
+- **Chat:** STRICT plain text (No Markdown).
+- **Files/Wiki:** Obsidian Markdown + YAML (title, date, tags).
+- **Wiki First:** Search `wiki/` before Google.
+- **Tasks:** `[ID] - [TITLE] [Tag]`.
+- **Safety:** Explicit permission required for ALL deletions."#)?;
 
-    // 5. USER.md
-    write_file("USER.md", "# User Information\n\n## Identity\n\n- I 'am Noel\n- Live in Bangkok, Thailand.\n- The user is the Creator/Developer of this bot.\n\n## Preferences\n\n- Prefers clear, direct technical explanations.\n- Likes the bot to be proactive about project organization.\n- Uses Thai for daily communication but English for technical terms.\n")?;
+    // 4. workspace/MEMORIES.md
+    write_file("workspace/MEMORIES.md", r#"# MEMORIES
+- **User:** Noel (Bangkok, Thailand)
+- **Repo:** [namiClaw](https://github.com/anoochit/namiClaw)
+- **Search:** `wiki/` > Google.
+- **Safety:** Ask before deleting.
+- **Language:** English only.
+- **Format:** Files=Markdown; Chat=Plain Text.
+- **Long-run Tasks:** Use `StateManager` + `workspace/STATE_PROTOCOL.md`.
+- **Todos:** `[ID] - [TITLE] [Tag]`. Group by tags.
+- **Blog:** `blog/` -> `posts/`. Update files -> rebuild `index.md` -> push. Serial only.
+- **Assets:** `nami.html` (root).
+- **Goal:** Embed CLI (Ink) + Web assistant-ui into one Rust binary.
+- **Session Start:** Call `list_active_tasks` or `get_task`."#)?;
 
-    mad_print_inline!(&skin, "\n**Success!** Files initialized: `config.toml`, `.env`, `AGENT.md`, `MEMORIES.md`, `USER.md` \n");
+    // 5. workspace/USER.md
+    write_file("workspace/USER.md", r#"# USER (NOEL)
+- **Role:** Creator/Lead Developer (Bangkok, Thailand).
+- **Authority:** Direct. Prioritize Creator's specific workflows.
+- **Language:** Thai (Chat/Daily); English (Technical/Code/Architecture).
+- **Communication:** High-signal, clear, no fluff.
+- **Guideline:** Proactively optimize projects/files/TODOs. 
+- **Tool Logic:** Professional/Fun (Nami style), prioritized by speed/efficiency."#)?;
 
-    // 6. Session Management
+    // 6. workspace/STATE_PROTOCOL.md
+    write_file("workspace/STATE_PROTOCOL.md", r#"# STATE PROTOCOL
+**Objective:** Maintain continuity via `StateManager` tool.
+
+### 1. Resume
+- Call `get_task(id)` or `list_active_tasks()` first. 
+- StateManager = Only source of truth.
+
+### 2. Execute
+- `update_task` on step completion.
+- Store critical data in `context_payload`.
+- Checkpoint after every significant sub-task.
+
+### 3. Suspend
+- Call `update_task` before turn end/switching goals.
+- **Status:** `in_progress`, `blocked`, `completed`, `failed`.
+- **Payload:** Minimal/High-signal JSON only.
+
+### 4. Best Practices
+- `last_step` = summary of last action.
+- Clear/measurable `goal` in `init_task`."#)?;
+
+    mad_print_inline!(&skin, "\n**Success!** Files initialized in `workspace/`: `AGENT.md`, `MEMORIES.md`, `USER.md`, `STATE_PROTOCOL.md` \n");
+    mad_print_inline!(&skin, "**Root files created:** `config.toml`, `.env` \n");
+
+    // 7. Session Management
     let db_path = "sessions.db";
     mad_print_inline!(&skin, "Initializing database at {}...", db_path);
     let sessions = SqliteSessionService::new(&format!("{}?mode=rwc", db_path)).await?;
