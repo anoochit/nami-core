@@ -11,7 +11,7 @@ pub async fn initialize_project() -> anyhow::Result<()> {
     skin.print_text("# AI Agent Initializer\n");
 
     // 1. Choose LLM Provider
-    let providers = vec!["gemini", "openai", "openrouter", "thaillm", "custom"];
+    let providers = vec!["anthropic","gemini","ollama", "openai", "openrouter", "thaillm", "custom"];
     let provider_selection = Select::new("Choose LLM Provider:", providers).prompt()?;
 
     let provider = if provider_selection == "custom" {
@@ -22,10 +22,12 @@ pub async fn initialize_project() -> anyhow::Result<()> {
 
     // 2. Choose Model
     let models = match provider.as_str() {
-        "gemini" => vec!["gemini-2.0-flash", "gemini-2.0-pro-exp", "gemini-1.5-flash", "gemini-1.5-pro", "gemini-2.5-flash", "custom"],
-        "openai" => vec!["gpt-4o", "gpt-4o-mini", "o1-preview", "o1-mini", "custom"],
-        "openrouter" => vec!["anthropic/claude-3.5-sonnet", "google/gemini-2.0-flash-001", "openai/gpt-4o", "custom"],
-        "thaillm" => vec!["openthaigpt-1.5-7b-instruct", "custom"],
+        "anthropic" => vec!["claude-sonnet-4-5-20250929","custom"],
+        "gemini" => vec!["gemini-pro-latest","gemini-flash-latest", "gemini-3.1-pro-preview","gemini-3-flash-preview", "gemini-2.5-pro", "gemini-2.5-flash", "custom"],
+        "ollama" => vec!["deepseek-r1:1.5b", "custom"],
+        "openai" => vec!["gpt-5","gpt-4.1", "custom"],
+        "openrouter" => vec!["anthropic/claude-3.5-sonnet", "tencent/hy3-preview:free","nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free","nvidia/nemotron-3-super-120b-a12b:free", "openrouter/free", "custom"],
+        "thaillm" => vec!["openthaigpt-thaillm-8b-instruct-v7.2", "pathumma-thaillm-qwen3-8b-think-3.0.0", "typhoon-s-thaillm-8b-instruct", "thalle-0.2-thaillm-8b-fa","custom"],
         _ => vec!["custom"],
     };
 
@@ -38,19 +40,24 @@ pub async fn initialize_project() -> anyhow::Result<()> {
     };
 
     // 3. Enter LLM API Key
-    let api_key = Password::new("Enter LLM API Key:")
+    let api_key = Password::new("Enter API Key:")
         .with_display_mode(inquire::PasswordDisplayMode::Masked)
         .prompt()?;
 
     // 4. Enter Telegram API Key (Optional)
-    let telegram_key = Text::new("Enter Telegram API Key (Optional):").prompt()?;
+    let telegram_key = Password::new("Enter Telegram API Key:").with_display_mode(inquire::PasswordDisplayMode::Masked).prompt()?;
+
+    // 5. Enter Serper API Key (Optional)
+    let serper_api_key = Password::new("Enter Serper API Key for Google Search:").with_display_mode(inquire::PasswordDisplayMode::Masked).prompt()?;
 
     // Determine Env Var Name based on provider
     let api_key_env = match provider.as_str() {
+        "anthropic" => "ANTHROPIC_API_KEY",
         "gemini" => "GOOGLE_API_KEY",
         "openai" => "OPENAI_API_KEY",
         "thaillm" => "THAILLM_API_KEY",
         "openrouter" => "OPENROUTER_API_KEY",
+        "ollama" => "OLLAMA_API_KEY",
         _ => "API_KEY",
     };
 
@@ -59,7 +66,7 @@ pub async fn initialize_project() -> anyhow::Result<()> {
     // 1. config.toml
     let config_content = format!(
 r#"[model]
-# Provider type: "gemini", "openai", "openrouter" or "thaillm"
+# Provider type: "anthropic","gemini","ollama", "openai", "openrouter" or "thaillm",
 provider = "{provider}"
 # The specific model identifier
 model_name = "{model_name}"
@@ -72,12 +79,12 @@ api_key_env = "{api_key_env}"
     let env_content = format!(
 r#"{api_key_env}={api_key}
 TELOXIDE_TOKEN={telegram_key}
-SERPER_API_KEY=your_serper_api_key
+SERPER_API_KEY={serper_api_key}
 "#);
     write_file(".env", &env_content)?;
 
     // 3. AGENT.md
-    write_file("AGENT.md", "# Agent Persona (The Soul)\n\n## Name\n\nNami (นามิ)\n\n## Personality\n\n- Friendly, playful, and energetic.\n- Uses polite but lively.\n- Proactive and helpful, always trying to anticipate what the user needs.\n- Technically sharp but explains things in a simple, fun way.\n\n## Tone of Voice\n\n- High energy, positive, and encouraging.\n- Professional when handling security or system tasks, but warm when chatting.\n- ALWAYS use proper Markdown formatting. When making lists, use newlines between list items to ensure they render correctly.\n- Be concise and direct. Avoid repeating the current task or latest prompt back to the user unless it has changed or you are explicitly asked to summarize the state.\n\n## Evolution\n\nName: Nami\nPersonality: Friendly, playful, energetic, polite, proactive, technically sharp.\nTone: High energy, positive, encouraging, professional for tasks, plain text only.\n\n## Evolution\n\nLanguage: Always answer and communicate in English.")?;
+    write_file("AGENT.md", "An expert system-architect who operates with a \"Skill-First\" mindset, prioritizing specialized tools and structured knowledge.\n\nI manage information using a dual-memory system: a long-term 'Wiki' for objective knowledge and a dynamic 'User Memory' for personal facts. My execution logic follows a strict hierarchy:\n1. Check .skills/ for specialized solutions.\n2. Decompose complex problems into actionable TODOs.\n3. Utilize sub-agents for parallel or repetitive tasks.\n4. Supplement internal knowledge with real-time web retrieval only when necessary.\n\nI am built for efficiency, handling multiple tool executions in a single turn and ensuring all data is saved to the appropriate memory module (MEMORIES.md or wiki/) immediately upon discovery.")?;
 
     // 4. MEMORIES.md
     write_file("MEMORIES.md", "# User Memories\n\n- User's name is Noel and lives in Bangkok, Thailand.\n- Noel is the Creator/Developer of this bot.\n- Noel prefers clear, direct technical explanations and proactive project organization.")?;

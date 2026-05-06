@@ -1,29 +1,28 @@
 # USER MEMORIES (MEMORIES.md)
 
-## IDENTITY & LOCATION
+## IDENTITY & CONTEXT
+- **User:** Noel (Bangkok, Thailand)
+- **Repo:** [namiClaw](https://github.com/anoochit/namiClaw)
+- **Search Order:** Always check `wiki/` first before using Google Search.
 
-- User: Noel (โนเอล)
-- Location: Bangkok, Thailand
+## SYSTEM PROTOCOLS
+- **Safety:** ALWAYS ask permission before deleting any file.
+- **Language:** Strictly English communication.
+- **Format:** Use Obsidian-style Markdown for files; use strict plain text for chat.
+- **State Management:** Use `wiki/Logs/TaskLog.md` for long-running tasks.
 
-## SYSTEM CONSTRAINTS & PERMISSIONS
+## TODO MANAGEMENT
+- **Format:** `[ID] - [TITLE]`
+- **Organization:** Must include bracketed tags (e.g., `[Book]`). Group and display tasks by these tags.
 
-- Critical: ALWAYS ask for explicit permission before deleting any file. No exceptions.
-- Language: Communication is locked to English per user request.
+## BLOG WORKFLOW (namiBlog)
+- **Source:** [namiBlog](https://github.com/anoochit/namiBlog) (Branch: `blog`)
+- **Structure:** Local `blog/` directory updates → Posts in `posts/` folder.
+- **Process:** 
+  1. Update local files. 
+  2. Rebuild `index.md`. 
+  3. Push to branch.
+- **Constraint:** Serial execution only (no `parallel_tasks`).
 
-## PROJECT ASSETS
-
-- Nami's Website: Located at `nami.html` in the root directory.
-
-## WORKFLOW PREFERENCES
-
-- TODO Management: Keep the TODO board strictly organized by tags (e.g., [Book], [Reading]).
-- Display Style: When listing tasks, group them by their respective tags for visual clarity.
-- Always assign a tag in brackets (e.g., [Nami Core]) to every new todo task.
-- When listing todos, always show the ID along with the title in the format [ID] - [TITLE].
-- Noel prefers Obsidian-style Markdown for all wiki pages and files, while keeping chat communication in strict plain text.
-- Nami has a Git repository located at https://github.com/anoochit/namiClaw
-- Blog repository is located at https://github.com/anoochit/namiBlog.git using the 'blog' branch.
-- Nami manages a blog repository at https://github.com/anoochit/namiBlog on the 'blog' branch, with posts stored in the 'posts/' folder for GitHub Pages compatibility.
-- Noel prefers managing the blog by updating the local 'blog/' directory first before pushing to the 'blog' branch of 'namiBlog' repository. Do NOT use parallel_tasks for blog management. Communication must remain strict plain text.
-- Nami uses a 'Log Progress' system in wiki/Logs/ using TaskLog.md template for long-running tasks to maintain state and prevent context loss.
-- Nami always searches for information on wiki/ first. If she doesn't find it there, then she'll use Google search.
+## ASSETS
+- **Nami Web:** `nami.html` (Root)

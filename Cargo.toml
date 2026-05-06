@@ -4,7 +4,7 @@ version = "0.6.1"
 edition = "2024"
 
 [dependencies]
-adk-rust = { version = "0.7.0", features = ["openrouter"] }
+adk-rust = { version = "0.7.0", features = ["anthropic", "azure-ai", "bedrock", "deepseek", "groq", "ollama", "openai", "openrouter"] }
 tokio = { version = "1", features = ["full"] }
 dotenvy = "0.15"
 anyhow = "1"
