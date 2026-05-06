@@ -15,10 +15,7 @@ use runner::AgentRunner;
 #[command(name = "agent-app")]
 struct Cli {
     #[command(subcommand)]
-    command: Option<Commands>,
-
-    #[arg(help = "Direct prompt (shorthand for 'run')")]
-    prompt: Option<String>,
+    command: Commands,
 }
 
 #[derive(Subcommand)]
@@ -36,23 +33,11 @@ async fn main() -> anyhow::Result<()> {
 
     let cli = Cli::parse();
 
-    // Determine the command to run. If no subcommand is provided but a prompt is, default to Run.
-    let command = match (cli.command, cli.prompt) {
-        (Some(cmd), _) => cmd,
-        (None, Some(prompt)) => Commands::Run { prompt },
-        (None, None) => {
-            // If nothing is provided, show help and exit
-            use clap::CommandFactory;
-            Cli::command().print_help()?;
-            return Ok(());
-        }
-    };
-
-    if !matches!(command, Commands::Serve { .. } | Commands::Init) {
+    if !matches!(cli.command, Commands::Serve { .. } | Commands::Init) {
         pretty_env_logger::init();
     }
 
-    if let Commands::Init = command {
+    if let Commands::Init = cli.command {
         modes::init::initialize_project().await?;
         return Ok(());
     }
@@ -67,7 +52,7 @@ async fn main() -> anyhow::Result<()> {
     sessions.migrate().await?;
     let sessions = Arc::new(sessions);
 
-    match command {
+    match cli.command {
         Commands::Bot => {
             log::info!("Running in bot mode");
             let runner = Arc::new(AgentRunner::new(agent, sessions.clone(), "telegram", model));
@@ -79,7 +64,7 @@ async fn main() -> anyhow::Result<()> {
         }
         Commands::Run { prompt } => {
             log::info!("Running in direct run mode");
-            modes::run::run_direct(agent, sessions, model, &prompt).await?;
+            modes::run::run_direct(agent, &prompt).await?;
         }
         Commands::Serve { port } => {
             log::info!("Running in serve mode");

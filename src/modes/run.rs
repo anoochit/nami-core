@@ -1,43 +1,59 @@
-use crate::agent::get_compaction_config;
 use adk_rust::Agent;
 use adk_rust::prelude::*;
-use adk_session::SessionService;
+use adk_rust::session::{SessionService, CreateRequest};
 use futures::StreamExt;
+use std::collections::HashMap;
 use std::sync::Arc;
 
 pub(crate) async fn run_direct(
     agent: Arc<dyn Agent>,
-    sessions: Arc<dyn SessionService>,
-    model: Arc<dyn Llm>,
     prompt: &str,
 ) -> anyhow::Result<()> {
     let app_name = "cli";
     let user_id = "default_user";
-    let session_id = "cli_session";
+
+    let session_service = Arc::new(InMemorySessionService::new());
+
+    // Create session using the correct Rust ADK API
+    let session = session_service.create(CreateRequest {
+        app_name: app_name.to_string(),
+        user_id: user_id.to_string(),
+        session_id: None,          // let the service generate an ID
+        state: HashMap::new(),
+    }).await?;
+
+    let session_id = session.id(); // use the generated session ID
 
     let runner = Runner::builder()
         .app_name(app_name)
         .agent(agent)
-        .session_service(sessions.clone())
-        .compaction_config(get_compaction_config(model))
+        .session_service(session_service)
         .build()?;
 
-    let content = Content::new("user").with_text(prompt);
-    let mut stream = runner.run_str(user_id, session_id, content).await?;
+    let user_content = Content::new("user").with_text(prompt);
 
-    let mut response_buffer = String::new();
-    while let Some(result) = stream.next().await {
-        if let Ok(event) = result
-            && let Some(content) = &event.llm_response.content
-        {
-            for part in &content.parts {
-                if let Some(text) = part.text() {
-                    response_buffer.push_str(text);
+    let mut stream = runner.run_str(user_id, &session_id, user_content).await?;
+    let mut full_response = String::new();
+
+    while let Some(event) = stream.next().await {
+        match event {
+            Ok(event) => {
+                if let Some(content) = &event.llm_response.content {
+                    for part in &content.parts {
+                        if let Some(text) = &part.text() {
+                            print!("{}", text);
+                            full_response.push_str(text);
+                        }
+                    }
                 }
+            }
+            Err(e) => {
+                log::error!("Error running agent: {:?}", e);
+                break;
             }
         }
     }
+    println!();
 
-    termimad::print_text(&response_buffer);
     Ok(())
 }

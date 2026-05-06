@@ -193,7 +193,7 @@ fn render_banner(provider: &str, model_name: &str) {
     println!("Press ESC during a request to cancel it.\n");
 }
 
-async fn ensure_session(
+pub(crate) async fn ensure_session(
     sessions: &Arc<dyn SessionService>,
     app_name: &str,
     user_id: &str,
