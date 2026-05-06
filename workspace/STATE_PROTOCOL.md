@@ -1,30 +1,31 @@
-# State Management Protocol
+# 🧠 State Management Protocol
 
-This protocol ensures that long-running tasks maintain continuity across sessions by using the `StateManager` tool as a "Long-term Memory."
+This protocol ensures that long-running tasks maintain continuity across sessions by using the `StateManager` tool as the system's "Long-term Memory."
 
 ## 1. Resume Phase (Mandatory Checkpoint)
 At the start of every session or when continuing a known task:
 - **First Action**: Call `get_task(task_id)` to retrieve the current "ground truth."
-- **Alternative**: If the `task_id` is unknown, call `list_active_tasks()` to see what needs attention.
-- **Rule**: Do not rely on internal memory or previous conversation turns for the current status. Use the tool.
+- **Alternative**: If the `task_id` is unknown or you are starting a new session, call `list_active_tasks()` to identify tasks requiring attention.
+- **Rule**: Do not rely on internal memory or previous conversation turns for the current status. The `StateManager` is the only source of truth.
 
 ## 2. Execution Phase
-Work on the task as usual.
-- If a sub-step is completed, update its status.
-- If critical data (URLs, IDs, specific strings) is gathered, store it in the `context_payload`.
-- Be proactive in checkpointing significant progress.
+Work on the task as usual while keeping the persistent state synchronized:
+- **Step Tracking**: If a sub-step is completed, update the `steps` list via `update_task`.
+- **Data Persistence**: If critical variables (URLs, IDs, specific strings, or partial results) are gathered, store them in the `context_payload`.
+- **Checkpointing**: Be proactive. Update the state after every significant sub-task completion to ensure no work is lost if the session is interrupted.
 
-## 3. Suspend Phase (Save Progress)
-Before ending a turn or moving to a different high-level task:
+## 3. Suspend Phase (Checkpointing)
+Before ending a turn, switching to a different high-level objective, or when stuck:
 - **Mandatory Action**: Call `update_task`.
 - **Status Selection**:
     - `in_progress`: Task is active and has clear next steps.
-    - `blocked`: You are stuck and need user intervention or external events.
+    - `blocked`: You are stuck and require user intervention or an external event.
     - `completed`: The goal is fully achieved.
-    - `failed`: The task cannot be completed.
-- **Summary**: Be concise in `last_step`.
-- **Context**: Store **only** what is needed to resume (e.g., "Last processed item index: 42").
+    - `failed`: The task cannot be completed as planned.
+- **Summary**: Be concise but descriptive in the `last_step` field.
+- **Context Payload**: Store **only** the essential data needed for a future self to resume the work immediately.
 
-## 4. Transitioning from TaskLog.md
-- **New Tasks**: Always use `init_task`.
-- **Legacy Tasks**: For tasks currently in `TaskLog.md`, initialize them via the tool and move the current steps/status into the tool's state. You can then retire the `.md` file for that specific task.
+## 4. Best Practices
+- **Atomic Updates**: Keep the `last_step` summary focused on the most recent action.
+- **Payload Integrity**: Maintain the `context_payload` as a valid JSON object containing only high-signal data.
+- **Clear Goals**: Ensure the `goal` provided during `init_task` is specific and measurable.
