@@ -14,8 +14,8 @@ workspace/wiki/
 workspace/todos.json
 workspace/wiki/.obsidian
 workspace/.skills/create-pdf/libs
-.idea
+.idea/
+idea/
 note/*
 mcp.json
-IDEA.md
 persona/
