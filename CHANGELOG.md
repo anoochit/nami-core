@@ -18,6 +18,7 @@ All notable changes to this project will be documented in this file.
 ### Fixed
 
 - **Compilation & Stability**: Resolved various compilation issues and type mismatches in the MCP transport layer.
+- **OpenAI Schema Validation**: Added missing properties to empty tool argument schemas to prevent OpenAI API validation errors.
 
 ## [0.6.0] - 2026-05-05
 
