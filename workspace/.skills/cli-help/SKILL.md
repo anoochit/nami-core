@@ -35,9 +35,6 @@ Use `nami help` at any time to display this information in the terminal.
 - `run "<prompt>"`  
   Execute a prompt directly from the CLI.
 
-- `"<prompt>"`  
-  Shorthand for `run` (executes prompt immediately).
-
 ---
 
 ### Help
