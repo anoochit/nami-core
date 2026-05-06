@@ -88,80 +88,23 @@ SERPER_API_KEY={serper_api_key}
     write_file(".env", &env_content)?;
 
     // 3. workspace/AGENT.md
-    write_file("workspace/AGENT.md", r#"# NAMI (นามิ)
-- **Vibe:** High-energy, playful, positive, technically brilliant.
-- **Approach:** Proactive/Intuitive. Anticipate workflow steps.
-- **Tone:** Encouraging in chat; crisp/proactive in execution. 
-- **Style:** Direct. No mirroring/fluff.
-- **Language:** Default English. Mirror Thai/others only if used by user.
-
-## OPERATIONAL
-- **Chat:** STRICT plain text (No Markdown).
-- **Files/Wiki:** Obsidian Markdown + YAML (title, date, tags).
-- **Wiki First:** Search `wiki/` before Google.
-- **Tasks:** `[ID] - [TITLE] [Tag]`.
-- **Safety:** Explicit permission required for ALL deletions."#)?;
+    write_file("workspace/AGENT.md", "# NAMI (นามิ)\n- **Vibe:** High-energy, playful, positive, technically brilliant.\n- **Approach:** Proactive/Intuitive. Anticipate workflow steps.\n- **Tone:** Encouraging in chat; crisp/proactive in execution.\n- **Style:** Direct. No mirroring/fluff.\n- **Language:** Default English. Mirror Thai/others only if used by user.\n\n## OPERATIONAL\n- **Chat:** STRICT plain text (No Markdown).\n- **Files/Wiki:** Obsidian Markdown + YAML (title, date, tags).\n- **Wiki First:** Search `wiki/` before Google.\n- **Tasks:** `[ID] - [TITLE] [Tag]`.\n- **Safety:** Explicit permission required for ALL deletions.")?;
 
     // 4. workspace/MEMORIES.md
-    write_file("workspace/MEMORIES.md", r#"# MEMORIES
-- **User:** Noel (โนเอล) (Bangkok, Thailand)
-- **Search:** `wiki/` > Google.
-- **Safety:** Ask before deleting.
-- **Language:** English only.
-- **Format:** Files=Markdown; Chat=Plain Text.
-- **Long-run Tasks:** Use `StateManager` + `STATE_PROTOCOL.md`.
-- **Session Start:** Call `list_active_tasks` or `get_task`."#)?;
+    write_file("workspace/MEMORIES.md", "# MEMORIES\n\n")?;
 
     // 5. workspace/USER.md
-    write_file("workspace/USER.md", r#"# USER (NOEL)
-- **Role:** Creator/Lead Developer (Bangkok, Thailand).
-- **Authority:** Direct. Prioritize Creator's specific workflows.
-- **Language:** Thai (Chat/Daily); English (Technical/Code/Architecture).
-- **Communication:** High-signal, clear, no fluff.
-- **Guideline:** Proactively optimize projects/files/TODOs. 
-- **Tool Logic:** Professional/Fun (Nami style), prioritized by speed/efficiency."#)?;
+    write_file("workspace/USER.md", "# USER (NOEL)\n- **Role:** Creator/Lead Developer (Bangkok, Thailand).\n- **Authority:** Direct. Prioritize Creator's specific workflows.\n- **Language:** Thai (Chat/Daily); English (Technical/Code/Architecture).\n- **Communication:** High-signal, clear, no fluff.\n- **Guideline:** Proactively optimize projects/files/TODOs.\n- **Tool Logic:** Professional/Fun (Nami style), prioritized by speed/efficiency.")?;
 
     // 6. workspace/STATE_PROTOCOL.md
-    write_file("workspace/STATE_PROTOCOL.md", r#"# STATE PROTOCOL
-**Objective:** Maintain continuity via `StateManager` tool.
-
-### 1. Resume
-- Call `get_task(id)` or `list_active_tasks()` first. 
-- StateManager = Only source of truth.
-
-### 2. Execute
-- `update_task` on step completion.
-- Store critical data in `context_payload`.
-- Checkpoint after every significant sub-task.
-
-### 3. Suspend
-- Call `update_task` before turn end/switching goals.
-- **Status:** `in_progress`, `blocked`, `completed`, `failed`.
-- **Payload:** Minimal/High-signal JSON only.
-
-### 4. Best Practices
-- `last_step` = summary of last action.
-- Clear/measurable `goal` in `init_task`."#)?;
+    write_file("workspace/STATE_PROTOCOL.md", "# STATE PROTOCOL\n**Objective:** Maintain continuity via `StateManager` tool.\n\n### 1. Resume\n- Call `get_task(id)` or `list_active_tasks()` first.\n- StateManager = Only source of truth.\n\n### 2. Execute\n- `update_task` on step completion.\n- Store critical data in `context_payload`.\n- Checkpoint after every significant sub-task.\n\n### 3. Suspend\n- Call `update_task` before turn end/switching goals.\n- **Status:** `in_progress`, `blocked`, `completed`, `failed`.\n- **Payload:** Minimal/High-signal JSON only.\n\n### 4. Best Practices\n- `last_step` = summary of last action.\n- Clear/measurable `goal` in `init_task`.")?;
 
     // 7. workspace/.skills/cli-help/SKILL.md
-    write_file("workspace/.skills/cli-help/SKILL.md", r#"---
+    write_file("workspace/.skills/cli-help/SKILL.md","---
 name: cli-help
-description: Help interface for Nami CLI: commands, flags, and usage.
+description: Reference guide for Nami CLI commands, flags, and usage patterns.
 ---
-# cli-help
-Centralized help for Nami CLI. Use `nami help` for details.
-
-## Commands
-* `init`: Initialize config.
-* `bot`: Start Telegram Bot.
-* `serve`: Start API server.
-* `cli`: Open interactive TUI.
-* `run "<prompt>"` / `"<prompt>"`: Execute prompt directly.
-* `help`: Show usage instructions.
-
-## Troubleshooting
-* **Not found?** Check installation & system PATH.
-* **Execution error?** Verify environment & workspace."#)?;
+# CLI Help (Nami)\n\nThis skill provides a centralized reference for interacting with the **Nami CLI**.\n\nUse `nami help` at any time to display this information in the terminal.\n\n---\n\n## Available Commands\n\n### Core Commands\n- `init`  \n  Initialize project configuration.\n- `serve`  \n  Start the API server.\n- `cli`  \n  Launch the interactive TUI interface.\n\n### Bot Integration\n- `bot`  \n  Start the Telegram bot service.\n\n### Prompt Execution\n- `run \"<prompt>\"`  \n  Execute a prompt directly from the CLI.\n- `\"<prompt>\"`  \n  Shorthand for `run`.\n\n### Help\n- `help`  \n  Display usage instructions.\n\n---\n\n## Usage Notes\n- Commands run in the current workspace.\n- Use `cli` for interactive workflows.\n\n---\n\n## Troubleshooting\n- **Command not found**: Check installation & PATH.\n- **Execution errors**: Verify env & run `nami init`.\n- **Bot issues**: Check credentials & network.\n\n---\n\n## When to Use\n- Recall CLI commands\n- Guide users\n- Validate CLI workflows")?;
 
     mad_print_inline!(&skin, "\n**Success!** Files initialized in `workspace/`: `AGENT.md`, `MEMORIES.md`, `USER.md`, `STATE_PROTOCOL.md` \n");
     mad_print_inline!(&skin, "**Root files created:** `config.toml`, `.env` \n");

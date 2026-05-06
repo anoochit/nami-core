@@ -1,28 +1,78 @@
 ---
 name: cli-help
-description: Provides a standardized help interface for the Nami CLI, detailing available commands, flags, and usage patterns.
+description: Reference guide for Nami CLI commands, flags, and usage patterns.
 ---
 
-# cli-help
+# CLI Help (Nami)
 
-This skill provides a centralized help interface for the Nami CLI.
+This skill provides a centralized reference for interacting with the **Nami CLI**.
 
-## Overview
-The Nami CLI offers comprehensive support for managing your workflow. Access the help information by using the standard command:
+Use `nami help` at any time to display this information in the terminal.
 
-```bash
-nami help
-```
+---
 
 ## Available Commands
-- `nami init`: Initialize a configuration.
-- `nami bot`: Start the interactive Telegram Bot.
-- `nami serve`: Start the local server for API interactions.
-- `nami cli`: Local interactive terminal agent with rich TUI.
-- `nami run "<prompt>"`: Execute a single prompt directly from the CLI.
-- `nami "<prompt>"`: Execute a single prompt directly from the CLI.
-- `nami help`: Display detailed usage instructions for specific commands.
+
+### Core Commands
+- `init`  
+  Initialize project configuration.
+
+- `serve`  
+  Start the API server.
+
+- `cli`  
+  Launch the interactive TUI interface.
+
+---
+
+### Bot Integration
+- `bot`  
+  Start the Telegram bot service.
+
+---
+
+### Prompt Execution
+- `run "<prompt>"`  
+  Execute a prompt directly from the CLI.
+
+- `"<prompt>"`  
+  Shorthand for `run` (executes prompt immediately).
+
+---
+
+### Help
+- `help`  
+  Display usage instructions and available commands.
+
+---
+
+## Usage Notes
+
+- Commands can be executed from any directory with a valid Nami setup.
+- Prompts passed via CLI are executed in the current workspace context.
+- Interactive mode (`cli`) is recommended for exploratory workflows.
+
+---
 
 ## Troubleshooting
-- If commands are not found, ensure the Nami CLI is installed and in your system PATH.
-- For issues with command execution, verify your environment configuration and ensure you are within a valid Nami workspace.
+
+- **Command not found**
+  - Ensure Nami CLI is installed.
+  - Verify that the binary is available in your system `PATH`.
+
+- **Execution errors**
+  - Check environment variables and configuration files.
+  - Ensure the workspace is properly initialized (`nami init`).
+
+- **Bot not starting**
+  - Verify required credentials (e.g., Telegram token).
+  - Check network connectivity.
+
+---
+
+## When to Use This Skill
+
+Use this skill when:
+- You need to recall CLI commands or syntax.
+- You want to guide a user on how to use Nami CLI.
+- You are constructing or validating CLI-based workflows.
