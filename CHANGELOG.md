@@ -2,7 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
-## [0.6.2] - 2026-05-06
+## [0.6.3] - 2026-05-06
+
+### Changed
+
+- **CLI Command Structure**: Simplified the CLI entry point by removing the optional prompt field and requiring explicit subcommands, improving consistency.
+- **Direct Run Mode**: Updated the `run` command to use the standardized `adk-rust` session creation API for more robust and reliable execution.
+
 
 ### Added
 

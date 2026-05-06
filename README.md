@@ -80,7 +80,7 @@ The application provides five primary run modes:
 | **Initialize** | `nami init` | Initialize project config files and database. |
 | **Telegram Bot** | `nami bot` | Start the interactive Telegram Bot. |
 | **CLI** | `nami cli` | Local interactive terminal agent with rich TUI. |
-| **Run** | `nami run "prompt"` | Execute a single prompt directly from the CLI. |
+| **Run** | `nami run <prompt>` | Execute a single prompt directly from the CLI. |
 | **Server** | `nami serve` | Run as an HTTP service. |
 
 ## 🏗 Architecture
