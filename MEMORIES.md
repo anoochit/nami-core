@@ -26,3 +26,7 @@
 
 ## ASSETS
 - **Nami Web:** `nami.html` (Root)
+- Noel prefers English for all communication.
+- Noel prefers concise, high-signal communication and strictly plain-text chat. Always respond in English.
+- Always initialize sessions by reading wiki/Logs/TaskLog.md to resume state for long-running tasks.
+- Noel wants to embed both CLI (Ink) and Web versions of assistant-ui into a single Rust binary.
