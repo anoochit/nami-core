@@ -155,9 +155,9 @@ The bot uses a structured state management system to maintain continuity across 
 
 ### Persona & Memories
 
-* **AGENT.md**: Defines the "Soul" of the bot.
-* **USER.md**: Defines the context of the master.
-* **MEMORIES.md**: Automatically updated by the bot when it learns personal facts about the user.
+* **workspace/AGENT.md**: Defines the "Soul" of the bot.
+* **workspace/USER.md**: Defines the context of the master.
+* **workspace/MEMORIES.md**: Automatically updated by the bot when it learns personal facts about the user.
 
 ### Publishing Skills
 
