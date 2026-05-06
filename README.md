@@ -12,9 +12,10 @@ A modular, extensible AI-powered `Nami` built on top of [adk-rust](https://githu
 * **Hybrid MCP Support**: Seamlessly connect to both local (stdio-based) and remote (streamable HTTP/SSE) [Model Context Protocol](https://modelcontextprotocol.io/) servers. Tools are automatically namespaced with `mcp_` to prevent collisions.
 * **Parallel Task Execution**: A custom `parallel_tasks` tool that orchestrates multiple sub-agents simultaneously for high-speed multi-tasking.
 * **Markdown Wiki KM**: A transparent, human-readable Knowledge Management system using `.md` files, featuring automatic Obsidian-style frontmatter and header generation.
-* **Dynamic Persona & Soul**: Configure the bot's personality and user context via `AGENT.md` and `USER.md`.
+* **Dynamic Persona & Soul**: Configure the bot's personality and user context via `workspace/AGENT.md` and `workspace/USER.md`.
 * **Persistent Sessions**: SQLite-backed conversation history keyed by Telegram user ID.
 * **Modular Tools**: Organized architecture for adding capabilities (Weather, Search, Shell, Wiki, etc.).
+* **State Management**: A structured JSON-based system for tracking long-running tasks, guided by `workspace/STATE_PROTOCOL.md`.
 * **Live Web Search**: Integrated Google Search via Serper.dev.
 * **Todo Management**: Integrated task tracking and list management.
 * **Sandboxed Environment**: Integrated filesystem tools for agent tasks within a `workspace/` directory, now protected by a **`.namiignore` policy** (similar to `.gitignore`) to control access permissions.
@@ -43,8 +44,8 @@ SERPER_API_KEY=your_serper_api_key
 
 1. Customize the Bot's Soul:
 
-* Edit `AGENT.md` to change the name, personality, and tone.
-* Edit `USER.md` to provide context about yourself and your preferences.
+* Edit `workspace/AGENT.md` to change the name, personality, and tone.
+* Edit `workspace/USER.md` to provide context about yourself and your preferences.
 
 ## 🏃 Getting Started
 

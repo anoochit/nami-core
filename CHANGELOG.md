@@ -2,6 +2,24 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.6.2] - 2026-05-06
+
+### Added
+
+- **Structured State Management**: Introduced the `StateManager` tool (`init_task`, `update_task`, `get_task`, `list_active_tasks`) for reliable tracking of long-running processes.
+- **State Protocol**: Added `workspace/STATE_PROTOCOL.md` to provide the agent with mandatory guidelines for session continuity.
+
+### Changed
+
+- **Persona Migration**: Moved `AGENT.md`, `USER.md`, and `MEMORIES.md` from the project root to the `workspace/` directory for centralized management.
+- **Context Optimization**: Refactored `AGENT.md`, `USER.md`, `MEMORIES.md`, and `STATE_PROTOCOL.md` into high-density, token-efficient formats.
+- **Instruction Template**: Optimized the core agent instruction template in `src/agent/agent.rs` to reduce per-turn token overhead.
+- **Always-On Protocol**: Integrated the `STATE_PROTOCOL.md` directly into the agent's core system instructions.
+
+### Removed
+
+- **Manual Task Logs**: Deleted the obsolete `TaskLog.md` template and logs in favor of the structured tool-based approach.
+
 ## [0.6.1] - 2026-05-05
 
 ### Added
