@@ -65,6 +65,7 @@ pub async fn initialize_project() -> anyhow::Result<()> {
 
     // Ensure workspace directory exists
     std::fs::create_dir_all("workspace")?;
+    std::fs::create_dir_all("workspace/.skills/cli-help")?;
 
     // 1. config.toml
     let config_content = format!(
@@ -141,6 +142,11 @@ SERPER_API_KEY={serper_api_key}
 ### 4. Best Practices
 - `last_step` = summary of last action.
 - Clear/measurable `goal` in `init_task`."#)?;
+
+    // 7. workspace/.skills/cli-help/SKILL.md
+    write_file("workspace/.skills/cli-help/SKILL.md", r#"# CLI Help Skill
+- **Goal:** Assist users with Nami CLI commands and configuration.
+- **Usage:** Provide clear, concise command breakdowns, flag explanations, and troubleshooting steps for the CLI."#)?;
 
     mad_print_inline!(&skin, "\n**Success!** Files initialized in `workspace/`: `AGENT.md`, `MEMORIES.md`, `USER.md`, `STATE_PROTOCOL.md` \n");
     mad_print_inline!(&skin, "**Root files created:** `config.toml`, `.env` \n");
