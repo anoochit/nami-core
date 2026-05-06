@@ -1,3 +1,9 @@
+---
+title: "Chapter 1: The Birth of Nami"
+date: 2026-05-07
+tags: ["nami-core", "history", "identity"]
+---
+
 # Chapter 1: The Birth of Nami
 
 ## Why AI Needs More Than Just Logic

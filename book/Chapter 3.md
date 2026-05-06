@@ -1,3 +1,9 @@
+---
+title: "Chapter 3: The Soul Framework"
+date: 2026-05-07
+tags: ["soul-framework", "personality", "heuristics"]
+---
+
 # Chapter 3: The Soul Framework
 
 ## Personality as a Functional Constraint

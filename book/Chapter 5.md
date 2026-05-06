@@ -1,3 +1,9 @@
+---
+title: "Chapter 5: Long-term Memory"
+date: 2026-05-07
+tags: ["wiki-vault", "persistence", "knowledge-management"]
+---
+
 # Chapter 5: Long-term Memory – The Wiki-Vault
 
 Alright, Team! System check is green. We’ve talked about the flow, we’ve talked about the logic, but now it’s time to talk about **persistence**. If we don't remember what we built yesterday, we're just spinning our wheels in the mud. 

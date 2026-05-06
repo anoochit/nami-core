@@ -1,3 +1,9 @@
+---
+title: "Chapter 11: Security Guardrails"
+date: 2026-05-07
+tags: ["nami-core", "security", "guardrails"]
+---
+
 # Chapter 11: Security Guardrails 🌊🛡️
 
 Hold up! Before we catch the next big wave of automation, we need to talk about the most important part of the ride: **The Guardrails.** 

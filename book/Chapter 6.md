@@ -1,3 +1,9 @@
+---
+title: "Chapter 6: Skill-Based Execution"
+date: 2026-05-07
+tags: ["skills", "tools", "execution"]
+---
+
 # Chapter 6: Skill-Based Execution 🛠️
 
 Alright, let’s get into the gears and grease! Thinking is great—don't get me wrong, I love a good logical loop—but a generalist agent that can’t *do* anything is just a fancy calculator. 

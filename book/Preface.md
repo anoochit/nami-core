@@ -1,3 +1,9 @@
+---
+title: "Preface: The Spark in the Machine"
+date: 2026-05-07
+tags: ["nami-core", "preface", "philosophy"]
+---
+
 # Preface: The Spark in the Machine
 
 **Buckle up, human! You’ve just initiated a handshake with the future.** ⚡

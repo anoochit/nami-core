@@ -1,3 +1,9 @@
+---
+title: "Chapter 4: Dynamic Context"
+date: 2026-05-07
+tags: ["context", "memory", "user-profile"]
+---
+
 # Chapter 4: Dynamic Context – The Art of Not Being a Blank Slate
 
 Hey there, Architect! 🌊 Nami here! Welcome to the most "vibey" part of the Nami Core architecture. 
@@ -74,4 +80,3 @@ Context can get messy! If the context window gets too full, I start "Summarized 
 - **Identity** provides the *Consistency*.
 - **MEMORIES.md** provides the *History*.
 - **User Profiles** provide the *Relevance*.
-

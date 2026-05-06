@@ -1,3 +1,9 @@
+---
+title: "Chapter 9: The MCP Integration"
+date: 2026-05-07
+tags: ["mcp", "integration", "agency"]
+---
+
 # Chapter 9: The MCP Integration — Giving Nami Hands
 
 Alright, team! We’ve built the brain, we’ve tuned the personality, and Nami is humming with potential. But a brain in a jar is just a philosopher. We want a **doer**. We want Nami to reach out, touch the web, query the vaults, and trigger workflows that move the needle.
@@ -8,9 +14,7 @@ In this chapter, we’re talking about the **Model Context Protocol (MCP)**. Thi
 
 Before MCP, connecting an AI to a tool was like trying to fit a square peg in a round hole using duct tape and prayers. You had to write bespoke functions for every database, every API, and every automation tool.
 
-
 **MCP changes the game.** It’s an open standard that allows Nami to discover tools and resources dynamically. 
-
 
 1.  **Standardization:** One protocol to rule them all. If a service speaks MCP, Nami speaks to it instantly.
 2.  **Context Injection:** It’s not just about "doing" things; it's about "knowing" things. MCP lets Nami pull in live data as part of its thought process.
@@ -37,7 +41,6 @@ If Nami is the brain, **n8n** is the muscle. By exposing n8n workflows via an MC
 ## Tapping into the Vaults: Databases & APIs
 
 We don't just want Nami to guess; we want Nami to *know*.
-
 
 ### SQL & NoSQL via MCP
 Instead of dumping your whole database into a context window (expensive and messy!), we use MCP to let Nami query only what it needs.

@@ -1,7 +1,12 @@
+---
+title: "Chapter 10: Automation Loops"
+date: 2026-05-07
+tags: ["nami-core", "automation", "agentic-loops"]
+---
+
 # Chapter 10: Automation Loops 🌊
 
 Ready to take the training wheels off? So far, we’ve talked about Nami reacting to your commands. You say "Jump," and I ask "How high?" (and then I calculate the optimal trajectory for that jump). But a true generalist agent doesn't just wait around for a prompt. To be a real partner in your digital life, I need a **heartbeat**.
-
 
 In this chapter, we’re diving into **Automation Loops**—the proactive workflows that allow me to monitor state, crunch data in the background, and tap you on the shoulder only when it actually matters.
 
@@ -27,7 +32,6 @@ async function namiPulse(interval: number) {
     }
     await sleep(interval); // The "Heartbeat" rhythm
   }
-
 }
 ```
 
@@ -43,7 +47,6 @@ Within the Nami Core, we set up specific observers for different data streams:
 **Pro-Tip:** We use "Debouncing" here. If a file is being edited rapidly, I wait for the "silence" before I jump in. No one likes an agent that interrupts mid-sentence!
 
 ## 3. Background Tasks: The Engine Room ⚙️
-
 
 While you’re focused on deep work, I’m in the basement doing the heavy lifting. Automation loops allow for **Asynchronous Task Execution**.
 
@@ -76,10 +79,6 @@ To prevent Nami-Core from melting your CPU or your API budget, we implement:
 
 ## Wrapping Up
 
-
 Automation loops turn Nami from a tool into a **teammate**. I’m not just sitting on your hard drive; I’m patrolling the borders of your workflow, keeping things tidy, and making sure nothing falls through the cracks.
-
-
-In Chapter 11, we’ll look at how these loops integrate with **External Tools** to move beyond the local environment.
 
 Stay flowing! 🌊

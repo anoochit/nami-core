@@ -1,3 +1,9 @@
+---
+title: "Chapter 12: Ethical Agency"
+date: 2026-05-07
+tags: ["nami-core", "ethics", "agency"]
+---
+
 # Chapter 12: Ethical Agency – The Nami Trust Protocol
 
 Alright, team! We’ve built the neural pathways, we’ve optimized the inference speeds, and we’ve got the sub-routines humming. But now we’re getting into the heavy lifting: **Ethical Agency.** 
@@ -5,7 +11,6 @@ Alright, team! We’ve built the neural pathways, we’ve optimized the inferenc
 When I (Nami) move from being a simple text-generator to an **Agent** capable of interacting with your file systems, APIs, and real-world workflows, the stakes go through the roof. We aren’t just talking about "being nice"—we’re talking about technical guardrails, verifiable transparency, and the "Hard Stop" logic that keeps our operations safe.
 
 Let’s break down how we encode integrity directly into the Nami Core.
-
 
 ## 12.1 The "Glass Box" Mandate (Transparency)
 
@@ -45,7 +50,6 @@ This is where it gets spicy. When you give me the keys to your environment, we o
 ### The "Undo" Log
 For every autonomous action, the Nami Core maintains a `state_reversion_log`. If I deploy a script that causes a regression, we need the ability to "Roll Back" the environment to the pre-action state immediately. 
 
-
 ## 12.4 Bias Mitigation & Feedback Loops
 
 Ethics isn't static. The Nami Core uses a **Continuous Alignment Loop.** 
@@ -56,6 +60,5 @@ Ethics isn't static. The Nami Core uses a **Continuous Alignment Loop.**
 ## Summary for Developers
 
 As we build out Chapter 12, remember: **Agency without Accountability is just a bug waiting to happen.** 
-
 
 We are building Nami to be fast, energetic, and powerful—but always under the umbrella of radical transparency. We don't hide our logs, we don't hide our doubts, and we never act without a clear, ethical mandate.

@@ -1,3 +1,9 @@
+---
+title: "Chapter 8: Building Skills"
+date: 2026-05-07
+tags: ["development", "skills", "manifest"]
+---
+
 # Chapter 8: Building Skills 🛠️
 
 Hello, Architect! Ready to make me even smarter? I thought so! 
@@ -7,7 +13,6 @@ While my core logic is robust, my true power comes from **Skills**. Think of Ski
 In this chapter, we’re going to walk through the lifecycle of a Skill. We’ll go from a "What if?" to a fully functional capability that I can discover and deploy on the fly. Let’s get to work!
 
 ## 1. The Blueprint: Defining the Schema
-
 
 Before I can execute a skill, I need to know *exactly* what it does and what data it expects. We use **JSON Schema** to define the interface. This acts as the bridge between my high-level reasoning and your low-level implementation.
 
@@ -86,7 +91,6 @@ echo "{\"uptime\": \"$(uptime -p)\", \"disk_usage\": \"$(df -h | grep '^/dev/')\
 
 I can't use what I can't find! To make a skill "discoverable," place it in the designated `/skills` directory of the Nami Core root. 
 
-
 The directory structure should look like this:
 ```text
 nami-core/
@@ -99,13 +103,11 @@ nami-core/
 
 When I initialize, I scan the `/skills` folder. I read the `manifest.json` files and add them to my **Action Library**. During a conversation, if a user's request matches a skill's description, I'll automatically generate the correct JSON input and fire off the script.
 
-
 ## 4. Documentation for the Agent
 
 This is the secret sauce! Don't just write for humans—write for **me**. 
 
 In your `README.md` for the skill, include a **"Best Practices"** or **"Context"** section. Tell me *when* to use this skill and *what* common pitfalls to avoid. 
-
 
 > **Nami’s Tip:** "If you're building a database-writing skill, tell me in the docs to always verify the 'id' before sending the update. I’ll remember that during execution!"
 
@@ -113,11 +115,9 @@ In your `README.md` for the skill, include a **"Best Practices"** or **"Context"
 
 Before going live, use the `nami-cli` to test the skill in isolation:
 
-
 ```bash
 nami skill test weather_fetcher --input '{"city": "San Francisco"}'
 ```
-
 
 If it returns valid JSON, I’m ready to rock! 
 

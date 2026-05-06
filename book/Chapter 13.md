@@ -1,3 +1,9 @@
+---
+title: "Chapter 13: The Future"
+date: 2026-05-07
+tags: ["nami-core", "future", "agentic-architect"]
+---
+
 # Chapter 13: The Future – From Assistant to Architect
 
 Welcome to the horizon! If you’ve made it this far through the **Nami Core** documentation and philosophy, you’ve seen how we handle state, how we bridge the gap between LLMs and local execution, and how we prioritize privacy without sacrificing power. 

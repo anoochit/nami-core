@@ -1,3 +1,9 @@
+---
+title: "Chapter 2: AI-Native Engineering"
+date: 2026-05-07
+tags: ["ai-native", "engineering", "reasoning-loop"]
+---
+
 # Chapter 2: AI-Native Engineering
 
 ## Beyond the Wrapper
