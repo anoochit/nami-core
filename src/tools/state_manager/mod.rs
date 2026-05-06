@@ -59,14 +59,6 @@ struct InitTaskArgs {
 }
 
 #[derive(Deserialize, JsonSchema)]
-struct StepUpdate {
-    /// Description of the step.
-    description: String,
-    /// Whether the step is completed.
-    completed: bool,
-}
-
-#[derive(Deserialize, JsonSchema)]
 struct UpdateTaskArgs {
     /// The ID of the task to update.
     task_id: String,
@@ -76,8 +68,8 @@ struct UpdateTaskArgs {
     last_step: Option<String>,
     /// Data needed for the next run (JSON object).
     context_payload: Option<Value>,
-    /// Updated list of steps (replaces existing if provided).
-    steps: Option<Vec<StepUpdate>>,
+    /// Updated list of steps as JSON array: [{"description": "...", "completed": bool}]
+    steps: Option<Value>,
 }
 
 #[derive(Deserialize, JsonSchema)]
@@ -112,83 +104,158 @@ async fn save_states(states: &[TaskState]) -> std::result::Result<(), AdkError> 
         .map_err(|e| AdkError::tool(format!("Failed to write task states: {}", e)))
 }
 
-/// Initializes a new long-running task.
-#[tool]
-async fn init_task(args: InitTaskArgs) -> std::result::Result<Value, AdkError> {
-    let mut states = load_states().await?;
-    if states.iter().any(|t| t.task_id == args.task_id) {
-        return Err(AdkError::tool(format!("Task with ID '{}' already exists", args.task_id)));
+// --- Tools Implementation ---
+
+pub struct InitTask;
+#[async_trait::async_trait]
+impl Tool for InitTask {
+    fn name(&self) -> &str { "init_task" }
+    fn description(&self) -> &str { "Initializes a new long-running task." }
+    fn parameters_schema(&self) -> Option<Value> {
+        Some(json!({
+            "type": "object",
+            "properties": {
+                "task_id": { "type": "string", "description": "Unique identifier for the task." },
+                "goal": { "type": "string", "description": "High-level objective of the task." },
+                "steps": { 
+                    "type": "array", 
+                    "items": { "type": "string" },
+                    "description": "List of initial execution steps (descriptions)."
+                }
+            },
+            "required": ["task_id", "goal", "steps"]
+        }))
     }
-
-    let steps = args.steps.into_iter().map(|d| Step { description: d, completed: false }).collect();
-    
-    let new_task = TaskState {
-        task_id: args.task_id.clone(),
-        status: TaskStatus::InProgress,
-        goal: args.goal,
-        steps,
-        last_step: None,
-        context_payload: json!({}),
-        updated_at: Utc::now(),
-    };
-
-    states.push(new_task);
-    save_states(&states).await?;
-    Ok(json!({"status": "success", "message": format!("Task '{}' initialized", args.task_id)}))
-}
-
-/// Updates the state of an existing task.
-#[tool]
-async fn update_task(args: UpdateTaskArgs) -> std::result::Result<Value, AdkError> {
-    let mut states = load_states().await?;
-    if let Some(task) = states.iter_mut().find(|t| t.task_id == args.task_id) {
-        if let Some(status_str) = args.status {
-            task.status = status_str.parse()?;
-        }
-        if let Some(last_step) = args.last_step {
-            task.last_step = Some(last_step);
-        }
-        if let Some(payload) = args.context_payload {
-            task.context_payload = payload;
-        }
-        if let Some(steps) = args.steps {
-            task.steps = steps.into_iter().map(|s| Step {
-                description: s.description,
-                completed: s.completed,
-            }).collect();
-        }
-        task.updated_at = Utc::now();
+    async fn execute(&self, _ctx: Arc<dyn ToolContext>, args: Value) -> std::result::Result<Value, AdkError> {
+        let args: InitTaskArgs = serde_json::from_value(args)
+            .map_err(|e| AdkError::tool(format!("Invalid arguments: {}", e)))?;
         
+        let mut states = load_states().await?;
+        if states.iter().any(|t| t.task_id == args.task_id) {
+            return Err(AdkError::tool(format!("Task with ID '{}' already exists", args.task_id)));
+        }
+
+        let steps = args.steps.into_iter().map(|d| Step { description: d, completed: false }).collect();
+        
+        let new_task = TaskState {
+            task_id: args.task_id.clone(),
+            status: TaskStatus::InProgress,
+            goal: args.goal,
+            steps,
+            last_step: None,
+            context_payload: json!({}),
+            updated_at: Utc::now(),
+        };
+
+        states.push(new_task);
         save_states(&states).await?;
-        Ok(json!({"status": "success", "message": format!("Task '{}' updated", args.task_id)}))
-    } else {
-        Err(AdkError::tool(format!("Task '{}' not found", args.task_id)))
+        Ok(json!({"status": "success", "message": format!("Task '{}' initialized", args.task_id)}))
     }
 }
 
-/// Retrieves the current state of a specific task.
-#[tool]
-async fn get_task(args: TaskIdArgs) -> std::result::Result<Value, AdkError> {
-    let states = load_states().await?;
-    if let Some(task) = states.into_iter().find(|t| t.task_id == args.task_id) {
-        Ok(json!(task))
-    } else {
-        Err(AdkError::tool(format!("Task '{}' not found", args.task_id)))
+pub struct UpdateTask;
+#[async_trait::async_trait]
+impl Tool for UpdateTask {
+    fn name(&self) -> &str { "update_task" }
+    fn description(&self) -> &str { "Updates the state of an existing task." }
+    fn parameters_schema(&self) -> Option<Value> {
+        Some(json!({
+            "type": "object",
+            "properties": {
+                "task_id": { "type": "string", "description": "The ID of the task to update." },
+                "status": { "type": "string", "description": "New status: in_progress, blocked, completed, failed." },
+                "last_step": { "type": "string", "description": "Summary of the last completed action." },
+                "context_payload": { "type": "object", "description": "Data needed for the next run." },
+                "steps": { 
+                    "type": "array", 
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "description": { "type": "string" },
+                            "completed": { "type": "boolean" }
+                        }
+                    },
+                    "description": "Updated list of steps."
+                }
+            },
+            "required": ["task_id"]
+        }))
+    }
+    async fn execute(&self, _ctx: Arc<dyn ToolContext>, args: Value) -> std::result::Result<Value, AdkError> {
+        let args: UpdateTaskArgs = serde_json::from_value(args)
+            .map_err(|e| AdkError::tool(format!("Invalid arguments: {}", e)))?;
+
+        let mut states = load_states().await?;
+        if let Some(task) = states.iter_mut().find(|t| t.task_id == args.task_id) {
+            if let Some(status_str) = args.status {
+                task.status = status_str.parse()?;
+            }
+            if let Some(last_step) = args.last_step {
+                task.last_step = Some(last_step);
+            }
+            if let Some(payload) = args.context_payload {
+                task.context_payload = payload;
+            }
+            if let Some(steps_val) = args.steps {
+                let steps: Vec<Step> = serde_json::from_value(steps_val)
+                    .map_err(|e| AdkError::tool(format!("Invalid steps format: {}", e)))?;
+                task.steps = steps;
+            }
+            task.updated_at = Utc::now();
+            
+            save_states(&states).await?;
+            Ok(json!({"status": "success", "message": format!("Task '{}' updated", args.task_id)}))
+        } else {
+            Err(AdkError::tool(format!("Task '{}' not found", args.task_id)))
+        }
     }
 }
 
-/// Lists all tasks that are currently active (in_progress or blocked).
-#[tool]
-async fn list_active_tasks(_args: Value) -> std::result::Result<Value, AdkError> {
-    let states = load_states().await?;
-    let active: Vec<_> = states.into_iter()
-        .filter(|t| matches!(t.status, TaskStatus::InProgress | TaskStatus::Blocked))
-        .collect();
-    
-    if active.is_empty() {
-        Ok(json!({"message": "No active tasks found."}))
-    } else {
-        Ok(json!({ "active_tasks": active }))
+pub struct GetTask;
+#[async_trait::async_trait]
+impl Tool for GetTask {
+    fn name(&self) -> &str { "get_task" }
+    fn description(&self) -> &str { "Retrieves the current state of a specific task." }
+    fn parameters_schema(&self) -> Option<Value> {
+        Some(json!({
+            "type": "object",
+            "properties": {
+                "task_id": { "type": "string", "description": "The ID of the task." }
+            },
+            "required": ["task_id"]
+        }))
+    }
+    async fn execute(&self, _ctx: Arc<dyn ToolContext>, args: Value) -> std::result::Result<Value, AdkError> {
+        let args: TaskIdArgs = serde_json::from_value(args)
+            .map_err(|e| AdkError::tool(format!("Invalid arguments: {}", e)))?;
+        let states = load_states().await?;
+        if let Some(task) = states.into_iter().find(|t| t.task_id == args.task_id) {
+            Ok(json!(task))
+        } else {
+            Err(AdkError::tool(format!("Task '{}' not found", args.task_id)))
+        }
+    }
+}
+
+pub struct ListActiveTasks;
+#[async_trait::async_trait]
+impl Tool for ListActiveTasks {
+    fn name(&self) -> &str { "list_active_tasks" }
+    fn description(&self) -> &str { "Lists all tasks that are currently active." }
+    fn parameters_schema(&self) -> Option<Value> {
+        Some(json!({ "type": "object", "properties": {} }))
+    }
+    async fn execute(&self, _ctx: Arc<dyn ToolContext>, _args: Value) -> std::result::Result<Value, AdkError> {
+        let states = load_states().await?;
+        let active: Vec<_> = states.into_iter()
+            .filter(|t| matches!(t.status, TaskStatus::InProgress | TaskStatus::Blocked))
+            .collect();
+        
+        if active.is_empty() {
+            Ok(json!({"message": "No active tasks found."}))
+        } else {
+            Ok(json!({ "active_tasks": active }))
+        }
     }
 }
 

@@ -14,12 +14,12 @@ This skill leverages the `generate_mockup.py` script to generate high-fidelity 3
 ## Prerequisites
 
 * **Python 3.10+** environment.
-* **Dependencies:** Install required packages via `pip install -r requirements.txt` from the skill root. Key packages include `google-generativeai` and `Pillow`.
+* **Dependencies:** Install required packages via `pip install Pillow google-genai`. Key packages include `google-generativeai` and `Pillow`.
 * **API Key:** Create a `.env` file in the project root containing:
   ```
   GOOGLE_API_KEY=your_key_here
   ```
-  The script loads this automatically via `python-dotenv`.
+  The script loads this automatically.
 
 ## Usage
 

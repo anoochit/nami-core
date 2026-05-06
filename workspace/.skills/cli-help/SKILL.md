@@ -20,6 +20,7 @@ nami help
 - `nami serve`: Start the local server for API interactions.
 - `nami cli`: Local interactive terminal agent with rich TUI.
 - `nami run "<prompt>"`: Execute a single prompt directly from the CLI.
+- `nami "<prompt>"`: Execute a single prompt directly from the CLI.
 - `nami help`: Display detailed usage instructions for specific commands.
 
 ## Troubleshooting

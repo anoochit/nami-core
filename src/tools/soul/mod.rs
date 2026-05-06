@@ -1,3 +1,4 @@
+use crate::utils::get_workspace_dir;
 use adk_rust::Tool;
 use adk_rust::serde::Deserialize;
 use adk_tool::{AdkError, tool};
@@ -18,30 +19,36 @@ struct UpdateSoulArgs {
     trait_info: String,
 }
 
-/// Adds a new fact to the user's permanent memories (MEMORIES.md).
+/// Adds a new fact to the user's permanent memories (workspace/MEMORIES.md).
 #[tool]
 async fn update_user_memory(args: UpdateMemoryArgs) -> std::result::Result<Value, AdkError> {
-    let mut content = fs::read_to_string("MEMORIES.md")
+    let workspace = get_workspace_dir().await?;
+    let path = workspace.join("MEMORIES.md");
+    
+    let mut content = fs::read_to_string(&path)
         .await
-        .unwrap_or_else(|_| "# User Memories\n".to_string());
+        .unwrap_or_else(|_| "# MEMORIES\n".to_string());
     content.push_str(&format!("\n- {}", args.fact));
 
-    fs::write("MEMORIES.md", content)
+    fs::write(&path, content)
         .await
         .map_err(|e| AdkError::tool(format!("Failed to update memories: {}", e)))?;
 
     Ok(json!({"status": "success", "message": "I'll remember that for you!"}))
 }
 
-/// Updates the agent's persona file (AGENT.md). Use this to 'evolve' the agent's personality.
+/// Updates the agent's persona file (workspace/AGENT.md). Use this to 'evolve' the agent's personality.
 #[tool]
 async fn update_agent_soul(args: UpdateSoulArgs) -> std::result::Result<Value, AdkError> {
-    let mut content = fs::read_to_string("AGENT.md")
+    let workspace = get_workspace_dir().await?;
+    let path = workspace.join("AGENT.md");
+
+    let mut content = fs::read_to_string(&path)
         .await
-        .unwrap_or_else(|_| "# Agent Persona\n".to_string());
+        .unwrap_or_else(|_| "# NAMI\n".to_string());
     content.push_str(&format!("\n\n## Evolution\n{}", args.trait_info));
 
-    fs::write("AGENT.md", content)
+    fs::write(&path, content)
         .await
         .map_err(|e| AdkError::tool(format!("Failed to update soul: {}", e)))?;
 
