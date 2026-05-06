@@ -144,9 +144,24 @@ SERPER_API_KEY={serper_api_key}
 - Clear/measurable `goal` in `init_task`."#)?;
 
     // 7. workspace/.skills/cli-help/SKILL.md
-    write_file("workspace/.skills/cli-help/SKILL.md", r#"# CLI Help Skill
-- **Goal:** Assist users with Nami CLI commands and configuration.
-- **Usage:** Provide clear, concise command breakdowns, flag explanations, and troubleshooting steps for the CLI."#)?;
+    write_file("workspace/.skills/cli-help/SKILL.md", r#"---
+name: cli-help
+description: Help interface for Nami CLI: commands, flags, and usage.
+---
+# cli-help
+Centralized help for Nami CLI. Use `nami help` for details.
+
+## Commands
+* `init`: Initialize config.
+* `bot`: Start Telegram Bot.
+* `serve`: Start API server.
+* `cli`: Open interactive TUI.
+* `run "<prompt>"` / `"<prompt>"`: Execute prompt directly.
+* `help`: Show usage instructions.
+
+## Troubleshooting
+* **Not found?** Check installation & system PATH.
+* **Execution error?** Verify environment & workspace."#)?;
 
     mad_print_inline!(&skin, "\n**Success!** Files initialized in `workspace/`: `AGENT.md`, `MEMORIES.md`, `USER.md`, `STATE_PROTOCOL.md` \n");
     mad_print_inline!(&skin, "**Root files created:** `config.toml`, `.env` \n");

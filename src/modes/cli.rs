@@ -199,24 +199,25 @@ async fn ensure_session(
     user_id: &str,
     session_id: &str
 ) -> anyhow::Result<()> {
-    if
-        sessions
-            .get(GetRequest {
-                app_name: app_name.to_string(),
-                user_id: user_id.to_string(),
-                session_id: session_id.to_string(),
-                num_recent_events: Some(0),
-                after: None,
-            }).await
-            .is_err()
-    {
-        sessions.create(CreateRequest {
-            app_name: app_name.to_string(),
-            user_id: user_id.to_string(),
-            session_id: Some(session_id.to_string()),
-            state: Default::default(),
-        }).await?;
+    // If the session already exists, we are good to go.
+    if sessions.get(GetRequest {
+        app_name: app_name.to_string(),
+        user_id: user_id.to_string(),
+        session_id: session_id.to_string(),
+        num_recent_events: Some(0),
+        after: None,
+    }).await.is_ok() {
+        return Ok(());
     }
+
+    // Otherwise, create it.
+    sessions.create(CreateRequest {
+        app_name: app_name.to_string(),
+        user_id: user_id.to_string(),
+        session_id: Some(session_id.to_string()),
+        state: Default::default(),
+    }).await?;
+    
     Ok(())
 }
 
