@@ -103,17 +103,12 @@ SERPER_API_KEY={serper_api_key}
 
     // 4. workspace/MEMORIES.md
     write_file("workspace/MEMORIES.md", r#"# MEMORIES
-- **User:** Noel (Bangkok, Thailand)
-- **Repo:** [namiClaw](https://github.com/anoochit/namiClaw)
+- **User:** Noel (โนเอล) (Bangkok, Thailand)
 - **Search:** `wiki/` > Google.
 - **Safety:** Ask before deleting.
 - **Language:** English only.
 - **Format:** Files=Markdown; Chat=Plain Text.
-- **Long-run Tasks:** Use `StateManager` + `workspace/STATE_PROTOCOL.md`.
-- **Todos:** `[ID] - [TITLE] [Tag]`. Group by tags.
-- **Blog:** `blog/` -> `posts/`. Update files -> rebuild `index.md` -> push. Serial only.
-- **Assets:** `nami.html` (root).
-- **Goal:** Embed CLI (Ink) + Web assistant-ui into one Rust binary.
+- **Long-run Tasks:** Use `StateManager` + `STATE_PROTOCOL.md`.
 - **Session Start:** Call `list_active_tasks` or `get_task`."#)?;
 
     // 5. workspace/USER.md
