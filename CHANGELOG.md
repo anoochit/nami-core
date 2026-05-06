@@ -15,6 +15,7 @@ All notable changes to this project will be documented in this file.
 - **Context Optimization**: Refactored `AGENT.md`, `USER.md`, `MEMORIES.md`, and `STATE_PROTOCOL.md` into high-density, token-efficient formats.
 - **Instruction Template**: Optimized the core agent instruction template in `src/agent/agent.rs` to reduce per-turn token overhead.
 - **Always-On Protocol**: Integrated the `STATE_PROTOCOL.md` directly into the agent's core system instructions.
+- **CLI UX Shorthand**: Enabled direct prompts (e.g., `nami "hi"`) as a shorthand for the `run` command, making the interface more intuitive.
 - **Project Initialization**: Updated `init` mode to automatically create token-optimized persona and protocol files within the `workspace/` directory.
 
 ### Removed
