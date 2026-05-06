@@ -45,7 +45,11 @@ struct SearchWikiByTagArgs {
 }
 
 #[derive(Deserialize, JsonSchema)]
-struct GetWikiGraphArgs {}
+struct GetWikiGraphArgs {
+    /// Optional reason for fetching the graph.
+    #[allow(dead_code)]
+    reason: Option<String>,
+}
 
 #[derive(Deserialize, JsonSchema)]
 struct CreateDailyNoteArgs {
@@ -56,7 +60,11 @@ struct CreateDailyNoteArgs {
 }
 
 #[derive(Deserialize, JsonSchema)]
-struct SanitizeWikiVaultArgs {}
+struct SanitizeWikiVaultArgs {
+    /// Optional reason for sanitizing the vault.
+    #[allow(dead_code)]
+    reason: Option<String>,
+}
 
 #[derive(Deserialize, JsonSchema)]
 struct GetBacklinksArgs {
@@ -65,7 +73,11 @@ struct GetBacklinksArgs {
 }
 
 #[derive(Deserialize, JsonSchema)]
-struct CheckBrokenLinksArgs {}
+struct CheckBrokenLinksArgs {
+    /// Optional reason for checking broken links.
+    #[allow(dead_code)]
+    reason: Option<String>,
+}
 
 #[derive(Deserialize, JsonSchema)]
 struct RenameWikiPageArgs {

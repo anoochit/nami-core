@@ -9,7 +9,11 @@ use sysinfo::{Disks, Networks, System};
 // ─── Tools ────────────────────────────────────────────────────────────────────
 
 #[derive(serde::Deserialize, JsonSchema)]
-struct NoArgs {}
+struct NoArgs {
+    /// Optional reason for requesting system status.
+    #[allow(dead_code)]
+    reason: Option<String>,
+}
 
 /// Retrieves system information including CPU usage, memory stats, disk space, network stats, and latency to google.com.
 #[tool]
