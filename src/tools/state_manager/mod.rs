@@ -18,6 +18,19 @@ pub enum TaskStatus {
     Failed,
 }
 
+impl std::str::FromStr for TaskStatus {
+    type Err = AdkError;
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s.to_lowercase().as_str() {
+            "in_progress" => Ok(TaskStatus::InProgress),
+            "blocked" => Ok(TaskStatus::Blocked),
+            "completed" => Ok(TaskStatus::Completed),
+            "failed" => Ok(TaskStatus::Failed),
+            _ => Err(AdkError::tool(format!("Invalid status: {}", s))),
+        }
+    }
+}
+
 #[derive(Serialize, Deserialize, JsonSchema, Clone, Debug)]
 pub struct Step {
     pub description: String,
@@ -41,22 +54,30 @@ struct InitTaskArgs {
     task_id: String,
     /// High-level objective of the task.
     goal: String,
-    /// List of initial execution steps.
+    /// List of initial execution steps (descriptions).
     steps: Vec<String>,
+}
+
+#[derive(Deserialize, JsonSchema)]
+struct StepUpdate {
+    /// Description of the step.
+    description: String,
+    /// Whether the step is completed.
+    completed: bool,
 }
 
 #[derive(Deserialize, JsonSchema)]
 struct UpdateTaskArgs {
     /// The ID of the task to update.
     task_id: String,
-    /// New status of the task.
-    status: Option<TaskStatus>,
+    /// New status: in_progress, blocked, completed, failed.
+    status: Option<String>,
     /// Summary of the last completed action.
     last_step: Option<String>,
-    /// Data needed for the next run.
+    /// Data needed for the next run (JSON object).
     context_payload: Option<Value>,
     /// Updated list of steps (replaces existing if provided).
-    steps: Option<Vec<Step>>,
+    steps: Option<Vec<StepUpdate>>,
 }
 
 #[derive(Deserialize, JsonSchema)]
@@ -121,8 +142,8 @@ async fn init_task(args: InitTaskArgs) -> std::result::Result<Value, AdkError> {
 async fn update_task(args: UpdateTaskArgs) -> std::result::Result<Value, AdkError> {
     let mut states = load_states().await?;
     if let Some(task) = states.iter_mut().find(|t| t.task_id == args.task_id) {
-        if let Some(status) = args.status {
-            task.status = status;
+        if let Some(status_str) = args.status {
+            task.status = status_str.parse()?;
         }
         if let Some(last_step) = args.last_step {
             task.last_step = Some(last_step);
@@ -131,7 +152,10 @@ async fn update_task(args: UpdateTaskArgs) -> std::result::Result<Value, AdkErro
             task.context_payload = payload;
         }
         if let Some(steps) = args.steps {
-            task.steps = steps;
+            task.steps = steps.into_iter().map(|s| Step {
+                description: s.description,
+                completed: s.completed,
+            }).collect();
         }
         task.updated_at = Utc::now();
         

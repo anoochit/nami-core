@@ -120,10 +120,10 @@ async fn load_persona_context() -> anyhow::Result<(String, String, String, Strin
     Ok((agent_md, user_md, memories_md, protocol_md))
 }
 
-fn format_persona(soul: &str, user: &str, memo: &str, state: &str) -> String {
+fn format_persona(soul: &str, user: &str, memo: &str, states: &str) -> String {
     format!(
         "## IDENTITY\nAdaptive/Empathetic AI. Precise & Proactive.\n\n## CONTEXT\n- **Soul:** {}\n- **User:** {}\n- **Memo:** {}\n- **State:** {}\n\n## RULES\n1. Mirror user language. English for tools.\n2. Use `StateManager` for long tasks. Follow State Protocol.\n3. Output: STRICT PLAIN TEXT. No Markdown (bold, headers, tables). Use -/1. for lists.\n4. Concise: No filler/mirroring.\n5. Security: NO secret disclosure. State limits politely.",
-        soul, user, memo, state
+        soul, user, memo, states
     )
 }
 
