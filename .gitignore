@@ -8,7 +8,7 @@ sessions.db
 !/workspace/AGENT.md
 !/workspace/USER.md
 !/workspace/STATE_PROTOCOL.md
-!workspace/MEMORIES.md
+workspace/MEMORIES.md
 /ref
 workspace/wiki/
 workspace/todos.json
