@@ -1,5 +1,6 @@
 use crate::utils::get_workspace_dir;
 use adk_rust::Tool;
+use adk_rust::tool::ToolContext;
 use adk_rust::serde::{Deserialize, Serialize};
 use adk_tool::{AdkError, tool};
 use schemars::JsonSchema;
