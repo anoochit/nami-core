@@ -142,6 +142,16 @@ The bot features a built-in task manager for tracking goals and daily items.
 * `mark_todo_done`: Mark tasks as finished.
 * `remove_todo`: Permanently delete a task.
 
+### State Management (Long-Running Tasks)
+
+The bot uses a structured state management system to maintain continuity across sessions for complex tasks.
+
+* `init_task`: Initialize a new long-running process with a goal and steps.
+* `update_task`: Update progress, status, and persistent context payload.
+* `get_task`: Retrieve the current ground truth for a specific task.
+* `list_active_tasks`: List all tasks that are currently in progress or blocked.
+* Guided by `workspace/STATE_PROTOCOL.md`.
+
 ### Persona & Memories
 
 * **AGENT.md**: Defines the "Soul" of the bot.

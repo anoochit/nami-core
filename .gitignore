@@ -5,7 +5,10 @@ sessions.db
 /workspace/*
 !/workspace/.skills/
 !/workspace/wiki/Templates/
-MEMORIES.md
+!/workspace/AGENT.md
+!/workspace/USER.md
+!/workspace/STATE_PROTOCOL.md
+!workspace/MEMORIES.md
 /ref
 workspace/wiki/
 workspace/todos.json

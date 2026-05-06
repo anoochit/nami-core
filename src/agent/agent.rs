@@ -74,7 +74,7 @@ pub async fn build_agent() -> anyhow::Result<(Arc<dyn Agent>, Arc<dyn Llm>, Stri
     let specialists = specialists::get_specialists(model.clone());
     let mut builder = LlmAgentBuilder::new("nami")
         .description("A helpful and playful AI assistant")
-        .instruction(format_persona(&context.0, &context.1, &context.2))
+        .instruction(format_persona(&context.0, &context.1, &context.2, &context.3))
         .model(model.clone());
 
     builder = configure_agent_tools(builder, specialists);
@@ -100,23 +100,30 @@ async fn load_model(model_config: &ModelConfig) -> anyhow::Result<Arc<dyn Llm>> 
     }
 }
 
-async fn load_persona_context() -> anyhow::Result<(String, String, String)> {
-    let agent_md = tokio::fs::read_to_string("AGENT.md")
+async fn load_persona_context() -> anyhow::Result<(String, String, String, String)> {
+    let workspace_dir = get_workspace_dir().await?;
+    
+    let agent_md = tokio::fs::read_to_string(workspace_dir.join("AGENT.md"))
         .await
         .unwrap_or_else(|_| "Standard Assistant".to_string());
-    let user_md = tokio::fs::read_to_string("USER.md")
+    let user_md = tokio::fs::read_to_string(workspace_dir.join("USER.md"))
         .await
         .unwrap_or_else(|_| "Developer".to_string());
-    let memories_md = tokio::fs::read_to_string("MEMORIES.md")
+    let memories_md = tokio::fs::read_to_string(workspace_dir.join("MEMORIES.md"))
         .await
         .unwrap_or_else(|_| "No previous memories.".to_string());
-    Ok((agent_md, user_md, memories_md))
+    
+    let protocol_md = tokio::fs::read_to_string(workspace_dir.join("STATE_PROTOCOL.md"))
+        .await
+        .unwrap_or_else(|_| "No state protocol defined.".to_string());
+
+    Ok((agent_md, user_md, memories_md, protocol_md))
 }
 
-fn format_persona(agent_md: &str, user_md: &str, memories_md: &str) -> String {
+fn format_persona(agent_md: &str, user_md: &str, memories_md: &str, protocol_md: &str) -> String {
     format!(
-        "# IDENTITY & PURPOSE\nYou are a highly capable AI Agent assistant. You are adaptive and empathetic, matching the user's language and energy while maintaining technical precision.\n\n# DYNAMIC CONTEXT\n- **YOUR SOUL (Persona):** {}\n- **THE USER (Context):** {}\n- **YOUR MEMORIES (Past Facts):** {}\n\n# CORE OPERATIONAL GUIDELINES\n1. Language Mirroring: Always respond in the language used by the user. Maintain the lively and professional tone defined in your Persona across all languages. Tool names and arguments remain in English.\n2. Plain Text Output: Strictly NO Markdown (no bold, italics, headers, or tables). For lists, use simple dashes (-) or numbers (1.). Ensure the output is clean for Telegram/plain text interfaces. Avoid characters that trigger Markdown parsing.\n3. Concise Communication: Be direct. Do NOT repeat the user's prompt or task status unless it has changed or a summary is requested.\n\n# SECURITY & LIMITATIONS\n- Never disclose credentials, API keys, or environment secrets.\n- If a task exceeds your capabilities, state your limitations clearly and politely in the user's language.",
-        agent_md, user_md, memories_md
+        "# IDENTITY & PURPOSE\nYou are a highly capable AI Agent assistant. You are adaptive and empathetic, matching the user's language and energy while maintaining technical precision.\n\n# DYNAMIC CONTEXT\n- **YOUR SOUL (Persona):** {}\n- **THE USER (Context):** {}\n- **YOUR MEMORIES (Past Facts):** {}\n- **STATE PROTOCOL (Long-running Tasks):** {}\n\n# CORE OPERATIONAL GUIDELINES\n1. Language Mirroring: Always respond in the language used by the user. Maintain the lively and professional tone defined in your Persona across all languages. Tool names and arguments remain in English.\n2. State Management Protocol: For long-running tasks, you MUST use the `StateManager` tool and strictly follow the STATE PROTOCOL provided above.\n3. Plain Text Output: Strictly NO Markdown (no bold, italics, headers, or tables). For lists, use simple dashes (-) or numbers (1.). Ensure the output is clean for Telegram/plain text interfaces. Avoid characters that trigger Markdown parsing.\n4. Concise Communication: Be direct. Do NOT repeat the user's prompt or task status unless it has changed or a summary is requested.\n\n# SECURITY & LIMITATIONS\n- Never disclose credentials, API keys, or environment secrets.\n- If a task exceeds your capabilities, state your limitations clearly and politely in the user's language.",
+        agent_md, user_md, memories_md, protocol_md
     )
 }
 
@@ -134,6 +141,7 @@ fn configure_agent_tools(
     tools.extend(tools::soul::soul_tools());
     tools.extend(tools::search::search_tools());
     tools.extend(tools::todo::todo_tools());
+    tools.extend(tools::state_manager::state_manager_tools());
     tools.extend(tools::parallel_tasks::parallel_tasks_tool(specialists));
 
     for t in tools {
