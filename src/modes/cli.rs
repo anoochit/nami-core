@@ -338,7 +338,7 @@ async fn handle_chat_loop(
                 // --- SLASH COMMANDS ---
                 if trimmed == "/?" {
                     println!(
-                        "\n/?     - Show commands\n/exit     - Quit\n/clear    - Clear screen\n/new      - New session\n/tasks    - List active tasks\n/plan     - Initialize task\n/wiki     - Wiki search\n/memo     - Save memory\n/status   - Agent status\n/version  - CLI version\n"
+                        "\n/?       - Show commands\n/exit      - Quit\n/clear    - Clear screen\n/new      - New session\n/tasks    - List active tasks\n/plan     - Initialize task\n/wiki     - Wiki search\n/memo     - Save memory\n/status   - Agent status\n/version  - CLI version\n"
                     );
                     continue;
                 }
@@ -498,7 +498,6 @@ async fn handle_chat_loop(
                                                 if let Ok(pos) = cursor::position() {
                                                     start_pos = Some(pos);
                                                 }
-                                                response_buffer.clear();
                                             }
                                         }
                                     }
