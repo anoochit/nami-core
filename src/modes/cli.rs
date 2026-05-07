@@ -1,5 +1,5 @@
 use crossterm::event::{Event, EventStream, KeyCode, KeyEventKind, KeyModifiers};
-use crossterm::{cursor, execute, style, style::Stylize, terminal};
+use crossterm::{cursor, execute, queue, style, style::Stylize, terminal};
 use futures::StreamExt;
 use regex::Regex;
 use rustyline::completion::{Completer, Pair};
@@ -32,7 +32,7 @@ impl Completer for NamiHelper {
         _ctx: &Context<'_>,
     ) -> rustyline::Result<(usize, Vec<Pair>)> {
         let (start, word) =
-            rustyline::completion::extract_word(line, pos, None, |c| (c == ' ' || c == '\t'));
+            rustyline::completion::extract_word(line, pos, None, |c| c == ' ' || c == '\t');
 
         if let Some(path_part) = word.strip_prefix('@') {
             let mut matches = Vec::new();
@@ -286,6 +286,26 @@ pub(crate) async fn run_cli(
     .await
 }
 
+fn clear_current_line(stdout: &mut io::Stdout) -> io::Result<()> {
+    queue!(
+        stdout,
+        terminal::Clear(terminal::ClearType::CurrentLine),
+        cursor::MoveToColumn(0)
+    )?;
+
+    stdout.flush()?;
+    Ok(())
+}
+
+fn print_status_line(stdout: &mut io::Stdout, text: &str) -> io::Result<()> {
+    clear_current_line(stdout)?;
+
+    queue!(stdout, style::Print(text), cursor::MoveToNextLine(1))?;
+
+    stdout.flush()?;
+    Ok(())
+}
+
 async fn handle_chat_loop(
     rl: &mut Editor<NamiHelper, rustyline::history::FileHistory>,
     sessions: &Arc<dyn SessionService>,
@@ -454,11 +474,14 @@ async fn handle_chat_loop(
 
                 // --- THINKING INDICATOR ---
                 // We use a simple indicator since the agent message is already in context
-                println!(
-                    "\n{} {}",
-                    style::style("⏳").magenta(),
-                    style::style("Agent is thinking...").dim()
-                );
+                print_status_line(
+                    &mut io::stdout(),
+                    &format!(
+                        "{} {}",
+                        style::style("⏳").magenta(),
+                        style::style("Agent is thinking...").dim()
+                    ),
+                )?;
                 io::stdout().flush().ok();
 
                 let content = Content::new("user").with_text(enriched_prompt);
@@ -468,6 +491,8 @@ async fn handle_chat_loop(
                 let mut cancelled = false;
 
                 // Loop for LLM Stream + Interrupt
+                execute!(io::stdout(), terminal::DisableLineWrap)?;
+
                 let _ = terminal::enable_raw_mode();
                 let mut event_reader = EventStream::new();
 
@@ -483,13 +508,16 @@ async fn handle_chat_loop(
                                             }
                                             if let Part::FunctionCall { name, args, .. } = part {
 
-                                                println!(
-                                                "\n{} {} {}",
-                                                style::style("🛠️").cyan(),
-                                                style::style("Calling").dim().bold(),
-                                                style::style(format!("{} {}", name, args)).dim()
-                                                );
-                                                io::stdout().flush().ok();
+                                                print_status_line(
+                                                &mut io::stdout(),
+                                                &format!(
+                                                    "{} {} {}",
+                                                    style::style("🛠️").cyan(),
+                                                    style::style("Calling").dim().bold(),
+                                                    style::style(format!("{} {}", name, args)).dim()
+                                                ),
+                                            )?;
+                                            io::stdout().flush().ok();
                                             }
                                         }
                                     }
@@ -519,24 +547,28 @@ async fn handle_chat_loop(
                     println!("\n{}", style::style("🚀 Request cancelled").dim());
                 } else {
                     // Final output: render with an explicit wide wrap width so termimad
-                    if !response_buffer.is_empty() {
-                        let cleaned = response_buffer
-                            .lines()
-                            .map(|line| line.trim_end())
-                            .collect::<Vec<_>>()
-                            .join("\n");
+                    let cleaned = response_buffer
+                        .lines()
+                        .map(|line| line.trim_end())
+                        .collect::<Vec<_>>()
+                        .join("\n");
 
-                        let term_width = terminal::size()
-                            .map(|(w, _)| (w as usize).saturating_sub(4))
-                            .unwrap_or(80);
+                    let term_width = terminal::size()
+                        .map(|(w, _)| {
+                            let w = w as usize;
+                            w.clamp(40, 120).saturating_sub(2)
+                        })
+                        .unwrap_or(80);
 
-                        let rendered =
-                            termimad::FmtText::from(nami_skin, &cleaned, Some(term_width))
-                                .to_string();
+                    let rendered =
+                        termimad::FmtText::from(nami_skin, &cleaned, Some(term_width)).to_string();
 
-                        println!("{}", rendered);
-                    }
-                    let _ = terminal::disable_raw_mode();
+                    println!("{}", rendered);
+
+                    execute!(io::stdout(), terminal::EnableLineWrap)?;
+
+                    terminal::disable_raw_mode().ok();
+                    execute!(io::stdout(), terminal::EnableLineWrap).ok();
                 }
                 println!();
                 println!();
