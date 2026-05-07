@@ -1,5 +1,5 @@
 use crossterm::{ cursor, execute, style, terminal, style::Stylize };
-use crossterm::event::{Event, KeyCode, EventStream, KeyModifiers, KeyEventKind };
+use crossterm::event::{ Event, KeyCode, EventStream, KeyModifiers, KeyEventKind };
 use futures::StreamExt;
 use regex::Regex;
 use rustyline::completion::{ Completer, Pair };
@@ -16,7 +16,7 @@ use uuid::Uuid;
 use walkdir::WalkDir;
 
 use crate::agent::get_compaction_config;
-use crate::agent::agent::{check_config_mtime, get_config_mtime, get_skills_mtime, create_agent};
+use crate::agent::agent::{ check_config_mtime, get_config_mtime, get_skills_mtime, create_agent };
 use adk_rust::Agent;
 use adk_rust::prelude::*;
 use adk_session::{ CreateRequest, GetRequest, SessionService };
@@ -32,9 +32,12 @@ impl Completer for NamiHelper {
         pos: usize,
         _ctx: &Context<'_>
     ) -> rustyline::Result<(usize, Vec<Pair>)> {
-        let (start, word) =
-            rustyline::completion::extract_word(line, pos, None, |c| c == ' ' || c == '\t');
-
+        let (start, word) = rustyline::completion::extract_word(
+            line,
+            pos,
+            None,
+            |c| c == ' ' || c == '\t'
+        );
 
         if let Some(path_part) = word.strip_prefix('@') {
             let mut matches = Vec::new();
@@ -46,17 +49,19 @@ impl Completer for NamiHelper {
                     .max_depth(5) // Don't go too deep to keep it fast
                     .into_iter()
                     .filter_map(|e| e.ok()) {
-                    if entry.file_type().is_file()
-                        && let Ok(relative_path) = entry.path().strip_prefix(workspace_path) {
-                            let path_str = relative_path.to_string_lossy().replace("\\", "/");
+                    if
+                        entry.file_type().is_file() &&
+                        let Ok(relative_path) = entry.path().strip_prefix(workspace_path)
+                    {
+                        let path_str = relative_path.to_string_lossy().replace("\\", "/");
 
-                            if path_str.to_lowercase().contains(&path_part.to_lowercase()) {
-                                matches.push(Pair {
-                                    display: path_str.clone(),
-                                    replacement: path_str,
-                                });
-                            }
+                        if path_str.to_lowercase().contains(&path_part.to_lowercase()) {
+                            matches.push(Pair {
+                                display: path_str.clone(),
+                                replacement: path_str,
+                            });
                         }
+                    }
                 }
             }
 
@@ -130,30 +135,29 @@ async fn process_file_references(input: &str) -> String {
         let workspace_path = std::path::Path::new("workspace");
         let path = workspace_path.join(file_path_str);
 
-        if path.exists() && path.is_file()
-            && let Ok(metadata) = std::fs::metadata(&path) {
-                let size = metadata.len();
-                // Threshold: 4KB
-                if size < 4096 {
-                    if let Ok(content) = tokio::fs::read_to_string(&path).await {
-                        appended_context.push_str(
-                            &format!(
-                                "\n\n--- Content from {} ---\n{}\n--- End of content ---\n",
-                                file_path_str,
-                                content
-                            )
-                        );
-                    }
-                } else {
+        if path.exists() && path.is_file() && let Ok(metadata) = std::fs::metadata(&path) {
+            let size = metadata.len();
+            // Threshold: 4KB
+            if size < 4096 {
+                if let Ok(content) = tokio::fs::read_to_string(&path).await {
                     appended_context.push_str(
                         &format!(
-                            "\n\n[REFERENCE: {} (Size: {} bytes)]\nThis file is too large for direct injection. Use your filesystem tools (read_file) to inspect specific parts of this file if needed.\n",
+                            "\n\n--- Content from {} ---\n{}\n--- End of content ---\n",
                             file_path_str,
-                            size
+                            content
                         )
                     );
                 }
+            } else {
+                appended_context.push_str(
+                    &format!(
+                        "\n\n[REFERENCE: {} (Size: {} bytes)]\nThis file is too large for direct injection. Use your filesystem tools (read_file) to inspect specific parts of this file if needed.\n",
+                        file_path_str,
+                        size
+                    )
+                );
             }
+        }
     }
 
     if !appended_context.is_empty() {
@@ -164,7 +168,7 @@ async fn process_file_references(input: &str) -> String {
     final_prompt
 }
 
-fn render_banner(provider: &str, model_name: &str) {
+fn render_banner(provider: &str, model_name: &str, session_id: &str) {
     println!(
         "{}",
         style
@@ -187,7 +191,12 @@ fn render_banner(provider: &str, model_name: &str) {
             .magenta(),
         style::style(format!("({}) using {}", provider, model_name)).dim()
     );
-    println!("\nType /help for slash commands.");
+    println!(
+        "{} {}",
+        style::style("Session ID:").bold().magenta(),
+        style::style(session_id).dim()
+    );
+    println!("\nType /? for slash commands.");
     println!("Type @ followed by path to reference files (use Tab for completion).");
     println!("Press ESC during a request to cancel it.\n");
 }
@@ -198,13 +207,17 @@ pub(crate) async fn ensure_session(
     user_id: &str,
     session_id: &str
 ) -> anyhow::Result<()> {
-    if sessions.get(GetRequest {
-        app_name: app_name.to_string(),
-        user_id: user_id.to_string(),
-        session_id: session_id.to_string(),
-        num_recent_events: Some(0),
-        after: None,
-    }).await.is_ok() {
+    if
+        sessions
+            .get(GetRequest {
+                app_name: app_name.to_string(),
+                user_id: user_id.to_string(),
+                session_id: session_id.to_string(),
+                num_recent_events: Some(0),
+                after: None,
+            }).await
+            .is_ok()
+    {
         return Ok(());
     }
 
@@ -214,7 +227,7 @@ pub(crate) async fn ensure_session(
         session_id: Some(session_id.to_string()),
         state: Default::default(),
     }).await?;
-    
+
     Ok(())
 }
 
@@ -223,16 +236,16 @@ pub(crate) async fn run_cli(
     sessions: Arc<dyn SessionService>,
     mut model: Arc<dyn Llm>,
     mut provider: String,
-    mut model_name: String,
+    mut model_name: String
 ) -> anyhow::Result<()> {
     let mut stdout = io::stdout();
     execute!(stdout, terminal::Clear(terminal::ClearType::All), cursor::MoveTo(0, 0))?;
 
-    render_banner(&provider, &model_name);
-
     let app_name = "cli";
     let user_id = "default_user";
     let mut session_id = Uuid::new_v4().to_string();
+
+    render_banner(&provider, &model_name, &session_id);
 
     ensure_session(&sessions, app_name, user_id, &session_id).await?;
 
@@ -252,7 +265,19 @@ pub(crate) async fn run_cli(
     nami_skin.paragraph.set_fg(termimad::crossterm::style::Color::White);
     nami_skin.bullet.set_fg(termimad::crossterm::style::Color::Magenta);
 
-    handle_chat_loop(&mut rl, &sessions, &mut runner,  app_name, user_id, &mut session_id, &mut agent, &mut model, &mut provider, &mut model_name, &nami_skin).await
+    handle_chat_loop(
+        &mut rl,
+        &sessions,
+        &mut runner,
+        app_name,
+        user_id,
+        &mut session_id,
+        &mut agent,
+        &mut model,
+        &mut provider,
+        &mut model_name,
+        &nami_skin
+    ).await
 }
 
 async fn handle_chat_loop(
@@ -266,7 +291,7 @@ async fn handle_chat_loop(
     model: &mut Arc<dyn Llm>,
     provider: &mut String,
     model_name: &mut String,
-    nami_skin: &MadSkin,
+    nami_skin: &MadSkin
 ) -> anyhow::Result<()> {
     let mut last_config_mtime = get_config_mtime();
     let mut last_skills_mtime = get_skills_mtime();
@@ -274,12 +299,12 @@ async fn handle_chat_loop(
     loop {
         let mut config_changed = false;
         if let Some(new_config) = check_config_mtime(&mut last_config_mtime) {
-             let (new_agent, new_model) = create_agent(&new_config).await?;
-             *agent = new_agent;
-             *model = new_model;
-             *provider = new_config.model.provider.clone();
-             *model_name = new_config.model.model_name.clone();
-             config_changed = true;
+            let (new_agent, new_model) = create_agent(&new_config).await?;
+            *agent = new_agent;
+            *model = new_model;
+            *provider = new_config.model.provider.clone();
+            *model_name = new_config.model.model_name.clone();
+            config_changed = true;
         }
 
         let current_skills_mtime = get_skills_mtime();
@@ -289,77 +314,112 @@ async fn handle_chat_loop(
         }
 
         if config_changed {
-             *runner = Runner::builder()
-                 .app_name(app_name)
-                 .agent(agent.clone())
-                 .session_service(sessions.clone())
-                 .compaction_config(get_compaction_config(model.clone()))
-                 .build()?;
+            *runner = Runner::builder()
+                .app_name(app_name)
+                .agent(agent.clone())
+                .session_service(sessions.clone())
+                .compaction_config(get_compaction_config(model.clone()))
+                .build()?;
 
-             println!("\n{}\n", style::style("🧠 Agent re-initialized with new config or skills").cyan().bold());
+            println!(
+                "\n{}\n",
+                style::style("🧠 Agent re-initialized with new config or skills").cyan().bold()
+            );
         }
 
         let line = rl.readline("You > ");
         match line {
             Ok(line) => {
                 let trimmed = line.trim();
-                if trimmed.is_empty() { continue; }
-                
-                // --- SLASH COMMANDS ---
-                if trimmed == "/help" {
-                    println!("\n/help     - Show commands\n/exit     - Quit\n/clear    - Clear screen\n/new      - New session\n/tasks    - List active tasks\n/plan     - Initialize task\n/wiki     - Wiki search\n/memo     - Save memory\n/status   - Agent status\n/version  - CLI version\n");
+                if trimmed.is_empty() {
                     continue;
                 }
-                if trimmed == "/exit" || trimmed == "/quit" { break; }
+
+                // --- SLASH COMMANDS ---
+                if trimmed == "/?" {
+                    println!(
+                        "\n/?     - Show commands\n/exit     - Quit\n/clear    - Clear screen\n/new      - New session\n/tasks    - List active tasks\n/plan     - Initialize task\n/wiki     - Wiki search\n/memo     - Save memory\n/status   - Agent status\n/version  - CLI version\n"
+                    );
+                    continue;
+                }
+                if trimmed == "/exit" || trimmed == "/quit" {
+                    break;
+                }
                 if trimmed == "/clear" {
-                    execute!(io::stdout(), terminal::Clear(terminal::ClearType::All), cursor::MoveTo(0, 0))?;
-                    render_banner(provider, model_name);
+                    execute!(
+                        io::stdout(),
+                        terminal::Clear(terminal::ClearType::All),
+                        cursor::MoveTo(0, 0)
+                    )?;
+                    render_banner(provider, model_name, session_id);
                     continue;
                 }
                 if trimmed == "/new" {
                     *session_id = Uuid::new_v4().to_string();
                     ensure_session(sessions, app_name, user_id, session_id).await?;
-                    execute!(io::stdout(), terminal::Clear(terminal::ClearType::All), cursor::MoveTo(0, 0))?;
-                    render_banner(provider, model_name);
+                    execute!(
+                        io::stdout(),
+                        terminal::Clear(terminal::ClearType::All),
+                        cursor::MoveTo(0, 0)
+                    )?;
+                    render_banner(provider, model_name, session_id);
                     println!("{}\n", style::style("\u{2728} New session started").green().bold());
                     continue;
                 }
-                if trimmed == "/version" { println!("Nami CLI v{}\n", env!("CARGO_PKG_VERSION")); continue; }
+                if trimmed == "/version" {
+                    println!("Nami CLI v{}\n", env!("CARGO_PKG_VERSION"));
+                    continue;
+                }
 
-                if trimmed.starts_with("/tasks") || trimmed.starts_with("/plan") || 
-                   trimmed.starts_with("/wiki") || trimmed.starts_with("/memo") || 
-                   trimmed.starts_with("/status") || trimmed.starts_with("/parallel") {
-                    
-                    let cmd_prompt = if trimmed.starts_with("/tasks") { "list_active_tasks".to_string() }
-                                     else if trimmed.starts_with("/wiki") { format!("wiki_search: {}", trimmed.replace("/wiki", "").trim()) }
-                                     else if trimmed.starts_with("/memo") { format!("save_memory: {}", trimmed.replace("/memo", "").trim()) }
-                                     else if trimmed.starts_with("/status") { "get_system_status".to_string() }
-                                     else if trimmed.starts_with("/parallel") {
-                                         let replacement = trimmed.replace("/parallel", "");
-                                         let raw_tasks = replacement.trim();
-                                         let mut tasks_json = Vec::new();
-                                         for t in raw_tasks.split(',') {
-                                             let parts: Vec<&str> = t.splitn(2, ':').collect();
-                                             if parts.len() == 2 {
-                                                 tasks_json.push(format!(
-                                                     "{{\"specialist\": \"{}\", \"prompt\": \"{}\"}}", 
-                                                     parts[0].trim(), parts[1].trim()
-                                                 ));
-                                             }
-                                         }
-                                         format!("Use parallel_tasks with: {{\"tasks\": [{}]}}", tasks_json.join(","))
-                                     }
-                                     else { format!("Initialize task: {}", trimmed.replace("/plan", "").trim()) };
+                if
+                    trimmed.starts_with("/tasks") ||
+                    trimmed.starts_with("/plan") ||
+                    trimmed.starts_with("/wiki") ||
+                    trimmed.starts_with("/memo") ||
+                    trimmed.starts_with("/status") ||
+                    trimmed.starts_with("/parallel")
+                {
+                    let cmd_prompt = if trimmed.starts_with("/tasks") {
+                        "list_active_tasks".to_string()
+                    } else if trimmed.starts_with("/wiki") {
+                        format!("wiki_search: {}", trimmed.replace("/wiki", "").trim())
+                    } else if trimmed.starts_with("/memo") {
+                        format!("save_memory: {}", trimmed.replace("/memo", "").trim())
+                    } else if trimmed.starts_with("/status") {
+                        "get_system_status".to_string()
+                    } else if trimmed.starts_with("/parallel") {
+                        let replacement = trimmed.replace("/parallel", "");
+                        let raw_tasks = replacement.trim();
+                        let mut tasks_json = Vec::new();
+                        for t in raw_tasks.split(',') {
+                            let parts: Vec<&str> = t.splitn(2, ':').collect();
+                            if parts.len() == 2 {
+                                tasks_json.push(
+                                    format!(
+                                        "{{\"specialist\": \"{}\", \"prompt\": \"{}\"}}",
+                                        parts[0].trim(),
+                                        parts[1].trim()
+                                    )
+                                );
+                            }
+                        }
+                        format!(
+                            "Use parallel_tasks with: {{\"tasks\": [{}]}}",
+                            tasks_json.join(",")
+                        )
+                    } else {
+                        format!("Initialize task: {}", trimmed.replace("/plan", "").trim())
+                    };
 
                     let content = Content::new("user").with_text(cmd_prompt);
                     if let Ok(mut stream) = runner.run_str(user_id, session_id, content).await {
                         while let Some(Ok(event)) = stream.next().await {
                             if let Some(c) = event.llm_response.content {
                                 for part in c.parts {
-                                    if let Some(text) = part.text() { 
+                                    if let Some(text) = part.text() {
                                         let rendered = nami_skin.inline(text).to_string();
-                                        print!("{}", rendered); 
-                                        io::stdout().flush().ok(); 
+                                        print!("{}", rendered);
+                                        io::stdout().flush().ok();
                                     }
                                 }
                             }
@@ -382,7 +442,10 @@ async fn handle_chat_loop(
                     let spinner = ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏'];
                     let mut i = 0;
                     while indicator.load(Ordering::Relaxed) {
-                        print!("\r{} Thinking... (esc to cancel)", style::style(spinner[i % 10]).with(style::Color::Magenta));
+                        print!(
+                            "\r{} Thinking... (esc to cancel)",
+                            style::style(spinner[i % 10]).with(style::Color::Magenta)
+                        );
                         io::stdout().flush().ok();
                         tokio::time::sleep(tokio::time::Duration::from_millis(80)).await;
                         i += 1;
@@ -468,30 +531,42 @@ async fn handle_chat_loop(
                     // Final Pretty Render for blocks (tables, code, etc.)
                     if !response_buffer.is_empty() {
                         // Pre-render and trim to string first to minimize the time the screen is blank
-                        let rendered = nami_skin.term_text(&response_buffer).to_string().trim().replace('\n', "\r\n");
-                        
+                        let rendered = nami_skin
+                            .term_text(&response_buffer)
+                            .to_string()
+                            .trim()
+                            .replace('\n', "\r\n");
+
                         let mut stdout = io::stdout();
                         let _ = execute!(stdout, cursor::Hide);
-                        
+
                         if let Some((col, row)) = start_pos {
-                            // Heuristic: Check if the output likely caused a scroll. 
+                            // Heuristic: Check if the output likely caused a scroll.
                             // If it did, MoveTo(col, row) will point to the wrong line.
                             let (term_width, term_height) = terminal::size().unwrap_or((80, 24));
-                            
+
                             // Estimate wrapped lines more accurately
                             let mut est_lines = 0;
                             for line in response_buffer.split('\n') {
-                                est_lines += (line.len() as u16 / term_width.max(1)) + 1;
+                                est_lines += (line.len() as u16) / term_width.max(1) + 1;
                             }
-                            
+
                             // If we're safe from scrolling and not at the very top (which can be disorienting to clear)
                             if row > 0 && row + est_lines < term_height {
-                                let _ = execute!(stdout, cursor::MoveTo(col, row), terminal::Clear(terminal::ClearType::FromCursorDown));
+                                let _ = execute!(
+                                    stdout,
+                                    cursor::MoveTo(col, row),
+                                    terminal::Clear(terminal::ClearType::FromCursorDown)
+                                );
                                 print!("{}", rendered);
                             } else {
                                 // If it scrolled or is at top, just ensure we're on a new line and print the pretty version
                                 // only if it's significantly different (contains md features)
-                                if response_buffer.contains('|') || response_buffer.contains("```") || response_buffer.contains('*') {
+                                if
+                                    response_buffer.contains('|') ||
+                                    response_buffer.contains("```") ||
+                                    response_buffer.contains('*')
+                                {
                                     println!("\r");
                                     print!("{}", rendered);
                                 }
@@ -499,16 +574,17 @@ async fn handle_chat_loop(
                         } else {
                             print!("\r{}", rendered);
                         }
-                        
+
                         let _ = execute!(stdout, cursor::Show);
                         let _ = stdout.flush();
                     }
                     let _ = terminal::disable_raw_mode();
                 }
                 println!();
-
             }
-            Err(_) => { break; }
+            Err(_) => {
+                break;
+            }
         }
     }
     Ok(())
