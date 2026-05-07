@@ -6,7 +6,6 @@ All notable changes to this project will be documented in this file.
 
 ### Added
 
-- **HUD Mode**: A dedicated monitoring dashboard (`nami hud`) powered by `ratatui` for real-time system status and activity logging. Supports an optional `session_id` to view historical logs (e.g., `nami hud <session-id>`).
 - **Enhanced TUI**: Improved CLI experience with better markdown rendering and terminal styling.
 - **New Agent Skills**:
     - `Imagen`: Integrated AI image generation capabilities via `.skills/imagen/`.

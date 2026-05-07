@@ -8,7 +8,6 @@ A modular, extensible AI-powered `Nami` built on top of [adk-rust](https://githu
 
 * **Multi-Platform AI**: Powered by Gemini, Anthropic, or any OpenAI-compatible LLM (e.g., ThaiLLM).
 * **Modern TUI**: A rich, interactive CLI experience with a custom ASCII banner, animated indicators, pretty error rendering with intelligent hints, and structured layout.
-* **HUD (Heads-Up Display)**: A secondary read-only monitoring dashboard (`nami hud`) for real-time agent status tracking and activity logging.
 * **@ File Context References**: Reference files from the `workspace/` directly in the CLI using `@path/to/file` with built-in Tab-completion.
 * **Hybrid MCP Support**: Seamlessly connect to both local (stdio-based) and remote (streamable HTTP/SSE) [Model Context Protocol](https://modelcontextprotocol.io/) servers. Tools are automatically namespaced with `mcp_` to prevent collisions.
 * **Parallel Task Execution**: A custom `parallel_tasks` tool that orchestrates multiple sub-agents simultaneously for high-speed multi-tasking.
@@ -81,7 +80,6 @@ The application provides five primary run modes:
 | **Initialize** | `nami init` | Initialize project config files and database. |
 | **Telegram Bot** | `nami bot` | Start the interactive Telegram Bot. |
 | **CLI** | `nami cli` | Local interactive terminal agent with rich TUI. |
-| **HUD** | `nami hud [session-id]` | Read-only monitoring dashboard for real-time status. |
 | **Run** | `nami run <prompt>` | Execute a single prompt directly from the CLI. |
 | **Server** | `nami serve` | Run as an HTTP service. |
 
