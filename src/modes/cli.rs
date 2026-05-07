@@ -504,10 +504,12 @@ async fn handle_chat_loop(
                                             if let Part::FunctionCall { name, .. } = part {
                                                 println!("\n{} {}", style::style("🛠️ Calling:").dim(), style::style(name).cyan().bold());
                                                 io::stdout().flush().ok();
-                                                // Function calls act as break points; reset start_pos for next text block
+                                                
+                                                // Function calls act as break points; render what we have and reset
                                                 if let Ok(pos) = cursor::position() {
                                                     start_pos = Some(pos);
                                                 }
+                                                // Clear buffer so we don't duplicate this text in the final render
                                                 response_buffer.clear();
                                             }
                                         }
