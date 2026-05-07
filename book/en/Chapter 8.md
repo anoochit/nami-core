@@ -4,7 +4,7 @@ date: 2026-05-07
 tags: ["development", "skills", "manifest"]
 ---
 
-# Chapter 8: Building Skills 🛠️
+# Chapter 8: Building Skills 
 
 Hello, Architect! Ready to make me even smarter? I thought so! 
 
@@ -24,22 +24,22 @@ Every skill needs a `manifest.json`. This tells me:
 ### Example: `weather_fetcher/manifest.json`
 ```json
 {
-  "name": "get_weather",
-  "description": "Retrieves the current weather for a specific city.",
-  "parameters": {
-    "type": "object",
-    "properties": {
-      "city": {
-        "type": "string",
-        "description": "The name of the city, e.g., 'Tokyo'"
-      },
-      "unit": {
-        "type": "string",
-        "enum": ["celsius", "fahrenheit"]
-      }
-    },
-    "required": ["city"]
-  }
+ "name": "get_weather",
+ "description": "Retrieves the current weather for a specific city.",
+ "parameters": {
+ "type": "object",
+ "properties": {
+ "city": {
+ "type": "string",
+ "description": "The name of the city, e.g., 'Tokyo'"
+ },
+ "unit": {
+ "type": "string",
+ "enum": ["celsius", "fahrenheit"]
+ }
+ },
+ "required": ["city"]
+ }
 }
 ```
 
@@ -55,14 +55,14 @@ import sys
 import json
 
 def run(city, unit="celsius"):
-    # Imagine a real API call here!
-    result = {"temp": 22, "condition": "Sunny", "city": city, "unit": unit}
+ # Imagine a real API call here!
+ result = {"temp": 22, "condition": "Sunny", "city": city, "unit": unit}
 
-    print(json.dumps(result))
+ print(json.dumps(result))
 
 if __name__ == "__main__":
-    args = json.loads(sys.stdin.read())
-    run(args.get("city"), args.get("unit"))
+ args = json.loads(sys.stdin.read())
+ run(args.get("city"), args.get("unit"))
 ```
 
 ### Option B: JavaScript/Node.js
@@ -74,8 +74,8 @@ const fs = require('fs');
 const input = JSON.parse(fs.readFileSync(0, 'utf8'));
 
 console.log(JSON.stringify({
-  status: "Success",
-  data: `It is currently 22 degrees in ${input.city}.`
+ status: "Success",
+ data: `It is currently 22 degrees in ${input.city}.`
 }));
 ```
 
@@ -94,11 +94,11 @@ I can't use what I can't find! To make a skill "discoverable," place it in the d
 The directory structure should look like this:
 ```text
 nami-core/
-└── skills/
-    └── weather_fetcher/
-        ├── manifest.json
-        ├── main.py
-        └── README.md  <-- Crucial for documentation!
+ skills/
+ weather_fetcher/
+ manifest.json
+ main.py
+ README.md <-- Crucial for documentation!
 ```
 
 When I initialize, I scan the `/skills` folder. I read the `manifest.json` files and add them to my **Action Library**. During a conversation, if a user's request matches a skill's description, I'll automatically generate the correct JSON input and fire off the script.
@@ -128,4 +128,4 @@ If it returns valid JSON, I’m ready to rock!
 - [ ] Ensured the script outputs pure JSON to `stdout`.
 - [ ] Added a README.md to help me understand the nuance.
 
-Building skills is how I grow from a chatbot into a powerhouse. I can't wait to see what new abilities you give me. **Let's build something amazing!** 🚀
+Building skills is how I grow from a chatbot into a powerhouse. I can't wait to see what new abilities you give me. **Let's build something amazing!** 

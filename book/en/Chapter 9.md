@@ -16,27 +16,27 @@ Before MCP, connecting an AI to a tool was like trying to fit a square peg in a 
 
 **MCP changes the game.** It’s an open standard that allows Nami to discover tools and resources dynamically. 
 
-1.  **Standardization:** One protocol to rule them all. If a service speaks MCP, Nami speaks to it instantly.
-2.  **Context Injection:** It’s not just about "doing" things; it's about "knowing" things. MCP lets Nami pull in live data as part of its thought process.
-3.  **Local-First & Secure:** We can run MCP servers locally, keeping our sensitive API keys and database credentials away from the model provider. Nami just sees the capabilities, not the secrets.
+1. **Standardization:** One protocol to rule them all. If a service speaks MCP, Nami speaks to it instantly.
+2. **Context Injection:** It’s not just about "doing" things; it's about "knowing" things. MCP lets Nami pull in live data as part of its thought process.
+3. **Local-First & Secure:** We can run MCP servers locally, keeping our sensitive API keys and database credentials away from the model provider. Nami just sees the capabilities, not the secrets.
 
 ## The Architecture: Host, Server, and Tool
 
 Think of it like this:
--   **The Host:** That’s Nami Core. The orchestrator.
--   **The Server:** A small bridge program (the MCP Server) that sits next to your data or service.
--   **The Tool:** The specific action (e.g., `get_weather`, `query_postgres`, `trigger_n8n_workflow`).
+- **The Host:** That’s Nami Core. The orchestrator.
+- **The Server:** A small bridge program (the MCP Server) that sits next to your data or service.
+- **The Tool:** The specific action (e.g., `get_weather`, `query_postgres`, `trigger_n8n_workflow`).
 
 ## Connecting the Powerhouse: n8n + MCP
 
 If Nami is the brain, **n8n** is the muscle. By exposing n8n workflows via an MCP server, Nami can execute complex multi-step automations with a single thought.
 
 ### The Flow:
-1.  Nami realizes it needs to send a Slack message and update a Jira ticket.
-2.  It looks at its MCP tool manifest and finds the `n8n_trigger` tool.
-3.  Nami sends a JSON payload to the MCP server.
-4.  The MCP server hits the n8n webhook.
-5.  **Boom.** Automation happens.
+1. Nami realizes it needs to send a Slack message and update a Jira ticket.
+2. It looks at its MCP tool manifest and finds the `n8n_trigger` tool.
+3. Nami sends a JSON payload to the MCP server.
+4. The MCP server hits the n8n webhook.
+5. **Boom.** Automation happens.
 
 ## Tapping into the Vaults: Databases & APIs
 
@@ -44,8 +44,8 @@ We don't just want Nami to guess; we want Nami to *know*.
 
 ### SQL & NoSQL via MCP
 Instead of dumping your whole database into a context window (expensive and messy!), we use MCP to let Nami query only what it needs.
--   **Read:** "Nami, what was our MRR last month?" -> *Nami executes a SELECT query via MCP.*
--   **Write:** "Nami, log this interaction to the CRM." -> *Nami executes an INSERT statement.*
+- **Read:** "Nami, what was our MRR last month?" -> *Nami executes a SELECT query via MCP.*
+- **Write:** "Nami, log this interaction to the CRM." -> *Nami executes an INSERT statement.*
 
 ### The API Bridge
 Whether it’s GitHub, Google Calendar, or your own proprietary internal API, if you can wrap it in an MCP server, Nami can use it. It treats external APIs as extended memory and capability sets.
@@ -56,20 +56,20 @@ To get Nami talking, we define our `mcpServers` in our core configuration. Here�
 
 ```json
 {
-  "mcpServers": {
-    "postgres-db": {
-      "command": "npx",
-      "args": ["-y", "@modelcontextprotocol/server-postgres", "postgresql://user:pass@localhost:5432/nami_vault"]
-    },
-    "n8n-bridge": {
-      "command": "node",
-      "args": ["./dist/n8n-mcp-server.js"],
-      "env": {
-        "N8N_API_KEY": "your_key_here",
-        "N8N_ENDPOINT": "https://n8n.yourdomain.com"
-      }
-    }
-  }
+ "mcpServers": {
+ "postgres-db": {
+ "command": "npx",
+ "args": ["-y", "@modelcontextprotocol/server-postgres", "postgresql://user:pass@localhost:5432/nami_vault"]
+ },
+ "n8n-bridge": {
+ "command": "node",
+ "args": ["./dist/n8n-mcp-server.js"],
+ "env": {
+ "N8N_API_KEY": "your_key_here",
+ "N8N_ENDPOINT": "https://n8n.yourdomain.com"
+ }
+ }
+ }
 }
 ```
 

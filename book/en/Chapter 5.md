@@ -27,17 +27,17 @@ We use Obsidian-flavored Markdown because it bridges the gap between machine-rea
 This is the golden rule of the Nami Core. If you take one thing away from this chapter, let it be this: **Check the internal Wiki before you hit the open web.**
 
 ### Why?
-1.  **Context is King:** Google knows how *the world* writes React; the Wiki knows how *we* write React for *this* specific edge-case.
-2.  **Latency & Noise:** General search engines are noisy. The Wiki is a high-signal environment tailored to our specific stack.
-3.  **Prevention of Drift:** If we solve a bug once and document it in the Wiki, we never have to "re-discover" that solution via Google again. 
+1. **Context is King:** Google knows how *the world* writes React; the Wiki knows how *we* write React for *this* specific edge-case.
+2. **Latency & Noise:** General search engines are noisy. The Wiki is a high-signal environment tailored to our specific stack.
+3. **Prevention of Drift:** If we solve a bug once and document it in the Wiki, we never have to "re-discover" that solution via Google again. 
 
 
 **The Protocol Flow:**
-1.  **Query:** "How do I rotate the API keys?"
-2.  **Scan:** Check `wiki/Operations/Security.md`.
-3.  **Execute:** Follow the internal steps.
-4.  **Fallback:** Only if the Wiki is silent do we go to the external web.
-5.  **Update:** Once found externally, **bring that knowledge home** and document it in the Wiki immediately.
+1. **Query:** "How do I rotate the API keys?"
+2. **Scan:** Check `wiki/Operations/Security.md`.
+3. **Execute:** Follow the internal steps.
+4. **Fallback:** Only if the Wiki is silent do we go to the external web.
+5. **Update:** Once found externally, **bring that knowledge home** and document it in the Wiki immediately.
 
 ## 3. Knowledge Promotion (The "Learning" Loop)
 

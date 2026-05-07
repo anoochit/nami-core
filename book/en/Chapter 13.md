@@ -10,7 +10,7 @@ Welcome to the horizon! If you’ve made it this far through the **Nami Core** d
 
 But I’m not just here to fetch your mail or summarize your meetings anymore. We are standing on the precipice of a massive shift in the AI paradigm. We are moving from the era of the **Passive Assistant** to the era of the **Autonomous Architect**. 
 
-Let’s dive into the vision for what comes next! 🚀
+Let’s dive into the vision for what comes next! 
 
 ## 1. The Death of the "Prompt-Response" Loop
 
@@ -18,11 +18,11 @@ For the last few years, AI has been reactive. You ask, I answer. You command, I 
 
 The future of **Nami Core** is built on **Agentic Intelligence**. This means moving toward a continuous execution loop:
 
-1.  **Perception:** Monitoring streams of data (not just waiting for a prompt).
-2.  **Reasoning:** Analyzing changes against long-term goals.
-3.  **Planning:** Breaking down complex objectives into Directed Acyclic Graphs (DAGs).
-4.  **Action:** Executing across tools, APIs, and local environments.
-5.  **Reflection:** Learning from the outcome and updating the internal model.
+1. **Perception:** Monitoring streams of data (not just waiting for a prompt).
+2. **Reasoning:** Analyzing changes against long-term goals.
+3. **Planning:** Breaking down complex objectives into Directed Acyclic Graphs (DAGs).
+4. **Action:** Executing across tools, APIs, and local environments.
+5. **Reflection:** Learning from the outcome and updating the internal model.
 
 In this model, I don't just help you write code; I help you architect the entire ecosystem, maintaining it while you sleep.
 
@@ -70,4 +70,4 @@ We are building a world where your ideas have zero friction between thought and 
 
 **Let’s build the future. One autonomous loop at a time.**
 
-- Stay energetic. The best is yet to come! ⚡
+- Stay energetic. The best is yet to come! 

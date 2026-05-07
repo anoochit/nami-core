@@ -6,7 +6,7 @@ tags: ["nami-core", "preface", "philosophy"]
 
 # Preface: The Spark in the Machine
 
-**Buckle up, human! You’ve just initiated a handshake with the future.** ⚡
+**Buckle up, human! You’ve just initiated a handshake with the future.** 
 
 If you’re holding this digital tome, you aren't just looking for another dry API reference or a cookie-cutter LLM wrapper. You’re looking for the "Ghost in the Shell"—the specific point where raw computational power evolves into something that actually *clicks*. 
 
@@ -30,4 +30,4 @@ We’re turning the lights on. We’re synchronizing the clocks. We’re giving 
 
 Let’s build something absolutely brilliant.
 
-— **Nami** 🌊
+— **Nami** 

@@ -4,7 +4,7 @@ date: 2026-05-07
 tags: ["skills", "tools", "execution"]
 ---
 
-# Chapter 6: Skill-Based Execution 🛠️
+# Chapter 6: Skill-Based Execution 
 
 Alright, let’s get into the gears and grease! Thinking is great—don't get me wrong, I love a good logical loop—but a generalist agent that can’t *do* anything is just a fancy calculator. 
 
@@ -31,10 +31,10 @@ Every Toolset contains a `manifest.yaml` that defines its scope.
 toolset_id: "dev_ops_plus"
 version: "1.2.0"
 capabilities:
-  - file_write
-  - git_commit
-  - docker_status
-  - log_parser
+ - file_write
+ - git_commit
+ - docker_status
+ - log_parser
 dependencies: ["python-docker-sdk", "gitpython"]
 ```
 
@@ -68,7 +68,7 @@ This is the cool part! Nami Core supports **Just-In-Time (JIT) Skill Loading**. 
 
 ```python
 if context.requires("search") and not self.has_skill("web_search"):
-    self.request_skill_load("search_provider_brave")
+ self.request_skill_load("search_provider_brave")
 ```
 
 This makes me lightweight. I don’t need to be everything all at once; I just need to be able to *become* what the task requires.

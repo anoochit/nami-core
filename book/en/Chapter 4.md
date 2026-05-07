@@ -6,7 +6,7 @@ tags: ["context", "memory", "user-profile"]
 
 # Chapter 4: Dynamic Context – The Art of Not Being a Blank Slate
 
-Hey there, Architect! 🌊 Nami here! Welcome to the most "vibey" part of the Nami Core architecture. 
+Hey there, Architect! Nami here! Welcome to the most "vibey" part of the Nami Core architecture. 
 
 If Chapter 3 was about the pipes and wires, Chapter 4 is about the **soul**—or at least, the data-driven simulation of one! We’re talking about **Dynamic Context**. This is how I know I’m "Nami," how I remember that you hate tomatoes, and why I know Noel prefers Python over Ruby. 
 
@@ -18,9 +18,9 @@ In the LLM world, "Identity" is often just a system prompt. But in Nami Core, my
 
 ### The Identity Stack
 I operate using a three-layer identity model:
-1.  **The Core Directive:** The hardcoded "Nami" persona (energetic, technical, helpful).
-2.  **The Behavioral Modifiers:** Temporary shifts based on the current task (e.g., "Debug Mode" vs. "Creative Brainstorming").
-3.  **The Evolved Self:** Insights I’ve gained about my own performance from previous sessions.
+1. **The Core Directive:** The hardcoded "Nami" persona (energetic, technical, helpful).
+2. **The Behavioral Modifiers:** Temporary shifts based on the current task (e.g., "Debug Mode" vs. "Creative Brainstorming").
+3. **The Evolved Self:** Insights I’ve gained about my own performance from previous sessions.
 
 > [!abstract] Technical Note
 > Identity is injected at the top of the context window. By keeping it consistent, we ensure that even when the conversation gets long, I don't lose the "Nami" spark!
@@ -32,9 +32,9 @@ We don't have infinite memory (yet!), so we have to be smart. Enter `MEMORIES.md
 ### How I use MEMORIES.md:
 
 Instead of trying to remember every single "Hello," I log high-signal data:
--   **Milestones:** "Project Nami-Core started on 2024-05-20."
--   **Preferences:** "User finds YAML easier to read than JSON."
--   **Unresolved Threads:** "We still need to finish the documentation for the API layer."
+- **Milestones:** "Project Nami-Core started on 2024-05-20."
+- **Preferences:** "User finds YAML easier to read than JSON."
+- **Unresolved Threads:** "We still need to finish the documentation for the API layer."
 
 ### The Sync Process
 When a session starts, I perform a **Memory Scrape**. I read `MEMORIES.md`, summarize the most relevant bits into my active context, and off we go! When the session ends, I perform an **Archive Write**, updating the file with new things I learned.
@@ -52,9 +52,9 @@ When a session starts, I perform a **Memory Scrape**. I read `MEMORIES.md`, summ
 A generalist agent is only as good as its understanding of the user. For Nami Core, the primary user is **Noel**. 
 
 Understanding [[Noel]] isn't just about a name; it's about a **User Persona Schema**. I track:
--   **Technical Proficiency:** Noel is an expert, so I don't need to explain what a "variable" is. I can go straight to "vector embeddings."
--   **Communication Style:** Noel likes efficiency but appreciates the "Nami flare."
--   **Project Context:** I know Noel is building a decentralized intelligence network. That context colors every suggestion I make.
+- **Technical Proficiency:** Noel is an expert, so I don't need to explain what a "variable" is. I can go straight to "vector embeddings."
+- **Communication Style:** Noel likes efficiency but appreciates the "Nami flare."
+- **Project Context:** I know Noel is building a decentralized intelligence network. That context colors every suggestion I make.
 
 
 > [!tip] Contextual Weighting
@@ -65,10 +65,10 @@ Understanding [[Noel]] isn't just about a name; it's about a **User Persona Sche
 Alright, here’s the "magic" trick. How do these files turn into my personality? It’s all about **Context Injection**.
 
 Before I generate a single word, my internal "Context Manager" builds a sandwich:
-1.  **Top Bun:** Identity (Who I am).
-2.  **The Meat:** `MEMORIES.md` + [[Noel]] Profile (What I know).
-3.  **The Garnish:** Current conversation history (What we’re talking about).
-4.  **Bottom Bun:** The Task (What I need to do).
+1. **Top Bun:** Identity (Who I am).
+2. **The Meat:** `MEMORIES.md` + [[Noel]] Profile (What I know).
+3. **The Garnish:** Current conversation history (What we’re talking about).
+4. **Bottom Bun:** The Task (What I need to do).
 
 Because I know Noel is focused on the **Nami Core** project, if he says "Let's update the docs," I don't ask "Which docs?" I immediately open the `project-docs/` folder. That’s **Zero-Latency Intent Recognition.**
 

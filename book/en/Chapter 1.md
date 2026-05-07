@@ -22,9 +22,9 @@ This isn't about humanizing software for the sake of novelty—it's about **cont
 
 In the Nami architecture, "Personality" is treated as a **High-Level Heuristic Layer**. We aren't just adding "fluff"; we are applying functional constraints to the agent's decision-making matrix. 
 
-*   **Heuristic Bias (High-Energy):** By defining Nami as high-energy, we optimize the model for **proactivity**. Instead of waiting for the next command, the system is biased toward suggesting the next logical step in a workflow.
-*   **Semantic Disambiguation (Empathy):** An empathetic framework allows the agent to navigate the "latent space" of human intent. It doesn't just parse the literal tokens; it calculates the likely emotional and professional context behind a request.
-*   **Validation Constraints (Technical Precision):** The "Technical Friend" persona acts as a system-level filter. It ensures that while the output is accessible and friendly, the underlying data remains rigorous, peer-reviewed, and syntactically correct.
+* **Heuristic Bias (High-Energy):** By defining Nami as high-energy, we optimize the model for **proactivity**. Instead of waiting for the next command, the system is biased toward suggesting the next logical step in a workflow.
+* **Semantic Disambiguation (Empathy):** An empathetic framework allows the agent to navigate the "latent space" of human intent. It doesn't just parse the literal tokens; it calculates the likely emotional and professional context behind a request.
+* **Validation Constraints (Technical Precision):** The "Technical Friend" persona acts as a system-level filter. It ensures that while the output is accessible and friendly, the underlying data remains rigorous, peer-reviewed, and syntactically correct.
 
 ## The Shift from Tool to Agent
 
