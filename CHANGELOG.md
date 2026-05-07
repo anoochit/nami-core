@@ -2,6 +2,27 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.7.0] - 2026-05-07
+
+### Added
+
+- **HUD Mode**: A dedicated monitoring dashboard (`nami hud`) powered by `ratatui` for real-time system status and activity logging. Supports an optional `session_id` to view historical logs (e.g., `nami hud <session-id>`).
+- **Enhanced TUI**: Improved CLI experience with better markdown rendering and terminal styling.
+- **New Agent Skills**:
+    - `Imagen`: Integrated AI image generation capabilities via `.skills/imagen/`.
+    - `Vercel React Best Practices`: Added expert-level React performance and best practice rules for code analysis.
+- **CLI Commands**: Added `/new` slash command in CLI mode to reset the current session.
+
+### Changed
+
+- **Persona & Protocol**: Upgraded the Nami persona and context management protocol for more intelligent interactions.
+- **Thai Localization**: Refined Thai translation of technical terms for better consistency.
+- **Book Reorganization**: Restructured chapter files and added standard frontmatter for better Obsidian integration.
+
+### Fixed
+
+- **CLI Rendering**: Fixed several UI issues including flickers, excessive newlines, and emoji encoding in various terminal environments.
+
 ## [0.6.3] - 2026-05-06
 
 ### Changed

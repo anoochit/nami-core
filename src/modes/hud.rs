@@ -1,18 +1,18 @@
 use ratatui::{
     backend::CrosstermBackend,
-    layout::{Constraint, Direction, Layout, Alignment},
-    style::{Color, Style, Modifier},
-    widgets::{Block, Borders, Paragraph, List, ListItem},
+    layout::{ Constraint, Direction, Layout, Alignment },
+    style::{ Color, Style, Modifier },
+    widgets::{ Block, Borders, Paragraph, List, ListItem },
     Terminal,
 };
 use crossterm::{
-    event::{self, Event, KeyCode},
-    terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
+    event::{ self, Event, KeyCode },
+    terminal::{ disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen },
     execute,
 };
 use std::io;
 use std::sync::Arc;
-use adk_rust::{Agent, Llm};
+use adk_rust::{ Agent, Llm };
 use adk_session::SessionService;
 use crate::runner::AgentRunner;
 
@@ -22,6 +22,7 @@ pub async fn run_hud(
     model: Arc<dyn Llm>,
     provider: String,
     model_name: String,
+    session_id_arg: Option<String>
 ) -> anyhow::Result<()> {
     enable_raw_mode()?;
     let mut stdout = io::stdout();
@@ -30,15 +31,42 @@ pub async fn run_hud(
     let mut terminal = Terminal::new(backend)?;
 
     let user_id = "default_user";
-    let session_id = "hud_session";
+    let session_id = session_id_arg.unwrap_or_else(|| "hud_session".to_string());
 
-    let mut logs: Vec<(String, String)> = vec![
-        ("SYSTEM".to_string(), format!("Nami HUD initialized. Monitoring {} via {}.", model_name, provider)),
-        ("INFO".to_string(), "Fetching active tasks...".to_string()),
-    ];
+    let mut logs: Vec<(String, String)> = vec![(
+        "SYSTEM".to_string(),
+        format!("Nami HUD initialized. Monitoring {} via {}.", model_name, provider),
+    )];
+
+    // Fetch history if it's a real session
+    if
+        let Ok(session) = sessions.get(adk_session::GetRequest {
+            app_name: "cli".to_string(), // Default app name for CLI sessions
+            user_id: user_id.to_string(),
+            session_id: session_id.clone(),
+            num_recent_events: Some(50),
+            after: None,
+        }).await
+    {
+        for event in session.events().all() {
+            if let Some(content) = event.content() {
+                let role = content.role.to_uppercase();
+                for part in &content.parts {
+                    if let adk_rust::Part::Text { text } = part {
+                        logs.push((role.clone(), text.replace("\n", " ")));
+                    }
+                }
+            }
+        }
+    } else {
+        logs.push(("INFO".to_string(), format!("No history found for session: {}", session_id)));
+    }
+
+    logs.push(("INFO".to_string(), "Fetching active tasks...".to_string()));
 
     let runner = AgentRunner::new(agent.clone(), sessions.clone(), "hud", model.clone());
-    if let Ok(tasks) = runner.run(user_id, session_id, "list_active_tasks").await {
+
+    if let Ok(tasks) = runner.run(user_id, &session_id, "list_active_tasks").await {
         logs.push(("TASKS".to_string(), tasks));
     }
 
@@ -48,34 +76,49 @@ pub async fn run_hud(
                 .direction(Direction::Vertical)
                 .constraints([
                     Constraint::Length(3), // Info Header
-                    Constraint::Min(1),    // Log Area
+                    Constraint::Min(1), // Log Area
                     Constraint::Length(1), // Footer
                 ])
                 .split(f.area());
 
             // Header - System Info
-            let info_text = format!(" 🧠 Provider: {} | Model: {} | Session: {} ", 
-                provider, model_name, session_id);
+            let info_text = format!(
+                " 🧠 Provider: {} | Model: {} | Session: {} ",
+                provider,
+                model_name,
+                session_id
+            );
             let info = Paragraph::new(info_text)
                 .block(Block::default().borders(Borders::ALL).title(" System Status "))
                 .style(Style::default().fg(Color::Magenta));
             f.render_widget(info, chunks[0]);
 
             // Log Area
-            let log_items: Vec<ListItem> = logs.iter().map(|(source, msg)| {
-                let color = match source.as_str() {
-                    "SYSTEM" => Color::Yellow,
-                    "TASKS" => Color::Green,
-                    "INFO" => Color::Blue,
-                    _ => Color::White,
-                };
-                ListItem::new(ratatui::text::Line::from(vec![
-                    ratatui::text::Span::styled(format!("[{}] ", source), Style::default().fg(color).add_modifier(Modifier::BOLD)),
-                    ratatui::text::Span::styled(msg, Style::default().fg(Color::White)),
-                ]))
-            }).collect();
-            let log_list = List::new(log_items)
-                .block(Block::default().borders(Borders::ALL).title(" Activity Log "));
+            let log_items: Vec<ListItem> = logs
+                .iter()
+                .map(|(source, msg)| {
+                    let color = match source.as_str() {
+                        "SYSTEM" => Color::Yellow,
+                        "TASKS" => Color::Green,
+                        "INFO" => Color::Blue,
+                        _ => Color::White,
+                    };
+                    ListItem::new(
+                        ratatui::text::Line::from(
+                            vec![
+                                ratatui::text::Span::styled(
+                                    format!("[{}] ", source),
+                                    Style::default().fg(color).add_modifier(Modifier::BOLD)
+                                ),
+                                ratatui::text::Span::styled(msg, Style::default().fg(Color::White))
+                            ]
+                        )
+                    )
+                })
+                .collect();
+            let log_list = List::new(log_items).block(
+                Block::default().borders(Borders::ALL).title(" Activity Log ")
+            );
             f.render_widget(log_list, chunks[1]);
 
             // Footer
