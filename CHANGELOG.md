@@ -21,6 +21,7 @@ All notable changes to this project will be documented in this file.
 ### Fixed
 
 - **CLI Rendering**: Fixed several UI issues including flickers, excessive newlines, and emoji encoding in various terminal environments.
+- **CLI Compilation**: Resolved ownership and type-mismatch compilation errors introduced by new CLI command features.
 
 ## [0.6.3] - 2026-05-06
 
