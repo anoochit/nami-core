@@ -446,36 +446,18 @@ async fn handle_chat_loop(
                 let enriched_prompt = process_file_references(trimmed).await;
 
                 // --- THINKING INDICATOR ---
-                let is_thinking = Arc::new(AtomicBool::new(true));
-                let indicator = is_thinking.clone();
-                let handle = tokio::spawn(async move {
-                    let spinner = ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏'];
-                    let mut i = 0;
-                    while indicator.load(Ordering::Relaxed) {
-                        print!(
-                            "\r{} Thinking... (esc to cancel)",
-                            style::style(spinner[i % 10]).with(style::Color::Magenta)
-                        );
-                        io::stdout().flush().ok();
-                        tokio::time::sleep(tokio::time::Duration::from_millis(80)).await;
-                        i += 1;
-                    }
-                    print!("\r\x1B[K"); // Clear the thinking line
-                    io::stdout().flush().ok();
-                });
+                // We use a simple indicator since the agent message is already in context
+                print!("{} Agent is thinking...", style::style("⏳").magenta());
+                io::stdout().flush().ok();
 
                 let content = Content::new("user").with_text(enriched_prompt);
                 let mut stream = runner.run_str(user_id, session_id, content).await?;
 
                 let mut response_buffer = String::new();
                 let mut cancelled = false;
-                let mut start_pos: Option<(u16, u16)> = None;
 
                 // Loop for LLM Stream + Interrupt
                 let _ = terminal::enable_raw_mode();
-                if let Ok(pos) = cursor::position() {
-                    start_pos = Some(pos);
-                }
                 let mut event_reader = EventStream::new();
 
                 loop {
@@ -484,33 +466,13 @@ async fn handle_chat_loop(
                             match result {
                                 Some(Ok(event)) => {
                                     if let Some(content) = &event.llm_response.content {
-                                        if is_thinking.load(Ordering::Relaxed) {
-                                            is_thinking.store(false, Ordering::Relaxed);
-                                            print!("\n\x1B[K");
-                                            io::stdout().flush().ok();
-                                            // Capture position after "Thinking..." is cleared
-                                            if let Ok(pos) = cursor::position() {
-                                                start_pos = Some(pos);
-                                            }
-                                            response_buffer.clear();
-                                        }
                                         for part in &content.parts {
                                             if let Some(text) = part.text() { 
                                                 response_buffer.push_str(text); 
-                                                // Stream raw text for immediate feedback
-                                                print!("{}", text.replace('\n', "\r\n")); 
-                                                io::stdout().flush().ok();
                                             }
                                             if let Part::FunctionCall { name, .. } = part {
                                                 println!("\n{} {}", style::style("🛠️ Calling:").dim(), style::style(name).cyan().bold());
                                                 io::stdout().flush().ok();
-                                                
-                                                // Function calls act as break points; render what we have and reset
-                                                if let Ok(pos) = cursor::position() {
-                                                    start_pos = Some(pos);
-                                                }
-                                                // Clear buffer so we don't duplicate this text in the final render
-                                                response_buffer.clear();
                                             }
                                         }
                                     }
@@ -532,8 +494,7 @@ async fn handle_chat_loop(
                         }
                     }
                 }
-                is_thinking.store(false, Ordering::Relaxed);
-                handle.await?;
+                print!("\r\x1B[K"); // Clear the thinking line
                 // --- END INDICATORS ---
 
                 if cancelled {
@@ -542,18 +503,18 @@ async fn handle_chat_loop(
                 } else {
                     // Final Pretty Render for blocks (tables, code, etc.)
                     if !response_buffer.is_empty() {
-                        // Pre-render and trim to string first to minimize the time the screen is blank
+                        // Pre-render
                         let rendered = nami_skin
                             .term_text(&response_buffer)
                             .to_string()
                             .trim()
-                            .replace('\n', "\r\n");
+                            .to_string();
 
-                        let mut stdout = io::stdout();
-                        ui_utils::render_pretty(&mut stdout, &nami_skin, &rendered, start_pos, &response_buffer)?;
+                        println!("\n{}", rendered);
                     }
                     let _ = terminal::disable_raw_mode();
                 }
+                println!();
                 println!();
             }
             Err(_) => {
