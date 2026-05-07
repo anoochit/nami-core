@@ -471,7 +471,7 @@ async fn handle_chat_loop(
                                                 response_buffer.push_str(text); 
                                             }
                                             if let Part::FunctionCall { name, .. } = part {
-                                                println!("\n{} {}", style::style("🛠️ Calling:").dim(), style::style(name).cyan().bold());
+                                                println!("\n\n{} {}", style::style("🛠️ Calling:").dim(), style::style(name).cyan().bold());
                                                 io::stdout().flush().ok();
                                             }
                                         }
