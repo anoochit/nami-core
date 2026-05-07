@@ -32,7 +32,7 @@ impl Completer for NamiHelper {
         _ctx: &Context<'_>,
     ) -> rustyline::Result<(usize, Vec<Pair>)> {
         let (start, word) =
-            rustyline::completion::extract_word(line, pos, None, |c| c == ' ' || c == '\t');
+            rustyline::completion::extract_word(line, pos, None, |c| (c == ' ' || c == '\t'));
 
         if let Some(path_part) = word.strip_prefix('@') {
             let mut matches = Vec::new();
@@ -346,16 +346,16 @@ async fn handle_chat_loop(
                 // --- SLASH COMMANDS ---
                 if trimmed == "/?" {
                     println!(
-                        "/?       - Show commands
-                        /exit     - Quit
-                        /clear    - Clear screen
-                        /new      - New session
-                        /tasks    - List active tasks
-                        /plan     - Initialize task
-                        /wiki     - Wiki search
-                        /memo     - Save memory
-                        /status   - Agent status
-                        /version  - CLI version\n"
+                        "/?       - Show commands\n\
+/exit    - Quit\n\
+/clear   - Clear screen\n\
+/new     - New session\n\
+/tasks   - List active tasks\n\
+/plan    - Initialize task\n\
+/wiki    - Wiki search\n\
+/memo    - Save memory\n\
+/status  - Agent status\n\
+/version - CLI version\n"
                     );
                     continue;
                 }
@@ -454,7 +454,11 @@ async fn handle_chat_loop(
 
                 // --- THINKING INDICATOR ---
                 // We use a simple indicator since the agent message is already in context
-                print!("\n{} Agent is thinking...", style::style("⏳").magenta());
+                println!(
+                    "\n{} {}",
+                    style::style("⏳").magenta(),
+                    style::style("Agent is thinking...").dim()
+                );
                 io::stdout().flush().ok();
 
                 let content = Content::new("user").with_text(enriched_prompt);
@@ -478,10 +482,13 @@ async fn handle_chat_loop(
                                                 response_buffer.push_str(text);
                                             }
                                             if let Part::FunctionCall { name, args, .. } = part {
-                                                println!("\r\n{} {}: {}",
-                                                style::style("🛠️ Calling:").dim(),
-                                                style::style(name).cyan().bold(),
-                                                style::style(args).dim());
+
+                                                println!(
+                                                "\n{} {} {}",
+                                                style::style("🛠️").cyan(),
+                                                style::style("Calling").dim().bold(),
+                                                style::style(format!("{} {}", name, args)).dim()
+                                                );
                                                 io::stdout().flush().ok();
                                             }
                                         }
@@ -504,20 +511,30 @@ async fn handle_chat_loop(
                         }
                     }
                 }
-                print!("\r\x1B[K"); // Clear the thinking line
+                println!(); // Clear the thinking line
                 // --- END INDICATORS ---
 
                 if cancelled {
                     let _ = terminal::disable_raw_mode();
                     println!("\n{}", style::style("🚀 Request cancelled").dim());
                 } else {
-                    // Final output: render the collected response buffer with MadSkin
+                    // Final output: render with an explicit wide wrap width so termimad
                     if !response_buffer.is_empty() {
-                        let rendered = nami_skin
-                            .term_text(&response_buffer)
-                            .to_string();
+                        let cleaned = response_buffer
+                            .lines()
+                            .map(|line| line.trim_end())
+                            .collect::<Vec<_>>()
+                            .join("\n");
 
-                        println!("\n{}", rendered.trim());
+                        let term_width = terminal::size()
+                            .map(|(w, _)| (w as usize).saturating_sub(4))
+                            .unwrap_or(80);
+
+                        let rendered =
+                            termimad::FmtText::from(nami_skin, &cleaned, Some(term_width))
+                                .to_string();
+
+                        println!("{}", rendered);
                     }
                     let _ = terminal::disable_raw_mode();
                 }
