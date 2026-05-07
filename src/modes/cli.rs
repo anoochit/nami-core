@@ -501,12 +501,13 @@ async fn handle_chat_loop(
                                                 io::stdout().flush().ok();
                                             }
                                             if let Part::FunctionCall { name, .. } = part {
-                                                print!("\r\x1B[K{} {}\r\n\r\n", style::style("🛠️ Calling:").dim(), style::style(name).cyan().bold());
+                                                print!("\r\x1B[K{} {}\r\n", style::style("🛠️ Calling:").dim(), style::style(name).cyan().bold());
                                                 io::stdout().flush().ok();
                                                 // Function calls act as break points; reset start_pos for next text block
                                                 if let Ok(pos) = cursor::position() {
                                                     start_pos = Some(pos);
                                                 }
+                                                response_buffer.clear();
                                             }
                                         }
                                     }
@@ -563,8 +564,7 @@ async fn handle_chat_loop(
                             if row > 0 && row + est_lines < term_height {
                                 let _ = execute!(
                                     stdout,
-                                    cursor::MoveTo(col, row),
-                                    terminal::Clear(terminal::ClearType::FromCursorDown)
+                                    cursor::MoveTo(col, row)
                                 );
                                 print!("{}", rendered);
                             } else {
