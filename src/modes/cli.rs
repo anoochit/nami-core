@@ -16,11 +16,44 @@ use walkdir::WalkDir;
 
 use crate::agent::agent::{check_config_mtime, create_agent, get_config_mtime, get_skills_mtime};
 use crate::agent::get_compaction_config;
+
 use adk_rust::Agent;
 use adk_rust::prelude::*;
 use adk_session::{CreateRequest, GetRequest, SessionService};
 
 struct NamiHelper;
+
+fn render_help() {
+    println!(
+        r#"
+{}  Show commands
+{}  Quit
+{}  Clear screen
+{}  New session
+{}  List active tasks
+{}  Initialize task
+{}  Wiki search
+{}  Save memory
+{}  Agent status
+{}  CLI version
+
+Examples:
+  /plan Build AI research system
+  /wiki Rust async traits
+  /memo User prefers concise output
+"#,
+        style::style("/?").cyan().bold(),
+        style::style("/exit").cyan().bold(),
+        style::style("/clear").cyan().bold(),
+        style::style("/new").cyan().bold(),
+        style::style("/tasks").cyan().bold(),
+        style::style("/plan").cyan().bold(),
+        style::style("/wiki").cyan().bold(),
+        style::style("/memo").cyan().bold(),
+        style::style("/status").cyan().bold(),
+        style::style("/version").cyan().bold(),
+    );
+}
 
 impl Completer for NamiHelper {
     type Candidate = Pair;
@@ -37,11 +70,11 @@ impl Completer for NamiHelper {
         if let Some(path_part) = word.strip_prefix('@') {
             let mut matches = Vec::new();
 
-            // Search for files in the workspace directory
             let workspace_path = std::path::Path::new("workspace");
+
             if workspace_path.exists() {
                 for entry in WalkDir::new(workspace_path)
-                    .max_depth(5) // Don't go too deep to keep it fast
+                    .max_depth(5)
                     .into_iter()
                     .filter_map(|e| e.ok())
                 {
@@ -60,13 +93,12 @@ impl Completer for NamiHelper {
                 }
             }
 
-            // Limit matches to avoid overwhelming the UI
             matches.truncate(10);
 
             return Ok((start + 1, matches));
         }
 
-        Ok((0, Vec::with_capacity(0)))
+        Ok((0, Vec::new()))
     }
 }
 
@@ -114,7 +146,7 @@ impl Helper for NamiHelper {}
 
 async fn process_file_references(input: &str) -> String {
     let mut final_prompt = input.to_string();
-    // Match @ followed by valid path characters
+
     let re = Regex::new(r"@([\w\./\-]+)").unwrap();
 
     let mut appended_context = String::new();
@@ -122,9 +154,11 @@ async fn process_file_references(input: &str) -> String {
 
     for cap in re.captures_iter(input) {
         let file_path_str = &cap[1];
+
         if seen_files.contains(file_path_str) {
             continue;
         }
+
         seen_files.insert(file_path_str.to_string());
 
         let workspace_path = std::path::Path::new("workspace");
@@ -135,22 +169,19 @@ async fn process_file_references(input: &str) -> String {
             && let Ok(metadata) = std::fs::metadata(&path)
         {
             let size = metadata.len();
-            // Threshold: 4KB
+
             if size < 4096 {
                 if let Ok(content) = tokio::fs::read_to_string(&path).await {
                     appended_context.push_str(&format!(
-                        "\n\n--- Content from {} ---\n{}\n--- End of content ---\n",
+                        "\n\n--- Content from {} ---\n{}\n--- End ---\n",
                         file_path_str, content
                     ));
                 }
             } else {
-                appended_context.push_str(
-                    &format!(
-                        "\n\n[REFERENCE: {} (Size: {} bytes)]\nThis file is too large for direct injection. Use your filesystem tools (read_file) to inspect specific parts of this file if needed.\n",
-                        file_path_str,
-                        size
-                    )
-                );
+                appended_context.push_str(&format!(
+                    "\n\n[REFERENCE: {} ({size} bytes)]\nUse filesystem tools.\n",
+                    file_path_str
+                ));
             }
         }
     }
@@ -163,6 +194,47 @@ async fn process_file_references(input: &str) -> String {
     final_prompt
 }
 
+async fn run_system_prompt(
+    runner: &mut Runner,
+    user_id: &str,
+    session_id: &str,
+    prompt: &str,
+    nami_skin: &MadSkin,
+) -> anyhow::Result<()> {
+    let content = Content::new("user").with_text(prompt);
+
+    let mut stream = runner.run_str(user_id, session_id, content).await?;
+
+    let mut response = String::new();
+
+    while let Some(Ok(event)) = stream.next().await {
+        if let Some(content) = event.llm_response.content {
+            for part in content.parts {
+                if let Some(text) = part.text() {
+                    response.push_str(text);
+                }
+            }
+        }
+    }
+
+    let rendered = termimad::FmtText::from(
+        nami_skin,
+        &response,
+        Some(
+            terminal::size()
+                .map(|(w, _)| w as usize)
+                .unwrap_or(80)
+                .saturating_sub(4),
+        ),
+    )
+    .to_string();
+
+    println!("{}", rendered);
+    println!();
+
+    Ok(())
+}
+
 fn render_banner(provider: &str, model_name: &str, session_id: &str) {
     println!(
         "{}",
@@ -170,13 +242,14 @@ fn render_banner(provider: &str, model_name: &str, session_id: &str) {
             r#"
    _  _____   __  _______
   / |/ / _ | /  |/  /  _/
- /    / __ |/ /|_/ // /  
-/_/|_/_/ |_/_/  /_/___/  
-                         
+ /    / __ |/ /|_/ // /
+/_/|_/_/ |_/_/  /_/___/
+
 "#
         )
         .magenta()
     );
+
     println!(
         "{} {}",
         style::style(format!("Nami CLI v{}", env!("CARGO_PKG_VERSION")))
@@ -184,14 +257,15 @@ fn render_banner(provider: &str, model_name: &str, session_id: &str) {
             .magenta(),
         style::style(format!("({}) using {}", provider, model_name)).dim()
     );
+
     println!(
         "{} {}",
         style::style("Session ID:").bold().magenta(),
         style::style(session_id).dim()
     );
-    println!("\nType /? for slash commands.");
-    println!("Type @ followed by path to reference files (use Tab for completion).");
-    println!("Press ESC during a request to cancel it.\n");
+
+    println!("\nType /? for commands.");
+    println!("Use @file for references.\n");
 }
 
 pub(crate) async fn ensure_session(
@@ -226,6 +300,33 @@ pub(crate) async fn ensure_session(
     Ok(())
 }
 
+fn clear_current_line(stdout: &mut io::Stdout) -> io::Result<()> {
+    queue!(
+        stdout,
+        terminal::Clear(terminal::ClearType::CurrentLine),
+        cursor::MoveToColumn(0)
+    )?;
+
+    stdout.flush()?;
+
+    Ok(())
+}
+
+fn print_status_line(stdout: &mut io::Stdout, text: &str) -> io::Result<()> {
+    queue!(
+        stdout,
+        cursor::SavePosition,
+        terminal::Clear(terminal::ClearType::CurrentLine),
+        cursor::MoveToColumn(0),
+        style::Print(text),
+        cursor::RestorePosition
+    )?;
+
+    stdout.flush()?;
+
+    Ok(())
+}
+
 pub(crate) async fn run_cli(
     mut agent: Arc<dyn Agent>,
     sessions: Arc<dyn SessionService>,
@@ -233,15 +334,15 @@ pub(crate) async fn run_cli(
     mut provider: String,
     mut model_name: String,
 ) -> anyhow::Result<()> {
-    let mut stdout = io::stdout();
     execute!(
-        stdout,
+        io::stdout(),
         terminal::Clear(terminal::ClearType::All),
         cursor::MoveTo(0, 0)
     )?;
 
     let app_name = "cli";
     let user_id = "default_user";
+
     let mut session_id = Uuid::new_v4().to_string();
 
     render_banner(&provider, &model_name, &session_id);
@@ -258,222 +359,201 @@ pub(crate) async fn run_cli(
     let config = Config::builder()
         .completion_type(rustyline::CompletionType::List)
         .build();
+
     let mut rl: Editor<NamiHelper, rustyline::history::FileHistory> = Editor::with_config(config)?;
+
     rl.set_helper(Some(NamiHelper));
+
     let _ = rl.load_history(".cli_history");
 
     let mut nami_skin = MadSkin::default();
+
     nami_skin
         .paragraph
         .set_fg(termimad::crossterm::style::Color::White);
+
     nami_skin
         .bullet
         .set_fg(termimad::crossterm::style::Color::Magenta);
 
-    handle_chat_loop(
-        &mut rl,
-        &sessions,
-        &mut runner,
-        app_name,
-        user_id,
-        &mut session_id,
-        &mut agent,
-        &mut model,
-        &mut provider,
-        &mut model_name,
-        &nami_skin,
-    )
-    .await
-}
-
-fn clear_current_line(stdout: &mut io::Stdout) -> io::Result<()> {
-    queue!(
-        stdout,
-        terminal::Clear(terminal::ClearType::CurrentLine),
-        cursor::MoveToColumn(0)
-    )?;
-
-    stdout.flush()?;
-    Ok(())
-}
-
-fn print_status_line(stdout: &mut io::Stdout, text: &str) -> io::Result<()> {
-    clear_current_line(stdout)?;
-
-    queue!(stdout, style::Print(text), cursor::MoveToNextLine(1))?;
-
-    stdout.flush()?;
-    Ok(())
-}
-
-async fn handle_chat_loop(
-    rl: &mut Editor<NamiHelper, rustyline::history::FileHistory>,
-    sessions: &Arc<dyn SessionService>,
-    runner: &mut Runner,
-    app_name: &str,
-    user_id: &str,
-    session_id: &mut String,
-    agent: &mut Arc<dyn Agent>,
-    model: &mut Arc<dyn Llm>,
-    provider: &mut String,
-    model_name: &mut String,
-    nami_skin: &MadSkin,
-) -> anyhow::Result<()> {
     let mut last_config_mtime = get_config_mtime();
     let mut last_skills_mtime = get_skills_mtime();
 
     loop {
         let mut config_changed = false;
+
         if let Some(new_config) = check_config_mtime(&mut last_config_mtime) {
             let (new_agent, new_model) = create_agent(&new_config).await?;
-            *agent = new_agent;
-            *model = new_model;
-            *provider = new_config.model.provider.clone();
-            *model_name = new_config.model.model_name.clone();
+
+            agent = new_agent;
+            model = new_model;
+
+            provider = new_config.model.provider.clone();
+            model_name = new_config.model.model_name.clone();
+
             config_changed = true;
         }
 
         let current_skills_mtime = get_skills_mtime();
+
         if last_skills_mtime != current_skills_mtime {
             last_skills_mtime = current_skills_mtime;
             config_changed = true;
         }
 
         if config_changed {
-            *runner = Runner::builder()
+            runner = Runner::builder()
                 .app_name(app_name)
                 .agent(agent.clone())
                 .session_service(sessions.clone())
                 .compaction_config(get_compaction_config(model.clone()))
                 .build()?;
 
-            println!(
-                "\n{}\n",
-                style::style("🧠 Agent re-initialized with new config or skills")
-                    .cyan()
-                    .bold()
-            );
+            println!("\n{}\n", style::style("🧠 Agent reloaded").cyan().bold());
         }
 
         let line = rl.readline("You > ");
+
         match line {
             Ok(line) => {
                 let trimmed = line.trim();
+
+                if trimmed.starts_with('/') {
+                    match trimmed {
+                        "/?" => {
+                            render_help();
+                            continue;
+                        }
+
+                        "/exit" | "/quit" => {
+                            break;
+                        }
+
+                        "/clear" => {
+                            execute!(
+                                io::stdout(),
+                                terminal::Clear(terminal::ClearType::All),
+                                cursor::MoveTo(0, 0)
+                            )?;
+
+                            render_banner(&provider, &model_name, &session_id);
+
+                            continue;
+                        }
+
+                        "/new" => {
+                            session_id = Uuid::new_v4().to_string();
+
+                            ensure_session(&sessions, app_name, user_id, &session_id).await?;
+
+                            execute!(
+                                io::stdout(),
+                                terminal::Clear(terminal::ClearType::All),
+                                cursor::MoveTo(0, 0)
+                            )?;
+
+                            render_banner(&provider, &model_name, &session_id);
+
+                            println!(
+                                "{}\n",
+                                style::style("✨ New session started").green().bold()
+                            );
+
+                            continue;
+                        }
+
+                        "/version" => {
+                            println!(
+                                "{} {}\n",
+                                style::style("Nami CLI").magenta().bold(),
+                                env!("CARGO_PKG_VERSION")
+                            );
+
+                            continue;
+                        }
+
+                        "/tasks" => {
+                            run_system_prompt(
+                                &mut runner,
+                                user_id,
+                                &session_id,
+                                "list_active_tasks",
+                                &nami_skin,
+                            )
+                            .await?;
+
+                            continue;
+                        }
+
+                        "/status" => {
+                            run_system_prompt(
+                                &mut runner,
+                                user_id,
+                                &session_id,
+                                "get_system_status",
+                                &nami_skin,
+                            )
+                            .await?;
+
+                            continue;
+                        }
+
+                        _ => {}
+                    }
+
+                    if trimmed.starts_with("/plan ") {
+                        let prompt =
+                            format!("Initialize task: {}", trimmed.replace("/plan", "").trim());
+
+                        run_system_prompt(&mut runner, user_id, &session_id, &prompt, &nami_skin)
+                            .await?;
+
+                        continue;
+                    }
+
+                    if trimmed.starts_with("/wiki ") {
+                        let prompt =
+                            format!("wiki_search: {}", trimmed.replace("/wiki", "").trim());
+
+                        run_system_prompt(&mut runner, user_id, &session_id, &prompt, &nami_skin)
+                            .await?;
+
+                        continue;
+                    }
+
+                    if trimmed.starts_with("/memo ") {
+                        let prompt =
+                            format!("save_memory: {}", trimmed.replace("/memo", "").trim());
+
+                        run_system_prompt(&mut runner, user_id, &session_id, &prompt, &nami_skin)
+                            .await?;
+
+                        continue;
+                    }
+
+                    println!(
+                        "{} {}\n",
+                        style::style("Unknown command:").red().bold(),
+                        trimmed
+                    );
+
+                    continue;
+                }
+
                 if trimmed.is_empty() {
                     continue;
                 }
 
-                // --- SLASH COMMANDS ---
-                if trimmed == "/?" {
-                    println!(
-                        "/?       - Show commands\n\
-/exit    - Quit\n\
-/clear   - Clear screen\n\
-/new     - New session\n\
-/tasks   - List active tasks\n\
-/plan    - Initialize task\n\
-/wiki    - Wiki search\n\
-/memo    - Save memory\n\
-/status  - Agent status\n\
-/version - CLI version\n"
-                    );
-                    continue;
-                }
-                if trimmed == "/exit" || trimmed == "/quit" {
+                if trimmed == "/exit" {
                     break;
                 }
-                if trimmed == "/clear" {
-                    execute!(
-                        io::stdout(),
-                        terminal::Clear(terminal::ClearType::All),
-                        cursor::MoveTo(0, 0)
-                    )?;
-                    render_banner(provider, model_name, session_id);
-                    continue;
-                }
-                if trimmed == "/new" {
-                    *session_id = Uuid::new_v4().to_string();
-                    ensure_session(sessions, app_name, user_id, session_id).await?;
-                    execute!(
-                        io::stdout(),
-                        terminal::Clear(terminal::ClearType::All),
-                        cursor::MoveTo(0, 0)
-                    )?;
-                    render_banner(provider, model_name, session_id);
-                    println!(
-                        "{}\n",
-                        style::style("\u{2728} New session started").green().bold()
-                    );
-                    continue;
-                }
-                if trimmed == "/version" {
-                    println!("Nami CLI v{}\n", env!("CARGO_PKG_VERSION"));
-                    continue;
-                }
-
-                if trimmed.starts_with("/tasks")
-                    || trimmed.starts_with("/plan")
-                    || trimmed.starts_with("/wiki")
-                    || trimmed.starts_with("/memo")
-                    || trimmed.starts_with("/status")
-                    || trimmed.starts_with("/parallel")
-                {
-                    let cmd_prompt = if trimmed.starts_with("/tasks") {
-                        "list_active_tasks".to_string()
-                    } else if trimmed.starts_with("/wiki") {
-                        format!("wiki_search: {}", trimmed.replace("/wiki", "").trim())
-                    } else if trimmed.starts_with("/memo") {
-                        format!("save_memory: {}", trimmed.replace("/memo", "").trim())
-                    } else if trimmed.starts_with("/status") {
-                        "get_system_status".to_string()
-                    } else if trimmed.starts_with("/parallel") {
-                        let replacement = trimmed.replace("/parallel", "");
-                        let raw_tasks = replacement.trim();
-                        let mut tasks_json = Vec::new();
-                        for t in raw_tasks.split(',') {
-                            let parts: Vec<&str> = t.splitn(2, ':').collect();
-                            if parts.len() == 2 {
-                                tasks_json.push(format!(
-                                    "{{\"specialist\": \"{}\", \"prompt\": \"{}\"}}",
-                                    parts[0].trim(),
-                                    parts[1].trim()
-                                ));
-                            }
-                        }
-                        format!(
-                            "Use parallel_tasks with: {{\"tasks\": [{}]}}",
-                            tasks_json.join(",")
-                        )
-                    } else {
-                        format!("Initialize task: {}", trimmed.replace("/plan", "").trim())
-                    };
-
-                    let content = Content::new("user").with_text(cmd_prompt);
-                    if let Ok(mut stream) = runner.run_str(user_id, session_id, content).await {
-                        while let Some(Ok(event)) = stream.next().await {
-                            if let Some(c) = event.llm_response.content {
-                                for part in c.parts {
-                                    if let Some(text) = part.text() {
-                                        let rendered = nami_skin.inline(text).to_string();
-                                        print!("{}", rendered);
-                                        io::stdout().flush().ok();
-                                    }
-                                }
-                            }
-                        }
-                        println!();
-                    }
-                    continue;
-                }
-                // --- END SLASH COMMANDS ---
 
                 let _ = rl.add_history_entry(trimmed);
+
                 rl.save_history(".cli_history")?;
 
                 let enriched_prompt = process_file_references(trimmed).await;
 
-                // --- THINKING INDICATOR ---
-                // We use a simple indicator since the agent message is already in context
                 print_status_line(
                     &mut io::stdout(),
                     &format!(
@@ -482,18 +562,15 @@ async fn handle_chat_loop(
                         style::style("Agent is thinking...").dim()
                     ),
                 )?;
-                io::stdout().flush().ok();
 
                 let content = Content::new("user").with_text(enriched_prompt);
-                let mut stream = runner.run_str(user_id, session_id, content).await?;
+
+                let mut stream = runner.run_str(user_id, &session_id, content).await?;
 
                 let mut response_buffer = String::new();
+
                 let mut cancelled = false;
 
-                // Loop for LLM Stream + Interrupt
-                execute!(io::stdout(), terminal::DisableLineWrap)?;
-
-                let _ = terminal::enable_raw_mode();
                 let mut event_reader = EventStream::new();
 
                 loop {
@@ -501,37 +578,78 @@ async fn handle_chat_loop(
                         result = stream.next() => {
                             match result {
                                 Some(Ok(event)) => {
-                                    if let Some(content) = &event.llm_response.content {
+                                    if let Some(content) =
+                                        &event.llm_response.content
+                                    {
                                         for part in &content.parts {
-                                            if let Some(text) = part.text() {
-                                                response_buffer.push_str(text);
+                                            if let Some(text) =
+                                                part.text()
+                                            {
+                                                response_buffer
+                                                    .push_str(text);
                                             }
-                                            if let Part::FunctionCall { name, args, .. } = part {
 
+                                            if let Part::FunctionCall {
+                                                name,
+                                                args,
+                                                ..
+                                            } = part
+                                            {
                                                 print_status_line(
-                                                &mut io::stdout(),
-                                                &format!(
-                                                    "{} {} {}",
-                                                    style::style("🛠️").cyan(),
-                                                    style::style("Calling").dim().bold(),
-                                                    style::style(format!("{} {}", name, args)).dim()
-                                                ),
-                                            )?;
-                                            io::stdout().flush().ok();
+                                                    &mut io::stdout(),
+                                                    &format!(
+                                                        "{} {} {}",
+                                                        style::style("🔨"),
+                                                        style::style("Calling")
+                                                            .dim()
+                                                            .bold(),
+                                                        style::style(
+                                                            format!(
+                                                                "{} {}",
+                                                                name,
+                                                                args
+                                                            )
+                                                        )
+                                                        .dim()
+                                                    ),
+                                                )?;
                                             }
                                         }
                                     }
                                 }
+
                                 Some(Err(e)) => {
-                                    response_buffer.push_str(&format!("\nError: {}", e));
+                                    response_buffer.push_str(
+                                        &format!(
+                                            "\nError: {}",
+                                            e
+                                        )
+                                    );
+
                                     break;
                                 }
+
                                 None => break,
                             }
                         }
+
                         maybe_event = event_reader.next() => {
-                            if let Some(Ok(Event::Key(key))) = maybe_event {
-                                if key.kind == KeyEventKind::Press && (key.code == KeyCode::Esc || (key.code == KeyCode::Char('c') && key.modifiers.contains(KeyModifiers::CONTROL))) {
+                            if let Some(Ok(Event::Key(key))) =
+                                maybe_event
+                            {
+                                if key.kind
+                                    == KeyEventKind::Press
+                                    && (
+                                        key.code == KeyCode::Esc
+                                        || (
+                                            key.code
+                                                == KeyCode::Char('c')
+                                            && key.modifiers.contains(
+                                                KeyModifiers::CONTROL
+                                            )
+                                        )
+                                    )
+                                {
                                     cancelled = true;
                                     break;
                                 }
@@ -539,44 +657,41 @@ async fn handle_chat_loop(
                         }
                     }
                 }
-                println!(); // Clear the thinking line
-                // --- END INDICATORS ---
+
+                clear_current_line(&mut io::stdout())?;
+                println!();
 
                 if cancelled {
-                    let _ = terminal::disable_raw_mode();
-                    println!("\n{}", style::style("🚀 Request cancelled").dim());
-                } else {
-                    // Final output: render with an explicit wide wrap width so termimad
-                    let cleaned = response_buffer
-                        .lines()
-                        .map(|line| line.trim_end())
-                        .collect::<Vec<_>>()
-                        .join("\n");
+                    println!("{}", style::style("🚀 Request cancelled").dim());
 
-                    let term_width = terminal::size()
-                        .map(|(w, _)| {
-                            let w = w as usize;
-                            w.clamp(40, 120).saturating_sub(2)
-                        })
-                        .unwrap_or(80);
-
-                    let rendered =
-                        termimad::FmtText::from(nami_skin, &cleaned, Some(term_width)).to_string();
-
-                    println!("{}", rendered);
-
-                    execute!(io::stdout(), terminal::EnableLineWrap)?;
-
-                    terminal::disable_raw_mode().ok();
-                    execute!(io::stdout(), terminal::EnableLineWrap).ok();
+                    continue;
                 }
+
+                let cleaned = response_buffer
+                    .lines()
+                    .map(|line| line.trim_end())
+                    .collect::<Vec<_>>()
+                    .join("\n");
+
+                let term_width = terminal::size()
+                    .map(|(w, _)| w as usize)
+                    .unwrap_or(80)
+                    .saturating_sub(4);
+
+                let rendered =
+                    termimad::FmtText::from(&nami_skin, &cleaned, Some(term_width)).to_string();
+
+                println!("{}", rendered);
+
                 println!();
                 println!();
             }
+
             Err(_) => {
                 break;
             }
         }
     }
+
     Ok(())
 }
