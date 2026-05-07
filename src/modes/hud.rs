@@ -16,7 +16,7 @@ use adk_rust::{Agent, Llm};
 use adk_session::SessionService;
 use crate::runner::AgentRunner;
 
-pub async fn run_tui(
+pub async fn run_hud(
     agent: Arc<dyn Agent>,
     sessions: Arc<dyn SessionService>,
     model: Arc<dyn Llm>,

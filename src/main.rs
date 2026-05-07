@@ -64,7 +64,7 @@ async fn main() -> anyhow::Result<()> {
         }
         Commands::Hud => {
             log::info!("Running in HUD mode");
-            modes::cli_tui::run_tui(agent, sessions, model, provider, model_name).await?;
+            modes::hud::run_hud(agent, sessions, model, provider, model_name).await?;
         }
         Commands::Run { prompt } => {
             log::info!("Running in direct run mode");

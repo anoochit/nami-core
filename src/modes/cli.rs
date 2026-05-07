@@ -447,30 +447,47 @@ async fn handle_chat_loop(
                         }
                     }
                 }
-                let _ = terminal::disable_raw_mode();
                 is_thinking.store(false, Ordering::Relaxed);
                 handle.await?;
                 // --- END INDICATORS ---
 
                 if cancelled {
+                    let _ = terminal::disable_raw_mode();
                     println!("\n{}", style::style("🚀 Request cancelled").dim());
                 } else {
                     // Final Pretty Render for blocks (tables, code, etc.)
                     if !response_buffer.is_empty() {
+                        // Pre-render to string first to minimize the time the screen is blank
+                        let rendered = nami_skin.term_text(&response_buffer).to_string().replace('\n', "\r\n");
+                        
+                        let mut stdout = io::stdout();
+                        let _ = execute!(stdout, cursor::Hide);
+                        
                         if let Some((col, row)) = start_pos {
-                            // Try to "rewind" and print the pretty version
-                            // This works best if the output hasn't scrolled the screen
-                            let _ = execute!(io::stdout(), cursor::MoveTo(col, row), terminal::Clear(terminal::ClearType::FromCursorDown));
+                            // Heuristic: Check if the output likely caused a scroll. 
+                            // If it did, MoveTo(col, row) will point to the wrong line.
+                            let (_, term_height) = terminal::size().unwrap_or((80, 24));
+                            let est_lines = (response_buffer.split('\n').count() as u16).max(1);
+                            
+                            // If we're safe from scrolling, rewind and replace.
+                            if row + est_lines < term_height {
+                                let _ = execute!(stdout, cursor::MoveTo(col, row), terminal::Clear(terminal::ClearType::FromCursorDown));
+                                print!("{}", rendered);
+                            } else {
+                                // If it scrolled, we already have the raw text on screen.
+                                // We don't want to double-print the whole thing, but we might want 
+                                // to show the pretty version if it's significantly different (like a table).
+                                // For now, let's just avoid adding extra lines.
+                                print!("\r");
+                            }
                         } else {
-                            println!("\r");
+                            print!("\r{}", rendered);
                         }
                         
-                        // Use MadSkin to render the full markdown block properly
-                        let rendered = nami_skin.term_text(&response_buffer).to_string();
-                        print!("{}", rendered.replace('\n', "\r\n"));
-                        io::stdout().flush().ok();
+                        let _ = execute!(stdout, cursor::Show);
+                        let _ = stdout.flush();
                     }
-                    println!("\n"); 
+                    let _ = terminal::disable_raw_mode();
                 }
                 println!();
 
