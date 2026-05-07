@@ -485,7 +485,7 @@ async fn handle_chat_loop(
                                     if let Some(content) = &event.llm_response.content {
                                         if is_thinking.load(Ordering::Relaxed) {
                                             is_thinking.store(false, Ordering::Relaxed);
-                                            print!("\r\x1B[K");
+                                            print!("\n\x1B[K");
                                             io::stdout().flush().ok();
                                             // Capture position after "Thinking..." is cleared
                                             if let Ok(pos) = cursor::position() {
@@ -501,7 +501,7 @@ async fn handle_chat_loop(
                                                 io::stdout().flush().ok();
                                             }
                                             if let Part::FunctionCall { name, .. } = part {
-                                                print!("\r\x1B[K{} {}\r\n", style::style("🛠️ Calling:").dim(), style::style(name).cyan().bold());
+                                                println!("\n{} {}", style::style("🛠️ Calling:").dim(), style::style(name).cyan().bold());
                                                 io::stdout().flush().ok();
                                                 // Function calls act as break points; reset start_pos for next text block
                                                 if let Ok(pos) = cursor::position() {
