@@ -1,26 +1,24 @@
-use crossterm::{ cursor, execute, style, terminal, style::Stylize };
-use crossterm::event::{ Event, KeyCode, EventStream, KeyModifiers, KeyEventKind };
+use crossterm::event::{Event, EventStream, KeyCode, KeyEventKind, KeyModifiers};
+use crossterm::{cursor, execute, style, style::Stylize, terminal};
 use futures::StreamExt;
 use regex::Regex;
-use rustyline::completion::{ Completer, Pair };
+use rustyline::completion::{Completer, Pair};
 use rustyline::highlight::Highlighter;
 use rustyline::hint::Hinter;
 use rustyline::validate::Validator;
-use rustyline::{ Config, Context, Editor, Helper };
+use rustyline::{Config, Context, Editor, Helper};
 use std::borrow::Cow;
-use std::io::{ self, Write };
+use std::io::{self, Write};
 use std::sync::Arc;
-use std::sync::atomic::{ AtomicBool, Ordering };
 use termimad::MadSkin;
 use uuid::Uuid;
 use walkdir::WalkDir;
 
+use crate::agent::agent::{check_config_mtime, create_agent, get_config_mtime, get_skills_mtime};
 use crate::agent::get_compaction_config;
-use crate::agent::agent::{ check_config_mtime, get_config_mtime, get_skills_mtime, create_agent };
-use crate::modes::ui_utils;
 use adk_rust::Agent;
 use adk_rust::prelude::*;
-use adk_session::{ CreateRequest, GetRequest, SessionService };
+use adk_session::{CreateRequest, GetRequest, SessionService};
 
 struct NamiHelper;
 
@@ -31,14 +29,10 @@ impl Completer for NamiHelper {
         &self,
         line: &str,
         pos: usize,
-        _ctx: &Context<'_>
+        _ctx: &Context<'_>,
     ) -> rustyline::Result<(usize, Vec<Pair>)> {
-        let (start, word) = rustyline::completion::extract_word(
-            line,
-            pos,
-            None,
-            |c| c == ' ' || c == '\t'
-        );
+        let (start, word) =
+            rustyline::completion::extract_word(line, pos, None, |c| c == ' ' || c == '\t');
 
         if let Some(path_part) = word.strip_prefix('@') {
             let mut matches = Vec::new();
@@ -49,10 +43,10 @@ impl Completer for NamiHelper {
                 for entry in WalkDir::new(workspace_path)
                     .max_depth(5) // Don't go too deep to keep it fast
                     .into_iter()
-                    .filter_map(|e| e.ok()) {
-                    if
-                        entry.file_type().is_file() &&
-                        let Ok(relative_path) = entry.path().strip_prefix(workspace_path)
+                    .filter_map(|e| e.ok())
+                {
+                    if entry.file_type().is_file()
+                        && let Ok(relative_path) = entry.path().strip_prefix(workspace_path)
                     {
                         let path_str = relative_path.to_string_lossy().replace("\\", "/");
 
@@ -84,7 +78,7 @@ impl Highlighter for NamiHelper {
     fn highlight_prompt<'b, 's: 'b, 'p: 'b>(
         &'s self,
         prompt: &'p str,
-        _default: bool
+        _default: bool,
     ) -> Cow<'b, str> {
         Cow::Borrowed(prompt)
     }
@@ -100,7 +94,7 @@ impl Highlighter for NamiHelper {
     fn highlight_candidate<'c>(
         &self,
         candidate: &'c str,
-        _completion: rustyline::CompletionType
+        _completion: rustyline::CompletionType,
     ) -> Cow<'c, str> {
         Cow::Borrowed(candidate)
     }
@@ -109,7 +103,7 @@ impl Highlighter for NamiHelper {
         &self,
         _line: &str,
         _pos: usize,
-        _kind: rustyline::highlight::CmdKind
+        _kind: rustyline::highlight::CmdKind,
     ) -> bool {
         false
     }
@@ -136,18 +130,18 @@ async fn process_file_references(input: &str) -> String {
         let workspace_path = std::path::Path::new("workspace");
         let path = workspace_path.join(file_path_str);
 
-        if path.exists() && path.is_file() && let Ok(metadata) = std::fs::metadata(&path) {
+        if path.exists()
+            && path.is_file()
+            && let Ok(metadata) = std::fs::metadata(&path)
+        {
             let size = metadata.len();
             // Threshold: 4KB
             if size < 4096 {
                 if let Ok(content) = tokio::fs::read_to_string(&path).await {
-                    appended_context.push_str(
-                        &format!(
-                            "\n\n--- Content from {} ---\n{}\n--- End of content ---\n",
-                            file_path_str,
-                            content
-                        )
-                    );
+                    appended_context.push_str(&format!(
+                        "\n\n--- Content from {} ---\n{}\n--- End of content ---\n",
+                        file_path_str, content
+                    ));
                 }
             } else {
                 appended_context.push_str(
@@ -172,22 +166,20 @@ async fn process_file_references(input: &str) -> String {
 fn render_banner(provider: &str, model_name: &str, session_id: &str) {
     println!(
         "{}",
-        style
-            ::style(
-                r#"
+        style::style(
+            r#"
    _  _____   __  _______
   / |/ / _ | /  |/  /  _/
  /    / __ |/ /|_/ // /  
 /_/|_/_/ |_/_/  /_/___/  
                          
 "#
-            )
-            .magenta()
+        )
+        .magenta()
     );
     println!(
         "{} {}",
-        style
-            ::style(format!("Nami CLI v{}", env!("CARGO_PKG_VERSION")))
+        style::style(format!("Nami CLI v{}", env!("CARGO_PKG_VERSION")))
             .bold()
             .magenta(),
         style::style(format!("({}) using {}", provider, model_name)).dim()
@@ -206,28 +198,30 @@ pub(crate) async fn ensure_session(
     sessions: &Arc<dyn SessionService>,
     app_name: &str,
     user_id: &str,
-    session_id: &str
+    session_id: &str,
 ) -> anyhow::Result<()> {
-    if
-        sessions
-            .get(GetRequest {
-                app_name: app_name.to_string(),
-                user_id: user_id.to_string(),
-                session_id: session_id.to_string(),
-                num_recent_events: Some(0),
-                after: None,
-            }).await
-            .is_ok()
+    if sessions
+        .get(GetRequest {
+            app_name: app_name.to_string(),
+            user_id: user_id.to_string(),
+            session_id: session_id.to_string(),
+            num_recent_events: Some(0),
+            after: None,
+        })
+        .await
+        .is_ok()
     {
         return Ok(());
     }
 
-    sessions.create(CreateRequest {
-        app_name: app_name.to_string(),
-        user_id: user_id.to_string(),
-        session_id: Some(session_id.to_string()),
-        state: Default::default(),
-    }).await?;
+    sessions
+        .create(CreateRequest {
+            app_name: app_name.to_string(),
+            user_id: user_id.to_string(),
+            session_id: Some(session_id.to_string()),
+            state: Default::default(),
+        })
+        .await?;
 
     Ok(())
 }
@@ -237,10 +231,14 @@ pub(crate) async fn run_cli(
     sessions: Arc<dyn SessionService>,
     mut model: Arc<dyn Llm>,
     mut provider: String,
-    mut model_name: String
+    mut model_name: String,
 ) -> anyhow::Result<()> {
     let mut stdout = io::stdout();
-    execute!(stdout, terminal::Clear(terminal::ClearType::All), cursor::MoveTo(0, 0))?;
+    execute!(
+        stdout,
+        terminal::Clear(terminal::ClearType::All),
+        cursor::MoveTo(0, 0)
+    )?;
 
     let app_name = "cli";
     let user_id = "default_user";
@@ -257,14 +255,20 @@ pub(crate) async fn run_cli(
         .compaction_config(get_compaction_config(model.clone()))
         .build()?;
 
-    let config = Config::builder().completion_type(rustyline::CompletionType::List).build();
+    let config = Config::builder()
+        .completion_type(rustyline::CompletionType::List)
+        .build();
     let mut rl: Editor<NamiHelper, rustyline::history::FileHistory> = Editor::with_config(config)?;
     rl.set_helper(Some(NamiHelper));
     let _ = rl.load_history(".cli_history");
 
     let mut nami_skin = MadSkin::default();
-    nami_skin.paragraph.set_fg(termimad::crossterm::style::Color::White);
-    nami_skin.bullet.set_fg(termimad::crossterm::style::Color::Magenta);
+    nami_skin
+        .paragraph
+        .set_fg(termimad::crossterm::style::Color::White);
+    nami_skin
+        .bullet
+        .set_fg(termimad::crossterm::style::Color::Magenta);
 
     handle_chat_loop(
         &mut rl,
@@ -277,8 +281,9 @@ pub(crate) async fn run_cli(
         &mut model,
         &mut provider,
         &mut model_name,
-        &nami_skin
-    ).await
+        &nami_skin,
+    )
+    .await
 }
 
 async fn handle_chat_loop(
@@ -292,7 +297,7 @@ async fn handle_chat_loop(
     model: &mut Arc<dyn Llm>,
     provider: &mut String,
     model_name: &mut String,
-    nami_skin: &MadSkin
+    nami_skin: &MadSkin,
 ) -> anyhow::Result<()> {
     let mut last_config_mtime = get_config_mtime();
     let mut last_skills_mtime = get_skills_mtime();
@@ -324,7 +329,9 @@ async fn handle_chat_loop(
 
             println!(
                 "\n{}\n",
-                style::style("🧠 Agent re-initialized with new config or skills").cyan().bold()
+                style::style("🧠 Agent re-initialized with new config or skills")
+                    .cyan()
+                    .bold()
             );
         }
 
@@ -339,16 +346,16 @@ async fn handle_chat_loop(
                 // --- SLASH COMMANDS ---
                 if trimmed == "/?" {
                     println!(
-                        "\n/?       - Show commands
-                        \n/exit     - Quit
-                        \n/clear    - Clear screen
-                        \n/new      - New session
-                        \n/tasks    - List active tasks
-                        \n/plan     - Initialize task
-                        \n/wiki     - Wiki search
-                        \n/memo     - Save memory
-                        \n/status   - Agent status
-                        \n/version  - CLI version\n"
+                        "/?       - Show commands
+                        /exit     - Quit
+                        /clear    - Clear screen
+                        /new      - New session
+                        /tasks    - List active tasks
+                        /plan     - Initialize task
+                        /wiki     - Wiki search
+                        /memo     - Save memory
+                        /status   - Agent status
+                        /version  - CLI version\n"
                     );
                     continue;
                 }
@@ -373,7 +380,10 @@ async fn handle_chat_loop(
                         cursor::MoveTo(0, 0)
                     )?;
                     render_banner(provider, model_name, session_id);
-                    println!("{}\n", style::style("\u{2728} New session started").green().bold());
+                    println!(
+                        "{}\n",
+                        style::style("\u{2728} New session started").green().bold()
+                    );
                     continue;
                 }
                 if trimmed == "/version" {
@@ -381,13 +391,12 @@ async fn handle_chat_loop(
                     continue;
                 }
 
-                if
-                    trimmed.starts_with("/tasks") ||
-                    trimmed.starts_with("/plan") ||
-                    trimmed.starts_with("/wiki") ||
-                    trimmed.starts_with("/memo") ||
-                    trimmed.starts_with("/status") ||
-                    trimmed.starts_with("/parallel")
+                if trimmed.starts_with("/tasks")
+                    || trimmed.starts_with("/plan")
+                    || trimmed.starts_with("/wiki")
+                    || trimmed.starts_with("/memo")
+                    || trimmed.starts_with("/status")
+                    || trimmed.starts_with("/parallel")
                 {
                     let cmd_prompt = if trimmed.starts_with("/tasks") {
                         "list_active_tasks".to_string()
@@ -404,13 +413,11 @@ async fn handle_chat_loop(
                         for t in raw_tasks.split(',') {
                             let parts: Vec<&str> = t.splitn(2, ':').collect();
                             if parts.len() == 2 {
-                                tasks_json.push(
-                                    format!(
-                                        "{{\"specialist\": \"{}\", \"prompt\": \"{}\"}}",
-                                        parts[0].trim(),
-                                        parts[1].trim()
-                                    )
-                                );
+                                tasks_json.push(format!(
+                                    "{{\"specialist\": \"{}\", \"prompt\": \"{}\"}}",
+                                    parts[0].trim(),
+                                    parts[1].trim()
+                                ));
                             }
                         }
                         format!(
@@ -447,7 +454,7 @@ async fn handle_chat_loop(
 
                 // --- THINKING INDICATOR ---
                 // We use a simple indicator since the agent message is already in context
-                print!("{} Agent is thinking...", style::style("⏳").magenta());
+                print!("\n{} Agent is thinking...", style::style("⏳").magenta());
                 io::stdout().flush().ok();
 
                 let content = Content::new("user").with_text(enriched_prompt);
@@ -467,11 +474,14 @@ async fn handle_chat_loop(
                                 Some(Ok(event)) => {
                                     if let Some(content) = &event.llm_response.content {
                                         for part in &content.parts {
-                                            if let Some(text) = part.text() { 
-                                                response_buffer.push_str(text); 
+                                            if let Some(text) = part.text() {
+                                                response_buffer.push_str(text);
                                             }
-                                            if let Part::FunctionCall { name, .. } = part {
-                                                println!("\n\n{} {}", style::style("🛠️ Calling:").dim(), style::style(name).cyan().bold());
+                                            if let Part::FunctionCall { name, args, .. } = part {
+                                                println!("\r\n{} {}: {}",
+                                                style::style("🛠️ Calling:").dim(),
+                                                style::style(name).cyan().bold(),
+                                                style::style(args).dim());
                                                 io::stdout().flush().ok();
                                             }
                                         }
@@ -501,16 +511,13 @@ async fn handle_chat_loop(
                     let _ = terminal::disable_raw_mode();
                     println!("\n{}", style::style("🚀 Request cancelled").dim());
                 } else {
-                    // Final Pretty Render for blocks (tables, code, etc.)
+                    // Final output: render the collected response buffer with MadSkin
                     if !response_buffer.is_empty() {
-                        // Pre-render
                         let rendered = nami_skin
                             .term_text(&response_buffer)
-                            .to_string()
-                            .trim()
                             .to_string();
 
-                        println!("\n{}", rendered);
+                        println!("\n{}", rendered.trim());
                     }
                     let _ = terminal::disable_raw_mode();
                 }
