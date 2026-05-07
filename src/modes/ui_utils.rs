@@ -21,16 +21,15 @@ pub fn render_pretty(
     stdout: &mut io::Stdout,
     nami_skin: &MadSkin,
     rendered_text: &str,
-    start_pos: Option<(u16, u16)>,
-    buffer: &str
+    _start_pos: Option<(u16, u16)>,
+    _buffer: &str
 ) -> anyhow::Result<()> {
     execute!(stdout, cursor::Hide)?;
     
-    if let Some(pos) = start_pos {
-        clear_raw_output(stdout, pos, buffer)?;
-    }
-    
+    // Simply print a newline and the pretty text to preserve history
+    println!("\r");
     print!("{}", rendered_text);
+    
     execute!(stdout, cursor::Show)?;
     stdout.flush()?;
     Ok(())
