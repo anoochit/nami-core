@@ -232,7 +232,7 @@ pub(crate) async fn run_cli(
 
     let app_name = "cli";
     let user_id = "default_user";
-    let session_id = Uuid::new_v4().to_string();
+    let mut session_id = Uuid::new_v4().to_string();
 
     ensure_session(&sessions, app_name, user_id, &session_id).await?;
 
@@ -252,7 +252,7 @@ pub(crate) async fn run_cli(
     nami_skin.paragraph.set_fg(termimad::crossterm::style::Color::White);
     nami_skin.bullet.set_fg(termimad::crossterm::style::Color::Magenta);
 
-    handle_chat_loop(&mut rl, &sessions, &mut runner,  app_name, user_id, &session_id, &mut agent, &mut model, &mut provider, &mut model_name, &nami_skin).await
+    handle_chat_loop(&mut rl, &sessions, &mut runner,  app_name, user_id, &mut session_id, &mut agent, &mut model, &mut provider, &mut model_name, &nami_skin).await
 }
 
 async fn handle_chat_loop(
@@ -261,7 +261,7 @@ async fn handle_chat_loop(
     runner: &mut Runner,
     app_name: &str,
     user_id: &str,
-    session_id: &str,
+    session_id: &mut String,
     agent: &mut Arc<dyn Agent>,
     model: &mut Arc<dyn Llm>,
     provider: &mut String,
@@ -307,13 +307,21 @@ async fn handle_chat_loop(
                 
                 // --- SLASH COMMANDS ---
                 if trimmed == "/help" {
-                    println!("\n/help     - Show commands\n/exit     - Quit\n/clear    - Clear screen\n/tasks    - List active tasks\n/plan     - Initialize task\n/wiki     - Wiki search\n/memo     - Save memory\n/status   - Agent status\n/version  - CLI version\n");
+                    println!("\n/help     - Show commands\n/exit     - Quit\n/clear    - Clear screen\n/new      - New session\n/tasks    - List active tasks\n/plan     - Initialize task\n/wiki     - Wiki search\n/memo     - Save memory\n/status   - Agent status\n/version  - CLI version\n");
                     continue;
                 }
                 if trimmed == "/exit" || trimmed == "/quit" { break; }
                 if trimmed == "/clear" {
                     execute!(io::stdout(), terminal::Clear(terminal::ClearType::All), cursor::MoveTo(0, 0))?;
                     render_banner(provider, model_name);
+                    continue;
+                }
+                if trimmed == "/new" {
+                    *session_id = Uuid::new_v4().to_string();
+                    ensure_session(sessions, app_name, user_id, session_id).await?;
+                    execute!(io::stdout(), terminal::Clear(terminal::ClearType::All), cursor::MoveTo(0, 0))?;
+                    render_banner(provider, model_name);
+                    println!("{}\n", style::style("âœ¨ New session started").green().bold());
                     continue;
                 }
                 if trimmed == "/version" { println!("Nami CLI v{}\n", env!("CARGO_PKG_VERSION")); continue; }
