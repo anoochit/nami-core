@@ -10,7 +10,6 @@ use adk_session::SqliteSessionService;
 use clap::{Parser, Subcommand};
 use runner::AgentRunner;
 
-
 #[derive(Parser)]
 #[command(name = "agent-app")]
 struct Cli {
@@ -22,6 +21,7 @@ struct Cli {
 enum Commands {
     Bot,                         // namiClaw
     Cli,                         // command line interface
+    Hud,                         // dashboard
     Init,                        // initialize project files
     Run { prompt: String },      // direct execution
     Serve { port: Option<u16> }, // http server
@@ -61,6 +61,10 @@ async fn main() -> anyhow::Result<()> {
         Commands::Cli => {
             log::info!("Running in CLI mode");
             modes::cli::run_cli(agent, sessions, model, provider, model_name).await?;
+        }
+        Commands::Hud => {
+            log::info!("Running in HUD mode");
+            modes::cli_tui::run_tui(agent, sessions, model, provider, model_name).await?;
         }
         Commands::Run { prompt } => {
             log::info!("Running in direct run mode");

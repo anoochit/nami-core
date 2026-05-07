@@ -2,7 +2,7 @@
 # Provider type: "gemini", "openai", "openrouter" or "thaillm"
 provider = "gemini"
 # The specific model identifier
-model_name = "gemini-3-flash-preview"
+model_name = "gemini-2.5-flash"
 # The environment variable name that holds the API key (see .env.example)
 api_key_env = "GOOGLE_API_KEY"
 

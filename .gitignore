@@ -18,4 +18,5 @@ workspace/.skills/create-pdf/libs
 idea/
 note/*
 mcp.json
+xmcp.json
 persona/

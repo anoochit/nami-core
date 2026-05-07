@@ -1,0 +1,19 @@
+{
+  "name": "imagen",
+  "description": "สร้างรูปภาพจากข้อความ Prompt ที่กำหนด",
+  "parameters": {
+    "type": "object",
+    "properties": {
+      "prompt": {
+        "type": "string",
+        "description": "คำบรรยายรูปภาพที่ต้องการสร้าง"
+      },
+      "aspect_ratio": {
+        "type": "string",
+        "description": "สัดส่วนภาพ เช่น '1:1', '16:9', '9:16'",
+        "default": "1:1"
+      }
+    },
+    "required": ["prompt"]
+  }
+}

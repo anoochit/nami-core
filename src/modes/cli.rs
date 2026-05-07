@@ -1,8 +1,6 @@
-use crossterm::event::{ Event, EventStream, KeyCode, KeyEventKind };
-use crossterm::style::Stylize;
-use crossterm::{ cursor, execute, style, terminal };
+use crossterm::{ cursor, execute, style, terminal, style::Stylize };
+use crossterm::event::{Event, KeyCode, EventStream, KeyModifiers, KeyEventKind };
 use futures::StreamExt;
-use futures_util::FutureExt;
 use regex::Regex;
 use rustyline::completion::{ Completer, Pair };
 use rustyline::highlight::Highlighter;
@@ -18,6 +16,7 @@ use uuid::Uuid;
 use walkdir::WalkDir;
 
 use crate::agent::get_compaction_config;
+use crate::agent::agent::{check_config_mtime, get_config_mtime, get_skills_mtime, create_agent};
 use adk_rust::Agent;
 use adk_rust::prelude::*;
 use adk_session::{ CreateRequest, GetRequest, SessionService };
@@ -188,7 +187,7 @@ fn render_banner(provider: &str, model_name: &str) {
             .magenta(),
         style::style(format!("({}) using {}", provider, model_name)).dim()
     );
-    println!("\nType /exit to quit, /clear to wipe terminal, /new to start a new chat.");
+    println!("\nType /help for slash commands.");
     println!("Type @ followed by path to reference files (use Tab for completion).");
     println!("Press ESC during a request to cancel it.\n");
 }
@@ -199,7 +198,6 @@ pub(crate) async fn ensure_session(
     user_id: &str,
     session_id: &str
 ) -> anyhow::Result<()> {
-    // If the session already exists, we are good to go.
     if sessions.get(GetRequest {
         app_name: app_name.to_string(),
         user_id: user_id.to_string(),
@@ -210,7 +208,6 @@ pub(crate) async fn ensure_session(
         return Ok(());
     }
 
-    // Otherwise, create it.
     sessions.create(CreateRequest {
         app_name: app_name.to_string(),
         user_id: user_id.to_string(),
@@ -221,48 +218,12 @@ pub(crate) async fn ensure_session(
     Ok(())
 }
 
-fn render_error(e: anyhow::Error) {
-    println!(
-        "\n{} {}",
-        style::style(" ❌ Oh no! Nami encountered a hiccup:").bold().red(),
-        style::style(e.to_string()).red()
-    );
-
-    let err_debug = format!("{:?}", e);
-
-    // Provide helpful hints for common issues
-    if err_debug.contains("exclusiveMaximum") || err_debug.contains("exclusiveMinimum") {
-        println!(
-            "{}",
-            style
-                ::style(
-                    " 💡 Hint: It looks like Gemini rejected a tool's parameter schema (unsupported constraints like 'exclusiveMaximum')."
-                )
-                .yellow()
-                .dim()
-        );
-    } else if err_debug.contains("401") || err_debug.contains("unauthorized") {
-        println!(
-            "{}",
-            style::style(" 💡 Hint: This might be an API key issue. Check your .env file!").yellow().dim()
-        );
-    } else if err_debug.contains("quota") || err_debug.contains("429") {
-        println!(
-            "{}",
-            style
-                ::style(" 💡 Hint: You've hit a rate limit. Take a quick break and try again!")
-                .yellow()
-                .dim()
-        );
-    }
-}
-
 pub(crate) async fn run_cli(
-    agent: Arc<dyn Agent>,
+    mut agent: Arc<dyn Agent>,
     sessions: Arc<dyn SessionService>,
-    model: Arc<dyn Llm>,
-    provider: String,
-    model_name: String
+    mut model: Arc<dyn Llm>,
+    mut provider: String,
+    mut model_name: String,
 ) -> anyhow::Result<()> {
     let mut stdout = io::stdout();
     execute!(stdout, terminal::Clear(terminal::ClearType::All), cursor::MoveTo(0, 0))?;
@@ -275,11 +236,11 @@ pub(crate) async fn run_cli(
 
     ensure_session(&sessions, app_name, user_id, &session_id).await?;
 
-    let runner = Runner::builder()
+    let mut runner = Runner::builder()
         .app_name(app_name)
-        .agent(agent)
+        .agent(agent.clone())
         .session_service(sessions.clone())
-        .compaction_config(get_compaction_config(model))
+        .compaction_config(get_compaction_config(model.clone()))
         .build()?;
 
     let config = Config::builder().completion_type(rustyline::CompletionType::List).build();
@@ -291,83 +252,150 @@ pub(crate) async fn run_cli(
     nami_skin.paragraph.set_fg(termimad::crossterm::style::Color::White);
     nami_skin.bullet.set_fg(termimad::crossterm::style::Color::Magenta);
 
-    handle_chat_loop(&mut rl, &sessions, &runner, &nami_skin, app_name, user_id, &session_id).await
+    handle_chat_loop(&mut rl, &sessions, &mut runner,  app_name, user_id, &session_id, &mut agent, &mut model, &mut provider, &mut model_name, &nami_skin).await
 }
 
 async fn handle_chat_loop(
     rl: &mut Editor<NamiHelper, rustyline::history::FileHistory>,
     sessions: &Arc<dyn SessionService>,
-    runner: &Runner,
-    nami_skin: &MadSkin,
+    runner: &mut Runner,
     app_name: &str,
     user_id: &str,
-    session_id: &str
+    session_id: &str,
+    agent: &mut Arc<dyn Agent>,
+    model: &mut Arc<dyn Llm>,
+    provider: &mut String,
+    model_name: &mut String,
+    nami_skin: &MadSkin,
 ) -> anyhow::Result<()> {
+    let mut last_config_mtime = get_config_mtime();
+    let mut last_skills_mtime = get_skills_mtime();
+
     loop {
-        let readline = rl.readline("You > ");
-        match readline {
+        let mut config_changed = false;
+        if let Some(new_config) = check_config_mtime(&mut last_config_mtime) {
+             let (new_agent, new_model) = create_agent(&new_config).await?;
+             *agent = new_agent;
+             *model = new_model;
+             *provider = new_config.model.provider.clone();
+             *model_name = new_config.model.model_name.clone();
+             config_changed = true;
+        }
+
+        let current_skills_mtime = get_skills_mtime();
+        if last_skills_mtime != current_skills_mtime {
+            last_skills_mtime = current_skills_mtime;
+            config_changed = true;
+        }
+
+        if config_changed {
+             *runner = Runner::builder()
+                 .app_name(app_name)
+                 .agent(agent.clone())
+                 .session_service(sessions.clone())
+                 .compaction_config(get_compaction_config(model.clone()))
+                 .build()?;
+
+             println!("\n{}\n", style::style("🧠 Agent re-initialized with new config or skills").cyan().bold());
+        }
+
+        let line = rl.readline("You > ");
+        match line {
             Ok(line) => {
                 let trimmed = line.trim();
-                if trimmed.is_empty() {
+                if trimmed.is_empty() { continue; }
+                
+                // --- SLASH COMMANDS ---
+                if trimmed == "/help" {
+                    println!("\n/help     - Show commands\n/exit     - Quit\n/clear    - Clear screen\n/tasks    - List active tasks\n/plan     - Initialize task\n/wiki     - Wiki search\n/memo     - Save memory\n/status   - Agent status\n/version  - CLI version\n");
                     continue;
                 }
-                if trimmed == "/exit" || trimmed == "/quit" {
-                    break;
-                }
+                if trimmed == "/exit" || trimmed == "/quit" { break; }
                 if trimmed == "/clear" {
-                    execute!(
-                        io::stdout(),
-                        terminal::Clear(terminal::ClearType::All),
-                        cursor::MoveTo(0, 0)
-                    )?;
+                    execute!(io::stdout(), terminal::Clear(terminal::ClearType::All), cursor::MoveTo(0, 0))?;
+                    render_banner(provider, model_name);
                     continue;
                 }
-                if trimmed == "/new" {
-                    let _ = sessions.delete(adk_session::DeleteRequest {
-                        app_name: app_name.to_string(),
-                        user_id: user_id.to_string(),
-                        session_id: session_id.to_string(),
-                    }).await;
-                    sessions.create(CreateRequest {
-                        app_name: app_name.to_string(),
-                        user_id: user_id.to_string(),
-                        session_id: Some(session_id.to_string()),
-                        state: Default::default(),
-                    }).await?;
-                    println!("\n{}\n", style::style("--- Session reset ---").dim());
+                if trimmed == "/version" { println!("Nami CLI v{}\n", env!("CARGO_PKG_VERSION")); continue; }
+
+                if trimmed.starts_with("/tasks") || trimmed.starts_with("/plan") || 
+                   trimmed.starts_with("/wiki") || trimmed.starts_with("/memo") || 
+                   trimmed.starts_with("/status") || trimmed.starts_with("/parallel") {
+                    
+                    let cmd_prompt = if trimmed.starts_with("/tasks") { "list_active_tasks".to_string() }
+                                     else if trimmed.starts_with("/wiki") { format!("wiki_search: {}", trimmed.replace("/wiki", "").trim()) }
+                                     else if trimmed.starts_with("/memo") { format!("save_memory: {}", trimmed.replace("/memo", "").trim()) }
+                                     else if trimmed.starts_with("/status") { "get_system_status".to_string() }
+                                     else if trimmed.starts_with("/parallel") {
+                                         let replacement = trimmed.replace("/parallel", "");
+                                         let raw_tasks = replacement.trim();
+                                         let mut tasks_json = Vec::new();
+                                         for t in raw_tasks.split(',') {
+                                             let parts: Vec<&str> = t.splitn(2, ':').collect();
+                                             if parts.len() == 2 {
+                                                 tasks_json.push(format!(
+                                                     "{{\"specialist\": \"{}\", \"prompt\": \"{}\"}}", 
+                                                     parts[0].trim(), parts[1].trim()
+                                                 ));
+                                             }
+                                         }
+                                         format!("Use parallel_tasks with: {{\"tasks\": [{}]}}", tasks_json.join(","))
+                                     }
+                                     else { format!("Initialize task: {}", trimmed.replace("/plan", "").trim()) };
+
+                    let content = Content::new("user").with_text(cmd_prompt);
+                    if let Ok(mut stream) = runner.run_str(user_id, session_id, content).await {
+                        while let Some(Ok(event)) = stream.next().await {
+                            if let Some(c) = event.llm_response.content {
+                                for part in c.parts {
+                                    if let Some(text) = part.text() { 
+                                        let rendered = nami_skin.inline(text).to_string();
+                                        print!("{}", rendered); 
+                                        io::stdout().flush().ok(); 
+                                    }
+                                }
+                            }
+                        }
+                        println!();
+                    }
                     continue;
                 }
+                // --- END SLASH COMMANDS ---
 
                 let _ = rl.add_history_entry(trimmed);
                 rl.save_history(".cli_history")?;
 
                 let enriched_prompt = process_file_references(trimmed).await;
 
-                let mut response_buffer = String::new();
+                // --- THINKING INDICATOR ---
                 let is_thinking = Arc::new(AtomicBool::new(true));
                 let indicator = is_thinking.clone();
                 let handle = tokio::spawn(async move {
                     let spinner = ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏'];
                     let mut i = 0;
                     while indicator.load(Ordering::Relaxed) {
-                        print!(
-                            "\r{} Thinking...",
-                            style::style(spinner[i % 10]).with(style::Color::Magenta)
-                        );
+                        print!("\r{} Thinking... (esc to cancel)", style::style(spinner[i % 10]).with(style::Color::Magenta));
                         io::stdout().flush().ok();
                         tokio::time::sleep(tokio::time::Duration::from_millis(80)).await;
                         i += 1;
                     }
+                    print!("\r\x1B[K"); // Clear the thinking line
+                    io::stdout().flush().ok();
                 });
 
                 let content = Content::new("user").with_text(enriched_prompt);
                 let mut stream = runner.run_str(user_id, session_id, content).await?;
 
-                let mut reader = EventStream::new();
+                let mut response_buffer = String::new();
                 let mut cancelled = false;
-                let mut stream_error = None;
+                let mut start_pos: Option<(u16, u16)> = None;
 
-                terminal::enable_raw_mode()?;
+                // Loop for LLM Stream + Interrupt
+                let _ = terminal::enable_raw_mode();
+                if let Ok(pos) = cursor::position() {
+                    start_pos = Some(pos);
+                }
+                let mut event_reader = EventStream::new();
 
                 loop {
                     tokio::select! {
@@ -375,54 +403,79 @@ async fn handle_chat_loop(
                             match result {
                                 Some(Ok(event)) => {
                                     if let Some(content) = &event.llm_response.content {
-                                        for part in &content.parts {
-                                            if let Some(text) = part.text() {
-                                                response_buffer.push_str(text);
+                                        if is_thinking.load(Ordering::Relaxed) {
+                                            is_thinking.store(false, Ordering::Relaxed);
+                                            print!("\r\x1B[K");
+                                            io::stdout().flush().ok();
+                                            // Capture position after "Thinking..." is cleared
+                                            if let Ok(pos) = cursor::position() {
+                                                start_pos = Some(pos);
                                             }
-
+                                        }
+                                        for part in &content.parts {
+                                            if let Some(text) = part.text() { 
+                                                response_buffer.push_str(text); 
+                                                // Stream raw text for immediate feedback
+                                                print!("{}", text.replace('\n', "\r\n")); 
+                                                io::stdout().flush().ok();
+                                            }
                                             if let Part::FunctionCall { name, .. } = part {
                                                 print!("\r\x1B[K{} {}\r\n", style::style(" 🛠️ Calling:").dim(), style::style(name).cyan().bold());
                                                 io::stdout().flush().ok();
+                                                // Function calls act as break points; reset start_pos for next text block
+                                                if let Ok(pos) = cursor::position() {
+                                                    start_pos = Some(pos);
+                                                }
                                             }
                                         }
                                     }
                                 }
                                 Some(Err(e)) => {
-                                    stream_error = Some(e);
+                                    response_buffer.push_str(&format!("\nError: {}", e));
                                     break;
                                 }
                                 None => break,
                             }
                         }
-                        maybe_event = reader.next().fuse() => {
-                            if let Some(Ok(Event::Key(key))) = maybe_event
-                                && key.code == KeyCode::Esc && key.kind == KeyEventKind::Press {
+                        maybe_event = event_reader.next() => {
+                            if let Some(Ok(Event::Key(key))) = maybe_event {
+                                if key.kind == KeyEventKind::Press && (key.code == KeyCode::Esc || (key.code == KeyCode::Char('c') && key.modifiers.contains(KeyModifiers::CONTROL))) {
                                     cancelled = true;
                                     break;
                                 }
+                            }
                         }
                     }
                 }
-
-                terminal::disable_raw_mode()?;
+                let _ = terminal::disable_raw_mode();
                 is_thinking.store(false, Ordering::Relaxed);
                 handle.await?;
-                print!("\r\x1B[K");
-                io::stdout().flush().ok();
+                // --- END INDICATORS ---
 
-                if let Some(e) = stream_error {
-                    render_error(e.into());
-                } else if cancelled {
-                    println!("\n{}", style::style("--- Request cancelled ---").dim());
+                if cancelled {
+                    println!("\n{}", style::style("🚀 Request cancelled").dim());
                 } else {
-                    println!("\n{}", style::style("Nami").bold().magenta());
-                    nami_skin.print_text(&response_buffer);
+                    // Final Pretty Render for blocks (tables, code, etc.)
+                    if !response_buffer.is_empty() {
+                        if let Some((col, row)) = start_pos {
+                            // Try to "rewind" and print the pretty version
+                            // This works best if the output hasn't scrolled the screen
+                            let _ = execute!(io::stdout(), cursor::MoveTo(col, row), terminal::Clear(terminal::ClearType::FromCursorDown));
+                        } else {
+                            println!("\r");
+                        }
+                        
+                        // Use MadSkin to render the full markdown block properly
+                        let rendered = nami_skin.term_text(&response_buffer).to_string();
+                        print!("{}", rendered.replace('\n', "\r\n"));
+                        io::stdout().flush().ok();
+                    }
+                    println!("\n"); 
                 }
                 println!();
+
             }
-            Err(_) => {
-                break;
-            }
+            Err(_) => { break; }
         }
     }
     Ok(())

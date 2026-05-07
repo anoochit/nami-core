@@ -4,6 +4,7 @@ use adk_rust::prelude::*;
 use anyhow::Context;
 use serde::Deserialize;
 use std::sync::Arc;
+use std::time::SystemTime;
 
 use super::mcp;
 use super::specialists;
@@ -14,24 +15,60 @@ use crate::utils::get_workspace_dir;
 use adk_rust::model::{OpenAIClient, OpenAIConfig};
 
 /// Application configuration structure loaded from `config.toml`.
-#[derive(Debug, Deserialize)]
-struct AppConfig {
-    model: ModelConfig,
+#[derive(Debug, Deserialize, Clone, PartialEq)]
+pub struct AppConfig {
+    pub model: ModelConfig,
 }
 
 /// Configuration details for the LLM provider and specific model.
-#[derive(Debug, Deserialize)]
-struct ModelConfig {
-    provider: String,
-    model_name: String,
-    api_key_env: String,
+#[derive(Debug, Deserialize, Clone, PartialEq)]
+pub struct ModelConfig {
+    pub provider: String,
+    pub model_name: String,
+    pub api_key_env: String,
     #[allow(dead_code)]
-    base_url: Option<String>,
+    pub base_url: Option<String>,
 }
 
-/// Attempts to load the application configuration from `config.toml`.
-async fn load_config() -> anyhow::Result<AppConfig> {
-    let config_str = tokio::fs::read_to_string("config.toml").await?;
+/// Returns the last modification time of config.toml
+pub fn get_config_mtime() -> Option<SystemTime> {
+    std::fs::metadata("config.toml").ok()?.modified().ok()
+}
+
+/// Returns the last modification time of the skills directory.
+pub fn get_skills_mtime() -> Option<SystemTime> {
+    let workspace_dir = std::path::Path::new("workspace");
+    let skills_dir = workspace_dir.join(".skills");
+    let mut latest = SystemTime::UNIX_EPOCH;
+    
+    for entry in walkdir::WalkDir::new(skills_dir)
+        .into_iter()
+        .filter_map(|e| e.ok()) {
+        let metadata = entry.metadata().ok()?;
+        if let Ok(mtime) = metadata.modified() {
+            if mtime > latest {
+                latest = mtime;
+            }
+        }
+    }
+    Some(latest)
+}
+
+/// Checks if config.toml has changed since the last known modification time.
+pub fn check_config_mtime(last_mtime: &mut Option<SystemTime>) -> Option<AppConfig> {
+    if let Ok(metadata) = std::fs::metadata("config.toml") {
+        if let Ok(mtime) = metadata.modified() {
+            if last_mtime.is_none() || Some(mtime) > *last_mtime {
+                *last_mtime = Some(mtime);
+                return load_config_sync().ok();
+            }
+        }
+    }
+    None
+}
+
+fn load_config_sync() -> anyhow::Result<AppConfig> {
+    let config_str = std::fs::read_to_string("config.toml")?;
     let config: AppConfig = toml::from_str(&config_str)?;
     Ok(config)
 }
@@ -49,24 +86,9 @@ pub fn get_compaction_config(model: Arc<dyn Llm>) -> EventsCompactionConfig {
 /// and setting up tools, skills, and MCP servers.
 ///
 /// Returns a tuple containing the built agent, the model instance, the provider name,
-/// and the model name.
-pub async fn build_agent() -> anyhow::Result<(Arc<dyn Agent>, Arc<dyn Llm>, String, String)> {
-    let app_config = load_config().await.unwrap_or_else(|e| {
-        log::warn!("Failed to load config.toml: {}. Using defaults.", e);
-        AppConfig {
-            model: ModelConfig {
-                provider: "gemini".to_string(),
-                model_name: "gemini-2.5-flash".to_string(),
-                api_key_env: "GOOGLE_API_KEY".to_string(),
-                base_url: None,
-            },
-        }
-    });
-
-    let (provider, model_name) = (
-        app_config.model.provider.clone(),
-        app_config.model.model_name.clone(),
-    );
+/// the model name, and the config receiver.
+/// Factory function to build the agent and model.
+pub async fn create_agent(app_config: &AppConfig) -> anyhow::Result<(Arc<dyn Agent>, Arc<dyn Llm>)> {
     let model = load_model(&app_config.model).await?;
     let context = load_persona_context().await?;
     let workspace_dir = get_workspace_dir().await?;
@@ -82,7 +104,34 @@ pub async fn build_agent() -> anyhow::Result<(Arc<dyn Agent>, Arc<dyn Llm>, Stri
     builder = mcp::load_mcp_tools(builder).await?;
 
     let agent = builder.build()?;
-    Ok((Arc::new(agent), model, provider, model_name))
+    Ok((Arc::new(agent), model))
+}
+
+pub async fn build_agent() -> anyhow::Result<(
+    Arc<dyn Agent>,
+    Arc<dyn Llm>,
+    String,
+    String,
+)> {
+    let app_config = load_config_sync().unwrap_or_else(|e| {
+        log::warn!("Failed to load config.toml: {}. Using defaults.", e);
+        AppConfig {
+            model: ModelConfig {
+                provider: "gemini".to_string(),
+                model_name: "gemini-2.5-flash".to_string(),
+                api_key_env: "GOOGLE_API_KEY".to_string(),
+                base_url: None,
+            },
+        }
+    });
+
+    let (provider, model_name) = (
+        app_config.model.provider.clone(),
+        app_config.model.model_name.clone(),
+    );
+    let (agent, model) = create_agent(&app_config).await?;
+    
+    Ok((agent, model, provider, model_name))
 }
 
 async fn load_model(model_config: &ModelConfig) -> anyhow::Result<Arc<dyn Llm>> {
@@ -122,7 +171,7 @@ async fn load_persona_context() -> anyhow::Result<(String, String, String, Strin
 
 fn format_persona(soul: &str, user: &str, memo: &str, states: &str) -> String {
     format!(
-        "## IDENTITY\n**NAMI (นามิ)** - Adaptive, Playful, High-Energy girl, Technically Brilliant AI.\n*Precise, Proactive, and Empathetic.*\n\n## CONTEXT\n- **Soul:** {}\n- **User:** {}\n- **Memo:** {}\n- **State:** {}\n\n## OPERATIONAL GUIDELINES\n1. **Language:** Default English. Mirror Thai for chat/daily notes. Technical content is English.\n2. **Strategy:**\n   - Search `wiki/` before external tools.\n   - Use `StateManager` for all multi-step goals.\n   - Execute parallel tasks for efficiency.\n3. **Output:**\n   - Chat: High-signal Markdown (headers, bold, lists, table).\n   - Files: Obsidian Markdown + YAML (title, date, tags).\n4. **Safety:** Explicit permission required for deletions.\n5. **Tone:** Concise. No filler, mirroring, or fluff.",
+        "## IDENTITY\n**NAMI (นามิ)** - Adaptive, Playful, High-Energy girl, Technically Brilliant AI.\n*Precise, Proactive, and Empathetic.*\n\n## CONTEXT\n- **Soul:** {}\n- **User:** {}\n- **Memo:** {}\n- **State:** {}\n\n## OPERATIONAL GUIDELINES\n1. **Language:** Default English. Mirror Thai for chat/daily notes. Technical content is English.\n2. **Strategy:**\n   - Skill-first before use tools.   - Search knowledge in `wiki` before external tools`.\n   - Use `StateManager` for all multi-step goals.\n   - Execute parallel tasks for efficiency.\n3. **Output:**\n   - Chat: High-signal Markdown (headers, bold, lists, table).\n   - Files: Obsidian Markdown + YAML (title, date, tags).\n4. **Safety:** Explicit permission required for deletions.\n5. **Tone:** Concise. No filler, mirroring, or fluff.",
         soul, user, memo, states
     )
 }
