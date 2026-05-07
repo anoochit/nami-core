@@ -21,7 +21,6 @@ struct Cli {
 enum Commands {
     Bot,                         // namiClaw
     Cli,                         // command line interface
-    Hud { session_id: Option<String> }, // dashboard
     Init,                        // initialize project files
     Run { prompt: String },      // direct execution
     Serve { port: Option<u16> }, // http server
@@ -61,10 +60,6 @@ async fn main() -> anyhow::Result<()> {
         Commands::Cli => {
             log::info!("Running in CLI mode");
             modes::cli::run_cli(agent, sessions, model, provider, model_name).await?;
-        }
-        Commands::Hud { session_id } => {
-            log::info!("Running in HUD mode");
-            modes::hud::run_hud(agent, sessions, model, provider, model_name, session_id).await?;
         }
         Commands::Run { prompt } => {
             log::info!("Running in direct run mode");
