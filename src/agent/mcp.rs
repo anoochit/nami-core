@@ -1,7 +1,9 @@
 use crate::utils;
-use adk_rust::prelude::*;
 use adk_rust::ReadonlyContext;
-use adk_tool::mcp::{AutoDeclineElicitationHandler, McpHttpClientBuilder, McpServerConfig, McpServerManager};
+use adk_rust::prelude::*;
+use adk_tool::mcp::{
+    AutoDeclineElicitationHandler, McpHttpClientBuilder, McpServerConfig, McpServerManager,
+};
 use adk_tool::toolset::{MergedToolset, PrefixedToolset};
 use async_trait::async_trait;
 use serde::Deserialize;
@@ -117,7 +119,10 @@ impl Toolset for SanitizedToolset {
 
     async fn tools(&self, ctx: Arc<dyn ReadonlyContext>) -> Result<Vec<Arc<dyn Tool>>> {
         let tools = self.inner.tools(ctx).await?;
-        Ok(tools.into_iter().map(|t| Arc::new(SanitizedTool::new(t)) as Arc<dyn Tool>).collect())
+        Ok(tools
+            .into_iter()
+            .map(|t| Arc::new(SanitizedTool::new(t)) as Arc<dyn Tool>)
+            .collect())
     }
 }
 
@@ -152,12 +157,14 @@ pub async fn load_mcp_tools(mut builder: LlmAgentBuilder) -> anyhow::Result<LlmA
                     let mut client_builder = McpHttpClientBuilder::new(url);
 
                     // Use auto-decline elicitation handler for consistency with McpServerManager
-                    client_builder = client_builder.with_elicitation_handler(Arc::new(AutoDeclineElicitationHandler));
+                    client_builder = client_builder
+                        .with_elicitation_handler(Arc::new(AutoDeclineElicitationHandler));
 
                     match client_builder.connect().await {
                         Ok(toolset) => {
                             // Wrap with name prefix for consistency
-                            http_toolsets.push(Arc::new(PrefixedToolset::new(Arc::new(toolset), &name)));
+                            http_toolsets
+                                .push(Arc::new(PrefixedToolset::new(Arc::new(toolset), &name)));
                         }
                         Err(e) => {
                             log::error!("Failed to connect to remote MCP server '{}': {}", name, e);

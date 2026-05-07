@@ -1,26 +1,25 @@
 use adk_rust::Agent;
 use adk_rust::prelude::*;
-use adk_rust::session::{SessionService, CreateRequest};
+use adk_rust::session::{CreateRequest, SessionService};
 use futures::StreamExt;
 use std::collections::HashMap;
 use std::sync::Arc;
 
-pub(crate) async fn run_direct(
-    agent: Arc<dyn Agent>,
-    prompt: &str,
-) -> anyhow::Result<()> {
+pub(crate) async fn run_direct(agent: Arc<dyn Agent>, prompt: &str) -> anyhow::Result<()> {
     let app_name = "cli";
     let user_id = "default_user";
 
     let session_service = Arc::new(InMemorySessionService::new());
 
     // Create session using the correct Rust ADK API
-    let session = session_service.create(CreateRequest {
-        app_name: app_name.to_string(),
-        user_id: user_id.to_string(),
-        session_id: None,          // let the service generate an ID
-        state: HashMap::new(),
-    }).await?;
+    let session = session_service
+        .create(CreateRequest {
+            app_name: app_name.to_string(),
+            user_id: user_id.to_string(),
+            session_id: None, // let the service generate an ID
+            state: HashMap::new(),
+        })
+        .await?;
 
     let session_id = session.id(); // use the generated session ID
 

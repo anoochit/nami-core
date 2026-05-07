@@ -10,7 +10,7 @@ pub struct NamiIgnore {
 impl NamiIgnore {
     pub async fn load() -> Self {
         let mut builder = GlobSetBuilder::new();
-        
+
         // Default ignores
         let defaults = vec![".git/**", "target/**", ".env", "sessions.db"];
         for pattern in defaults {
@@ -35,7 +35,9 @@ impl NamiIgnore {
         }
 
         Self {
-            set: builder.build().unwrap_or_else(|_| GlobSetBuilder::new().build().unwrap()),
+            set: builder
+                .build()
+                .unwrap_or_else(|_| GlobSetBuilder::new().build().unwrap()),
         }
     }
 

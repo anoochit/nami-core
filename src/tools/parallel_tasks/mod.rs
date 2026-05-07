@@ -1,11 +1,11 @@
-use adk_rust::prelude::*;
 use adk_rust::Tool;
+use adk_rust::prelude::*;
 use adk_rust::serde::Deserialize;
-use schemars::JsonSchema;
-use std::sync::Arc;
-use std::collections::HashMap;
 use futures::future::join_all;
+use schemars::JsonSchema;
 use serde_json::{Value, json};
+use std::collections::HashMap;
+use std::sync::Arc;
 
 #[derive(Deserialize, JsonSchema)]
 pub struct Task {
@@ -61,7 +61,11 @@ impl Tool for ParallelTasks {
         }))
     }
 
-    async fn execute(&self, ctx: Arc<dyn ToolContext>, args: Value) -> std::result::Result<Value, AdkError> {
+    async fn execute(
+        &self,
+        ctx: Arc<dyn ToolContext>,
+        args: Value,
+    ) -> std::result::Result<Value, AdkError> {
         let args: ParallelTasksArgs = serde_json::from_value(args)
             .map_err(|e| AdkError::tool(format!("Invalid arguments: {}", e)))?;
 
@@ -73,7 +77,7 @@ impl Tool for ParallelTasks {
                 let prompt = task.prompt.clone();
                 let ctx = ctx.clone();
                 let specialist_name = task.specialist.clone();
-                
+
                 futures.push(tokio::spawn(async move {
                     match tool.execute(ctx, json!({ "input": prompt })).await {
                         Ok(res) => format!("[{}] success: {}", specialist_name, res),
@@ -90,7 +94,7 @@ impl Tool for ParallelTasks {
 
         let results = join_all(futures).await;
         let mut final_results = Vec::new();
-        
+
         for res in results {
             match res {
                 Ok(r) => final_results.push(r),
@@ -98,10 +102,10 @@ impl Tool for ParallelTasks {
             }
         }
 
-        Ok(json!({ 
-            "status": "success", 
-            "tasks_executed": final_results.len(), 
-            "outputs": final_results 
+        Ok(json!({
+            "status": "success",
+            "tasks_executed": final_results.len(),
+            "outputs": final_results
         }))
     }
 }

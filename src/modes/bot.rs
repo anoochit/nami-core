@@ -45,7 +45,12 @@ pub async fn run_bot(
     Ok(())
 }
 
-async fn ensure_session(sessions: &Arc<dyn SessionService>, app_name: &str, user_id: &str, session_id: &str) -> anyhow::Result<()> {
+async fn ensure_session(
+    sessions: &Arc<dyn SessionService>,
+    app_name: &str,
+    user_id: &str,
+    session_id: &str,
+) -> anyhow::Result<()> {
     if sessions
         .get(GetRequest {
             app_name: app_name.to_string(),

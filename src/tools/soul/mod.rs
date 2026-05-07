@@ -24,7 +24,7 @@ struct UpdateSoulArgs {
 async fn update_user_memory(args: UpdateMemoryArgs) -> std::result::Result<Value, AdkError> {
     let workspace = get_workspace_dir().await?;
     let path = workspace.join("MEMORIES.md");
-    
+
     let mut content = fs::read_to_string(&path)
         .await
         .unwrap_or_else(|_| "# MEMORIES\n".to_string());

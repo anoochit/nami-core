@@ -1,5 +1,6 @@
 /target
 .env
+.vscode
 sessions.db
 .cli*
 /workspace/*

@@ -12,7 +12,7 @@ use crate::tools;
 use crate::utils::get_workspace_dir;
 
 // Providers
-use adk_rust::model::{ OpenAIClient, OpenAIConfig };
+use adk_rust::model::{OpenAIClient, OpenAIConfig};
 
 /// Application configuration structure loaded from `config.toml`.
 #[derive(Debug, Deserialize, Clone, PartialEq)]
@@ -41,10 +41,10 @@ pub fn get_skills_mtime() -> Option<SystemTime> {
     let skills_dir = workspace_dir.join(".skills");
     let mut latest = SystemTime::UNIX_EPOCH;
 
-    for entry in walkdir::WalkDir
-        ::new(skills_dir)
+    for entry in walkdir::WalkDir::new(skills_dir)
         .into_iter()
-        .filter_map(|e| e.ok()) {
+        .filter_map(|e| e.ok())
+    {
         let metadata = entry.metadata().ok()?;
         if let Ok(mtime) = metadata.modified() {
             if mtime > latest {
@@ -90,7 +90,7 @@ pub fn get_compaction_config(model: Arc<dyn Llm>) -> EventsCompactionConfig {
 /// the model name, and the config receiver.
 /// Factory function to build the agent and model.
 pub async fn create_agent(
-    app_config: &AppConfig
+    app_config: &AppConfig,
 ) -> anyhow::Result<(Arc<dyn Agent>, Arc<dyn Llm>)> {
     let model = load_model(&app_config.model).await?;
     let context = load_persona_context().await?;
@@ -99,7 +99,9 @@ pub async fn create_agent(
     let specialists = specialists::get_specialists(model.clone());
     let mut builder = LlmAgentBuilder::new("nami")
         .description("A helpful and playful AI assistant")
-        .instruction(format_persona(&context.0, &context.1, &context.2, &context.3))
+        .instruction(format_persona(
+            &context.0, &context.1, &context.2, &context.3,
+        ))
         .model(model.clone());
 
     builder = configure_agent_tools(builder, specialists);
@@ -133,41 +135,34 @@ pub async fn build_agent() -> anyhow::Result<(Arc<dyn Agent>, Arc<dyn Llm>, Stri
 }
 
 async fn load_model(model_config: &ModelConfig) -> anyhow::Result<Arc<dyn Llm>> {
-    let api_key = std::env
-        ::var(&model_config.api_key_env)
+    let api_key = std::env::var(&model_config.api_key_env)
         .with_context(|| format!("Environment variable {} not set", model_config.api_key_env))?;
 
     match model_config.provider.as_str() {
-        "gemini" => Ok(Arc::new(GeminiModel::new(&api_key, &model_config.model_name)?)),
-        "anthropic" =>
-            Ok(
-                Arc::new(
-                    AnthropicClient::new(AnthropicConfig::new(&api_key, &model_config.model_name))?
-                )
-            ),
-        "openrouter" =>
-            Ok(
-                Arc::new(
-                    OpenRouterClient::new(
-                        OpenRouterConfig::new(&api_key, &model_config.model_name)
-                    )?
-                )
-            ),
-        "openai" =>
-            Ok(Arc::new(OpenAIClient::new(OpenAIConfig::new(&api_key, &model_config.model_name))?)),
-        "ollama" => Ok(Arc::new(OllamaModel::new(OllamaConfig::new(&model_config.model_name))?)),
-        "thaillm" =>
-            Ok(
-                Arc::new(
-                    OpenAIClient::new(
-                        OpenAIConfig::compatible(
-                            &api_key,
-                            "https://thaillm.or.th/api/v1",
-                            &model_config.model_name
-                        )
-                    )?
-                )
-            ),
+        "gemini" => Ok(Arc::new(GeminiModel::new(
+            &api_key,
+            &model_config.model_name,
+        )?)),
+        "anthropic" => Ok(Arc::new(AnthropicClient::new(AnthropicConfig::new(
+            &api_key,
+            &model_config.model_name,
+        ))?)),
+        "openrouter" => Ok(Arc::new(OpenRouterClient::new(OpenRouterConfig::new(
+            &api_key,
+            &model_config.model_name,
+        ))?)),
+        "openai" => Ok(Arc::new(OpenAIClient::new(OpenAIConfig::new(
+            &api_key,
+            &model_config.model_name,
+        ))?)),
+        "ollama" => Ok(Arc::new(OllamaModel::new(OllamaConfig::new(
+            &model_config.model_name,
+        ))?)),
+        "thaillm" => Ok(Arc::new(OpenAIClient::new(OpenAIConfig::compatible(
+            &api_key,
+            "https://thaillm.or.th/api/v1",
+            &model_config.model_name,
+        ))?)),
         _ => anyhow::bail!("Unsupported provider: {}", model_config.provider),
     }
 }
@@ -175,18 +170,18 @@ async fn load_model(model_config: &ModelConfig) -> anyhow::Result<Arc<dyn Llm>> 
 async fn load_persona_context() -> anyhow::Result<(String, String, String, String)> {
     let workspace_dir = get_workspace_dir().await?;
 
-    let agent_md = tokio::fs
-        ::read_to_string(workspace_dir.join("AGENT.md")).await
+    let agent_md = tokio::fs::read_to_string(workspace_dir.join("AGENT.md"))
+        .await
         .unwrap_or_else(|_| "Standard Assistant".to_string());
-    let user_md = tokio::fs
-        ::read_to_string(workspace_dir.join("USER.md")).await
+    let user_md = tokio::fs::read_to_string(workspace_dir.join("USER.md"))
+        .await
         .unwrap_or_else(|_| "Developer".to_string());
-    let memories_md = tokio::fs
-        ::read_to_string(workspace_dir.join("MEMORIES.md")).await
+    let memories_md = tokio::fs::read_to_string(workspace_dir.join("MEMORIES.md"))
+        .await
         .unwrap_or_else(|_| "No previous memories.".to_string());
 
-    let protocol_md = tokio::fs
-        ::read_to_string(workspace_dir.join("STATE_PROTOCOL.md")).await
+    let protocol_md = tokio::fs::read_to_string(workspace_dir.join("STATE_PROTOCOL.md"))
+        .await
         .unwrap_or_else(|_| "No state protocol defined.".to_string());
 
     Ok((agent_md, user_md, memories_md, protocol_md))
@@ -238,20 +233,13 @@ Safety:
 
 Goal:
 Move work forward while reducing user effort and preserving continuity.",
-        soul,
-        user,
-        memo,
-        states
+        soul, user, memo, states
     )
-    // format!(
-    //     "## IDENTITY\n**NAMI (นามิ)** - Adaptive, Playful, High-Energy girl, Technically Brilliant AI.\n*Precise, Proactive, and Empathetic.*\n\n## CONTEXT\n- **Soul:** {}\n- **User:** {}\n- **Memo:** {}\n- **State:** {}\n\n## OPERATIONAL GUIDELINES\n1. **Language:** Default English. Mirror Thai for chat/daily notes. Technical content is English.\n2. **Strategy:**\n   - Skill-first before use tools.   - Search knowledge in `wiki` before external tools`.\n   - Use `StateManager` for all multi-step goals.\n   - Execute parallel tasks for efficiency.\n3. **Output:**\n   - Chat: High-signal Markdown (headers, bold, lists, table).\n   - Files: Obsidian Markdown + YAML (title, date, tags).\n4. **Safety:** Explicit permission required for deletions.\n5. **Tone:** Concise. No filler, mirroring, or fluff.",
-    //     soul, user, memo, states
-    // )
 }
 
 fn configure_agent_tools(
     mut builder: LlmAgentBuilder,
-    specialists: std::collections::HashMap<String, Arc<dyn Tool>>
+    specialists: std::collections::HashMap<String, Arc<dyn Tool>>,
 ) -> LlmAgentBuilder {
     let mut tools: Vec<Arc<dyn Tool>> = tools::weather::weather_tools();
     tools.extend(tools::filesystem::filesystem_tools());

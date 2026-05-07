@@ -232,7 +232,10 @@ async fn glob_find(args: GlobArgs) -> std::result::Result<Value, AdkError> {
 
     let mut command = Command::new("find");
     // Use -wholename to allow path separators in the pattern
-    command.arg(&search_root).arg("-wholename").arg(format!("*{}*", &args.pattern));
+    command
+        .arg(&search_root)
+        .arg("-wholename")
+        .arg(format!("*{}*", &args.pattern));
 
     let output = command
         .stdout(Stdio::piped())
@@ -263,30 +266,35 @@ async fn merge_files(args: MergeFilesArgs) -> std::result::Result<Value, AdkErro
 
     for (index, file_path) in args.input_files.iter().enumerate() {
         let path = sandbox(file_path).await?;
-        
+
         let content = fs::read_to_string(&path)
             .await
             .map_err(|e| AdkError::tool(format!("Failed to read {}: {}", file_path, e)))?;
-            
+
         combined_content.push_str(&content);
-        
+
         if index < args.input_files.len() - 1 {
             combined_content.push_str(&separator);
         }
     }
 
     let out_path = sandbox(&args.output_file).await?;
-    
+
     // Create parent dirs within workspace if they don't exist
     if let Some(parent) = out_path.parent() {
         fs::create_dir_all(parent).await.ok();
     }
 
-    fs::write(&out_path, combined_content)
-        .await
-        .map_err(|e| AdkError::tool(format!("Failed to write merged output to {}: {}", args.output_file, e)))?;
+    fs::write(&out_path, combined_content).await.map_err(|e| {
+        AdkError::tool(format!(
+            "Failed to write merged output to {}: {}",
+            args.output_file, e
+        ))
+    })?;
 
-    Ok(json!({ "status": "success", "message": format!("Merged {} files into {}", args.input_files.len(), args.output_file) }))
+    Ok(
+        json!({ "status": "success", "message": format!("Merged {} files into {}", args.input_files.len(), args.output_file) }),
+    )
 }
 
 // ─── Registration ─────────────────────────────────────────────────────────────

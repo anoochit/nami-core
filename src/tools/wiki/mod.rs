@@ -183,11 +183,12 @@ async fn add_wiki_page(args: AddWikiArgs) -> std::result::Result<Value, AdkError
 
     // Create parent directories if they don't exist
     if let Some(parent) = path.parent()
-        && !parent.exists() {
-            fs::create_dir_all(parent).await.map_err(|e| {
-                AdkError::tool(format!("Failed to create parent directories: {}", e))
-            })?;
-        }
+        && !parent.exists()
+    {
+        fs::create_dir_all(parent)
+            .await
+            .map_err(|e| AdkError::tool(format!("Failed to create parent directories: {}", e)))?;
+    }
 
     if args.append.unwrap_or(false) && path.exists() {
         let mut existing = fs::read_to_string(&path).await.unwrap_or_default();
@@ -468,19 +469,21 @@ async fn summarize_wiki(_args: serde_json::Value) -> std::result::Result<Value, 
 
             // Very basic YAML frontmatter parsing just for the summary
             if content.starts_with("---\n")
-                && let Some(end_idx) = content[4..].find("\n---\n") {
-                    let frontmatter = &content[4..end_idx + 4];
-                    if let Ok(docs) = yaml_rust::YamlLoader::load_from_str(frontmatter)
-                        && !docs.is_empty() {
-                            let doc = &docs[0];
-                            if let Some(t) = doc["title"].as_str() {
-                                display_title = t.to_string();
-                            }
-                            if let Some(d) = doc["description"].as_str() {
-                                description = d.to_string();
-                            }
-                        }
+                && let Some(end_idx) = content[4..].find("\n---\n")
+            {
+                let frontmatter = &content[4..end_idx + 4];
+                if let Ok(docs) = yaml_rust::YamlLoader::load_from_str(frontmatter)
+                    && !docs.is_empty()
+                {
+                    let doc = &docs[0];
+                    if let Some(t) = doc["title"].as_str() {
+                        display_title = t.to_string();
+                    }
+                    if let Some(d) = doc["description"].as_str() {
+                        description = d.to_string();
+                    }
                 }
+            }
 
             if description == "No description available." {
                 // Fallback to first line
@@ -662,11 +665,12 @@ async fn rename_wiki_page(args: RenameWikiPageArgs) -> std::result::Result<Value
 
     // Create parent directories for new path if needed
     if let Some(parent) = new_path.parent()
-        && !parent.exists() {
-            fs::create_dir_all(parent).await.map_err(|e| {
-                AdkError::tool(format!("Failed to create parent directories: {}", e))
-            })?;
-        }
+        && !parent.exists()
+    {
+        fs::create_dir_all(parent)
+            .await
+            .map_err(|e| AdkError::tool(format!("Failed to create parent directories: {}", e)))?;
+    }
 
     // Rename the file
     fs::rename(&old_path, &new_path)
