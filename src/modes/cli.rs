@@ -17,6 +17,7 @@ use walkdir::WalkDir;
 
 use crate::agent::get_compaction_config;
 use crate::agent::agent::{ check_config_mtime, get_config_mtime, get_skills_mtime, create_agent };
+use crate::modes::ui_utils;
 use adk_rust::Agent;
 use adk_rust::prelude::*;
 use adk_session::{ CreateRequest, GetRequest, SessionService };
@@ -547,47 +548,7 @@ async fn handle_chat_loop(
                             .replace('\n', "\r\n");
 
                         let mut stdout = io::stdout();
-                        let _ = execute!(stdout, cursor::Hide);
-
-                        if let Some((col, row)) = start_pos {
-                            // Heuristic: Check if the output likely caused a scroll.
-                            // If it did, MoveTo(col, row) will point to the wrong line.
-                            let (term_width, term_height) = terminal::size().unwrap_or((80, 24));
-
-                            // Estimate wrapped lines more accurately
-                            let mut est_lines = 0;
-                            for line in response_buffer.split('\n') {
-                                est_lines += (line.len() as u16) / term_width.max(1) + 1;
-                            }
-
-                            // If we're safe from scrolling and not at the very top (which can be disorienting to clear)
-                            if row > 0 && row + est_lines < term_height {
-                                let _ = execute!(
-                                    stdout,
-                                    cursor::MoveTo(col, row)
-                                );
-                                print!("{}", rendered);
-                            } else {
-                                // If it scrolled or is at top, just ensure we're on a new line and print the pretty version
-                                // only if it's significantly different (contains md features)
-                                if
-                                    response_buffer.contains('|') ||
-                                    response_buffer.contains("```") ||
-                                    response_buffer.contains('*')
-                                {
-                                    println!("\r");
-                                    print!("{}", rendered);
-                                } else {
-                                    println!("\r");
-                                    print!("{}", rendered);
-                                }
-                            }
-                        } else {
-                            print!("\r{}", rendered);
-                        }
-
-                        let _ = execute!(stdout, cursor::Show);
-                        let _ = stdout.flush();
+                        ui_utils::render_pretty(&mut stdout, &nami_skin, &rendered, start_pos, &response_buffer)?;
                     }
                     let _ = terminal::disable_raw_mode();
                 }
