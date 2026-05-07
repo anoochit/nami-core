@@ -419,6 +419,7 @@ async fn handle_chat_loop(
                                             if let Ok(pos) = cursor::position() {
                                                 start_pos = Some(pos);
                                             }
+                                            response_buffer.clear();
                                         }
                                         for part in &content.parts {
                                             if let Some(text) = part.text() { 
@@ -434,6 +435,7 @@ async fn handle_chat_loop(
                                                 if let Ok(pos) = cursor::position() {
                                                     start_pos = Some(pos);
                                                 }
+                                                response_buffer.clear();
                                             }
                                         }
                                     }
@@ -465,8 +467,8 @@ async fn handle_chat_loop(
                 } else {
                     // Final Pretty Render for blocks (tables, code, etc.)
                     if !response_buffer.is_empty() {
-                        // Pre-render to string first to minimize the time the screen is blank
-                        let rendered = nami_skin.term_text(&response_buffer).to_string().replace('\n', "\r\n");
+                        // Pre-render and trim to string first to minimize the time the screen is blank
+                        let rendered = nami_skin.term_text(&response_buffer).to_string().trim().replace('\n', "\r\n");
                         
                         let mut stdout = io::stdout();
                         let _ = execute!(stdout, cursor::Hide);
@@ -474,19 +476,25 @@ async fn handle_chat_loop(
                         if let Some((col, row)) = start_pos {
                             // Heuristic: Check if the output likely caused a scroll. 
                             // If it did, MoveTo(col, row) will point to the wrong line.
-                            let (_, term_height) = terminal::size().unwrap_or((80, 24));
-                            let est_lines = (response_buffer.split('\n').count() as u16).max(1);
+                            let (term_width, term_height) = terminal::size().unwrap_or((80, 24));
                             
-                            // If we're safe from scrolling, rewind and replace.
-                            if row + est_lines < term_height {
+                            // Estimate wrapped lines more accurately
+                            let mut est_lines = 0;
+                            for line in response_buffer.split('\n') {
+                                est_lines += (line.len() as u16 / term_width.max(1)) + 1;
+                            }
+                            
+                            // If we're safe from scrolling and not at the very top (which can be disorienting to clear)
+                            if row > 0 && row + est_lines < term_height {
                                 let _ = execute!(stdout, cursor::MoveTo(col, row), terminal::Clear(terminal::ClearType::FromCursorDown));
                                 print!("{}", rendered);
                             } else {
-                                // If it scrolled, we already have the raw text on screen.
-                                // We don't want to double-print the whole thing, but we might want 
-                                // to show the pretty version if it's significantly different (like a table).
-                                // For now, let's just avoid adding extra lines.
-                                print!("\r");
+                                // If it scrolled or is at top, just ensure we're on a new line and print the pretty version
+                                // only if it's significantly different (contains md features)
+                                if response_buffer.contains('|') || response_buffer.contains("```") || response_buffer.contains('*') {
+                                    println!("\r");
+                                    print!("{}", rendered);
+                                }
                             }
                         } else {
                             print!("\r{}", rendered);
