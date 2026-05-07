@@ -2,7 +2,7 @@ use ratatui::{
     backend::CrosstermBackend,
     layout::{Constraint, Direction, Layout, Alignment},
     style::{Color, Style, Modifier},
-    widgets::{Block, Borders, Paragraph, List, ListItem, BorderType},
+    widgets::{Block, Borders, Paragraph, List, ListItem},
     Terminal,
 };
 use crossterm::{

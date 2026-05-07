@@ -321,7 +321,7 @@ async fn handle_chat_loop(
                     ensure_session(sessions, app_name, user_id, session_id).await?;
                     execute!(io::stdout(), terminal::Clear(terminal::ClearType::All), cursor::MoveTo(0, 0))?;
                     render_banner(provider, model_name);
-                    println!("{}\n", style::style("âœ¨ New session started").green().bold());
+                    println!("{}\n", style::style("\u{2728} New session started").green().bold());
                     continue;
                 }
                 if trimmed == "/version" { println!("Nami CLI v{}\n", env!("CARGO_PKG_VERSION")); continue; }
