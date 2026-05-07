@@ -577,6 +577,9 @@ async fn handle_chat_loop(
                                 {
                                     println!("\r");
                                     print!("{}", rendered);
+                                } else {
+                                    println!("\r");
+                                    print!("{}", rendered);
                                 }
                             }
                         } else {
