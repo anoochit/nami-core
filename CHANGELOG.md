@@ -6,16 +6,21 @@ All notable changes to this project will be documented in this file.
 
 ### Added
 
+- **Parallel Slash Command**: Introduced the `/parallel` command in CLI mode for easy task delegation and multi-agent orchestration.
+- **Enhanced Specialized Agents**: Added `coder`, `researcher`, and `writer` specialists in `src/agent/specialists.rs` to support diverse parallel workloads.
 - **Observability Stack**: Integrated OpenTelemetry collector and MLflow for robust tracing and experiment tracking, enabling deep insights into agent behavior.
 
 ### Changed
 
+- **Default Model**: Switched the default model configuration to `gpt-4o-mini` (OpenAI) for improved performance and cost-efficiency.
+- **Dependency Upgrade**: Upgraded `adk-rust` and all associated `adk-*` crates to version `0.8.0`.
+- **Logging**: Enabled `pretty_env_logger` in CLI mode for enhanced developer visibility.
 - **Persona & State Management**: Refactored the persona formatting logic in `src/agent/agent.rs` and updated `workspace/AGENT.md` and `workspace/STATE_PROTOCOL.md` for better clarity and efficiency.
 - **System Telemetry**: Added OpenTelemetry initialization to `src/main.rs`, supporting external OTLP collectors.
 
 ### Fixed
 
-- **Code Cleanup**: Removed redundant `ratatui` dependencies from `Cargo.toml` and `Cargo.lock` that were no longer required.
+- **Code Cleanup**: Removed redundant `ratatui` and other unused dependencies from `Cargo.toml` and `Cargo.lock` that were no longer required.
 
 
 ### Added

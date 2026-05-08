@@ -7,11 +7,11 @@ A modular, extensible AI-powered `Nami` built on top of [adk-rust](https://githu
 ## 🚀 Features
 
 * **Multi-Platform AI**: Powered by Gemini, Anthropic, or any OpenAI-compatible LLM (e.g., ThaiLLM).
-* **Modern TUI**: A rich, interactive CLI experience with a custom ASCII banner, animated indicators, pretty error rendering with intelligent hints, and structured layout.
+* **Modern TUI**: A rich, interactive CLI experience with a custom ASCII banner, animated indicators, pretty error rendering with intelligent hints, and structured layout. Supports slash commands like `/new` and `/parallel`.
 * **@ File Context References**: Reference files from the `workspace/` directly in the CLI using `@path/to/file` with built-in Tab-completion.
 * **Hybrid MCP Support**: Seamlessly connect to both local (stdio-based) and remote (streamable HTTP/SSE) [Model Context Protocol](https://modelcontextprotocol.io/) servers. Tools are automatically namespaced with `mcp_` to prevent collisions.
 * **Observability Stack**: Integrated OpenTelemetry collector and MLflow for robust tracing and experiment tracking.
-* **Parallel Task Execution**: A custom `parallel_tasks` tool that orchestrates multiple sub-agents simultaneously for high-speed multi-tasking.
+* **Parallel Task Execution**: A custom `parallel_tasks` tool that orchestrates multiple sub-agents (`coder`, `researcher`, `writer`, `generalist`) simultaneously for high-speed multi-tasking.
 * **Markdown Wiki KM**: A transparent, human-readable Knowledge Management system using `.md` files, featuring automatic Obsidian-style frontmatter and header generation.
 * **Dynamic Persona & Soul**: Configure the bot's personality and user context via `workspace/AGENT.md` and `workspace/USER.md`.
 * **Persistent Sessions**: SQLite-backed conversation history keyed by Telegram user ID.
