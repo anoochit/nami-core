@@ -165,3 +165,7 @@ graph TD
     * **Vision & Multi-modal**: Enable vision tools to allow Nami to analyze screenshots or images sent via Telegram.
     * **Voice Mode**: Integrate Whisper for voice-to-text, allowing you to talk to Nami directly.
     * **Automated Evaluations**: Build an `eval/` suite to test Nami's tool-calling accuracy across different model versions.
+    * **LLM Self-Correction Loops**: Implement a meta-agent that reviews the output of other tools, automatically detecting errors and triggering a re-try or pivot if the quality threshold isn't met.
+    * **Dynamic Multi-Model Routing**: Implement an intelligent router that dynamically selects the cheapest or fastest model based on the complexity of the current task.
+    * **Edge-Compute Caching Layer**: Add a local Redis/Key-Value cache to store frequent tool results, reducing latency and cost for repetitive tasks.
+    * **Agent Reflection Service**: A background service that periodically analyzes session logs to synthesize "Learnings" and automatically update `MEMORIES.md`.
