@@ -41,7 +41,6 @@ A modular, extensible AI-powered `Nami` built on top of [adk-rust](https://githu
 
 ### 🛠 Specialized Skills & Tools
 *   **AI Image Generation**: Integrated `Imagen` capabilities via `.skills/imagen/` for high-quality image creation.
-*   **Expert Code Analysis**: `Vercel React Best Practices` suites for deep performance and security analysis of React applications.
 *   **Publishing Skills**: Compile workspace documents into distributable formats:
     *   `create-pdf`: Beautifully formatted PDF documents.
     *   `create-epub`: EPUB e-books with BOM sanitization.
