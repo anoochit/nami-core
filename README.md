@@ -10,6 +10,7 @@ A modular, extensible AI-powered `Nami` built on top of [adk-rust](https://githu
 * **Modern TUI**: A rich, interactive CLI experience with a custom ASCII banner, animated indicators, pretty error rendering with intelligent hints, and structured layout.
 * **@ File Context References**: Reference files from the `workspace/` directly in the CLI using `@path/to/file` with built-in Tab-completion.
 * **Hybrid MCP Support**: Seamlessly connect to both local (stdio-based) and remote (streamable HTTP/SSE) [Model Context Protocol](https://modelcontextprotocol.io/) servers. Tools are automatically namespaced with `mcp_` to prevent collisions.
+* **Observability Stack**: Integrated OpenTelemetry collector and MLflow for robust tracing and experiment tracking.
 * **Parallel Task Execution**: A custom `parallel_tasks` tool that orchestrates multiple sub-agents simultaneously for high-speed multi-tasking.
 * **Markdown Wiki KM**: A transparent, human-readable Knowledge Management system using `.md` files, featuring automatic Obsidian-style frontmatter and header generation.
 * **Dynamic Persona & Soul**: Configure the bot's personality and user context via `workspace/AGENT.md` and `workspace/USER.md`.
