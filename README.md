@@ -26,7 +26,7 @@ A modular, extensible AI-powered `Nami` built on top of [adk-rust](https://githu
 
 ### 📂 Knowledge & Session Management
 *   **Obsidian-Style Wiki KM**: A transparent, human-readable Knowledge Management system using `.md` files.
-    *   `add_wiki_page`: Markdown saving with `[[wikilink]]` support.
+    *   `add_wiki_page`: Markdown saving with `[[wikilink]]` syntax.
     *   `get_wiki_graph`: Knowledge graph visualization.
     *   `search_wiki_by_tag`: Filter notes by specific `#tags`.
     *   `create_daily_note`: Journal entries for the current date.
@@ -45,6 +45,19 @@ A modular, extensible AI-powered `Nami` built on top of [adk-rust](https://githu
 *   **Publishing Skills**: Compile workspace documents into distributable formats:
     *   `create-pdf`: Beautifully formatted PDF documents.
     *   `create-epub`: EPUB e-books with BOM sanitization.
+
+## 🧩 Agent Skills
+Nami Core is designed for extreme extensibility. You can add new capabilities by deploying modules to the `workspace/.skills/` directory.
+
+*   **Extensibility Model**: Skills are modular components that bundle specialized scripts and configuration. They allow Nami to perform complex, domain-specific tasks without modifying core code.
+*   **Skill Management**: You can manage, create, and validate skills using the `skill-creator` extension.
+
+### Currently Available Skills
+*   **Imagen**: AI image generation capabilities via `.skills/imagen/`.
+*   **CLI Help**: Interactive command references and usage patterns via `cli-help`.
+*   **Publishing Suite**: Automate documentation delivery (`create-pdf`, `create-epub`).
+
+*(To add a custom skill, check the `workspace/.skills/skill-creator` documentation for templates and packaging tools.)*
 
 ### 🛡 System & Safety
 *   **Persistent Task Scheduler**: A `crontab`-style background system that automatically retries unfinished tasks and persists state in `scheduler.json`.
