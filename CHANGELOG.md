@@ -28,7 +28,6 @@ All notable changes to this project will be documented in this file.
 - **Enhanced TUI**: Improved CLI experience with better markdown rendering and terminal styling.
 - **New Agent Skills**:
     - `Imagen`: Integrated AI image generation capabilities via `.skills/imagen/`.
-    - `Vercel React Best Practices`: Added expert-level React performance and best practice rules for code analysis.
 - **CLI Commands**: Added `/new` slash command in CLI mode to reset the current session.
 
 ### Changed
