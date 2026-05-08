@@ -1,5 +1,4 @@
 import { AssistantRuntimeProvider, useLocalRuntime, Thread, ThreadList, AssistantSidebar } from "@assistant-ui/react";
-import "@assistant-ui/react/styles/index.css";
 import { useState } from "react";
 
 // API Base URL
