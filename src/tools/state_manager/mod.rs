@@ -84,7 +84,7 @@ async fn get_states_file() -> std::result::Result<PathBuf, AdkError> {
     Ok(root.join("task_states.json"))
 }
 
-async fn load_states() -> std::result::Result<Vec<TaskState>, AdkError> {
+pub async fn load_states() -> std::result::Result<Vec<TaskState>, AdkError> {
     let path = get_states_file().await?;
     if !path.exists() {
         return Ok(Vec::new());

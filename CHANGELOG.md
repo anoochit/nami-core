@@ -6,6 +6,8 @@ All notable changes to this project will be documented in this file.
 
 ### Added
 
+- **Persistent Task Scheduler**: Implemented a `crontab`-style scheduler that runs in the background. It automatically retries unfinished tasks (using `StateManager` integration) and persists its state in `workspace/scheduler.json`.
+- **Schedule Slash Command**: Added the `/schedule` command to register and manage automated tasks with cron expressions.
 - **Ralph Wiggum Loop**: Introduced an autonomous agent loop that persists until a goal is achieved.
 - **Goal Slash Command**: Added the `/goal` command to trigger the Ralph Wiggum loop with a specific goal and stop condition.
 - **Parallel Slash Command**: Introduced the `/parallel` command in CLI mode for easy task delegation and multi-agent orchestration.

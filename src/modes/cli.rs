@@ -10,12 +10,15 @@ use rustyline::{Config, Context, Editor, Helper};
 use std::borrow::Cow;
 use std::io::{self, Write};
 use std::sync::Arc;
+use chrono::Utc;
 use termimad::MadSkin;
 use uuid::Uuid;
 use walkdir::WalkDir;
 
 use crate::agent::agent::{check_config_mtime, create_agent, get_config_mtime, get_skills_mtime};
 use crate::agent::get_compaction_config;
+use crate::tools::scheduler::{load_schedule, save_schedule};
+use crate::tools::state_manager::{load_states, TaskStatus};
 
 use adk_rust::Agent;
 use adk_rust::prelude::*;
@@ -32,6 +35,7 @@ fn render_help() {
 {}  New session
 {}  List active tasks
 {}  Initialize task
+{}  Manage schedule
 {}  Run parallel tasks
 {}  Run autonomous loop
 {}  Wiki search
@@ -43,6 +47,7 @@ Examples:
   /plan Build AI research system
   /parallel "Fix bug in parser" "Write unit tests"
   /goal "Find latest AI news" | "Summary is written to news.md"
+  /schedule "Backup workspace" | "0 0 * * * *"
   /wiki Rust async traits
   /memo User prefers concise output
 "#,
@@ -52,6 +57,7 @@ Examples:
         style::style("/new").cyan().bold(),
         style::style("/tasks").cyan().bold(),
         style::style("/plan").cyan().bold(),
+        style::style("/schedule").cyan().bold(),
         style::style("/parallel").cyan().bold(),
         style::style("/goal").cyan().bold(),
         style::style("/wiki").cyan().bold(),
@@ -362,6 +368,16 @@ pub(crate) async fn run_cli(
         .compaction_config(get_compaction_config(model.clone()))
         .build()?;
 
+    // Spawn scheduler background loop
+    let bg_agent = agent.clone();
+    let bg_sessions = sessions.clone();
+    let bg_model = model.clone();
+    tokio::spawn(async move {
+        if let Err(e) = run_scheduler_loop(bg_agent, bg_sessions, bg_model).await {
+            log::error!("Scheduler error: {:?}", e);
+        }
+    });
+
     let config = Config::builder()
         .completion_type(rustyline::CompletionType::List)
         .build();
@@ -510,6 +526,26 @@ pub(crate) async fn run_cli(
                     if trimmed.starts_with("/plan ") {
                         let prompt =
                             format!("Initialize task: {}", trimmed.replace("/plan", "").trim());
+
+                        run_system_prompt(&mut runner, user_id, &session_id, &prompt, &nami_skin)
+                            .await?;
+
+                        continue;
+                    }
+
+                    if trimmed.starts_with("/schedule ") {
+                        let content = trimmed.replace("/schedule", "").trim().to_string();
+                        let (goal, cron_expr) = match content.split_once('|') {
+                            Some((g, s)) => (g.trim(), s.trim()),
+                            None => (content.as_str(), "0 * * * * *"),
+                        };
+
+                        let prompt = format!(
+                            "schedule_task: goal='{}', cron_expr='{}', id='{}'",
+                            goal,
+                            cron_expr,
+                            Uuid::new_v4().to_string().split('-').next().unwrap_or("task")
+                        );
 
                         run_system_prompt(&mut runner, user_id, &session_id, &prompt, &nami_skin)
                             .await?;
@@ -731,4 +767,87 @@ pub(crate) async fn run_cli(
     }
 
     Ok(())
+}
+
+async fn run_scheduler_loop(
+    agent: Arc<dyn Agent>,
+    sessions: Arc<dyn SessionService>,
+    model: Arc<dyn Llm>,
+) -> anyhow::Result<()> {
+    let app_name = "scheduler";
+    let user_id = "system";
+    let session_id = "background_tasks";
+
+    ensure_session(&sessions, app_name, user_id, session_id).await?;
+
+    let runner = Runner::builder()
+        .app_name(app_name)
+        .agent(agent)
+        .session_service(sessions)
+        .compaction_config(get_compaction_config(model))
+        .build()?;
+
+    let mut interval = tokio::time::interval(std::time::Duration::from_secs(60));
+
+    loop {
+        interval.tick().await;
+
+        let mut tasks = match load_schedule().await {
+            Ok(t) => t,
+            Err(_) => continue,
+        };
+
+        let now = Utc::now();
+        let mut changed = false;
+
+        for task in tasks.iter_mut() {
+            if !task.is_active {
+                continue;
+            }
+
+            let schedule = match <cron::Schedule as std::str::FromStr>::from_str(&task.cron_expr) {
+                Ok(s) => s,
+                Err(_) => continue,
+            };
+
+            let should_run = match task.last_run {
+                Some(last) => {
+                    if let Some(due) = schedule.after(&last).next() {
+                        now >= due
+                    } else {
+                        false
+                    }
+                }
+                None => true,
+            };
+
+            if should_run {
+                let states = load_states().await.unwrap_or_default();
+                let current_status = states
+                    .iter()
+                    .find(|s| s.goal == task.goal)
+                    .map(|s| s.status.clone())
+                    .unwrap_or(TaskStatus::InProgress);
+
+                if current_status != TaskStatus::Completed {
+                    log::info!("Scheduler triggering task: {}", task.goal);
+
+                    let content = Content::new("user").with_text(&format!(
+                        "SCHEDULED RUN: {}. Please continue working on this goal.",
+                        task.goal
+                    ));
+
+                    let mut stream = runner.run_str(user_id, session_id, content).await?;
+                    while let Some(_) = stream.next().await {}
+
+                    task.last_run = Some(now);
+                    changed = true;
+                }
+            }
+        }
+
+        if changed {
+            let _ = save_schedule(&tasks).await;
+        }
+    }
 }

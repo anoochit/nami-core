@@ -19,6 +19,7 @@ A modular, extensible AI-powered `Nami` built on top of [adk-rust](https://githu
     *   `/new`: Reset current session.
     *   `/parallel`: Run tasks in parallel.
     *   `/goal`: Run autonomous loops.
+    *   `/schedule`: Manage automated tasks with cron.
     *   `/plan`: Initialize structured tasks.
 *   **@ File Context References**: Reference files from the `workspace/` directly in the CLI using `@path/to/file` with built-in Tab-completion.
 *   **Dynamic Persona & Soul**: Configure the bot's personality and user context via `workspace/AGENT.md` and `workspace/USER.md`. Automatically updated `workspace/MEMORIES.md` tracks personal user facts.
@@ -46,6 +47,7 @@ A modular, extensible AI-powered `Nami` built on top of [adk-rust](https://githu
     *   `create-epub`: EPUB e-books with BOM sanitization.
 
 ### 🛡 System & Safety
+*   **Persistent Task Scheduler**: A `crontab`-style background system that automatically retries unfinished tasks and persists state in `scheduler.json`.
 *   **Sandboxed Environment**: Integrated filesystem tools for agent tasks within a `workspace/` directory, protected by a **`.namiignore` policy** (similar to `.gitignore`) to control access permissions.
 *   **Observability Stack**: Integrated OpenTelemetry collector and MLflow for robust tracing and experiment tracking.
 *   **Live Web Search**: Integrated Google Search via Serper.dev.
@@ -132,6 +134,7 @@ graph TD
     
     Runner --> Agent[LlmAgent]
     Runner --> DB[(SqliteSessionService)]
+    Runner --> Scheduler[Background Scheduler]
     
     Agent --> LLM[ThaiLLM/Gemini/OpenAI]
     Agent --> SubAgents[Sub-Agents: Generalist, Coder, Researcher, Writer, Ralph]
