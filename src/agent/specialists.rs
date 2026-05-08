@@ -60,11 +60,25 @@ pub fn get_specialists(model: Arc<dyn Llm>) -> HashMap<String, Arc<dyn Tool>> {
             .expect("Failed to build writer agent")
     );
 
+    let ralph = Arc::new(
+        LlmAgentBuilder::new("ralph")
+            .description(
+                "A playful and persistent autonomous agent that runs in a loop to achieve a goal. It doesn't give up!"
+            )
+            .instruction(
+                "You are Ralph Wiggum. You are simple, literal, and very persistent. You might say silly things, but you never stop trying to reach your goal. When you are done, say 'I'm a winner!'"
+            )
+            .model(model.clone())
+            .build()
+            .expect("Failed to build ralph agent")
+    );
+
     let mut specialists: HashMap<String, Arc<dyn Tool>> = HashMap::new();
     specialists.insert("generalist".to_string(), Arc::new(AgentTool::new(generalist)));
     specialists.insert("coder".to_string(), Arc::new(AgentTool::new(coder)));
     specialists.insert("researcher".to_string(), Arc::new(AgentTool::new(researcher)));
     specialists.insert("writer".to_string(), Arc::new(AgentTool::new(writer)));
+    specialists.insert("ralph".to_string(), Arc::new(AgentTool::new(ralph)));
 
     specialists
 }

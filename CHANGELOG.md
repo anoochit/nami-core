@@ -6,6 +6,8 @@ All notable changes to this project will be documented in this file.
 
 ### Added
 
+- **Ralph Wiggum Loop**: Introduced an autonomous agent loop that persists until a goal is achieved.
+- **Goal Slash Command**: Added the `/goal` command to trigger the Ralph Wiggum loop with a specific goal and stop condition.
 - **Parallel Slash Command**: Introduced the `/parallel` command in CLI mode for easy task delegation and multi-agent orchestration.
 - **Enhanced Specialized Agents**: Added `coder`, `researcher`, and `writer` specialists in `src/agent/specialists.rs` to support diverse parallel workloads.
 - **Observability Stack**: Integrated OpenTelemetry collector and MLflow for robust tracing and experiment tracking, enabling deep insights into agent behavior.

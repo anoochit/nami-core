@@ -285,7 +285,8 @@ fn configure_agent_tools(
     tools.extend(tools::search::search_tools());
     tools.extend(tools::todo::todo_tools());
     tools.extend(tools::state_manager::state_manager_tools());
-    tools.extend(tools::parallel_tasks::parallel_tasks_tool(specialists));
+    tools.extend(tools::parallel_tasks::parallel_tasks_tool(specialists.clone()));
+    tools.extend(tools::ralph_wiggum_loop::ralph_wiggum_loop_tool(specialists));
 
     for t in tools {
         builder = builder.tool(t);

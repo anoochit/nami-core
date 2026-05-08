@@ -33,6 +33,7 @@ fn render_help() {
 {}  List active tasks
 {}  Initialize task
 {}  Run parallel tasks
+{}  Run autonomous loop
 {}  Wiki search
 {}  Save memory
 {}  Agent status
@@ -41,6 +42,7 @@ fn render_help() {
 Examples:
   /plan Build AI research system
   /parallel "Fix bug in parser" "Write unit tests"
+  /goal "Find latest AI news" | "Summary is written to news.md"
   /wiki Rust async traits
   /memo User prefers concise output
 "#,
@@ -51,6 +53,7 @@ Examples:
         style::style("/tasks").cyan().bold(),
         style::style("/plan").cyan().bold(),
         style::style("/parallel").cyan().bold(),
+        style::style("/goal").cyan().bold(),
         style::style("/wiki").cyan().bold(),
         style::style("/memo").cyan().bold(),
         style::style("/status").cyan().bold(),
@@ -519,6 +522,24 @@ pub(crate) async fn run_cli(
                         let prompt = format!(
                             "Execute the following tasks in parallel using the most appropriate specialized agents (coder, researcher, writer, or generalist): {}",
                             tasks
+                        );
+
+                        run_system_prompt(&mut runner, user_id, &session_id, &prompt, &nami_skin)
+                            .await?;
+
+                        continue;
+                    }
+
+                    if trimmed.starts_with("/goal ") {
+                        let content = trimmed.replace("/goal", "").trim().to_string();
+                        let (goal, stop_condition) = match content.split_once('|') {
+                            Some((g, s)) => (g.trim(), s.trim()),
+                            None => (content.as_str(), "Goal is achieved"),
+                        };
+
+                        let prompt = format!(
+                            "ralph_wiggum_loop: goal='{}', stop_condition='{}'",
+                            goal, stop_condition
                         );
 
                         run_system_prompt(&mut runner, user_id, &session_id, &prompt, &nami_skin)
