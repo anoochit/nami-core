@@ -1,6 +1,5 @@
 import { AssistantRuntimeProvider, useLocalRuntime, Thread } from "@assistant-ui/react";
 import { AssistantModal } from "@assistant-ui/react";
-import "@assistant-ui/react/styles/index.css";
 import { useEffect, useState } from "react";
 import axios from "axios";
 
