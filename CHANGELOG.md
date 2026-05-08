@@ -26,6 +26,7 @@ All notable changes to this project will be documented in this file.
 
 - **Code Cleanup**: Removed redundant `ratatui` and other unused dependencies from `Cargo.toml` and `Cargo.lock` that were no longer required.
 
+## [0.7.0] - 2026-05-07
 
 ### Added
 
