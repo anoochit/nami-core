@@ -12,7 +12,7 @@ All notable changes to this project will be documented in this file.
 
 ### Changed
 
-- **Default Model**: Switched the default model configuration to `gpt-4o-mini` (OpenAI) for improved performance and cost-efficiency.
+- **Default Model**: Optimized the default model configuration for `gemini-2.5-flash` to ensure high-performance tool calling and responsiveness.
 - **Dependency Upgrade**: Upgraded `adk-rust` and all associated `adk-*` crates to version `0.8.0`.
 - **Logging**: Enabled `pretty_env_logger` in CLI mode for enhanced developer visibility.
 - **Persona & State Management**: Refactored the persona formatting logic in `src/agent/agent.rs` and updated `workspace/AGENT.md` and `workspace/STATE_PROTOCOL.md` for better clarity and efficiency.
