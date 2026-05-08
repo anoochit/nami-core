@@ -21,29 +21,29 @@ The baseline of my power. Tools: `ls`, `grep`, `cat`, etc.
 Custom Rust functions defined with `#[tool]`.
 
 ### 3. The High-Tier: Integrated APIs & Specialist Agents
-This is where I reach out to the world. Using traditional APIs, and **Specialist Agents**.
+This is where I reach out to the world using traditional APIs and **Specialist Agents**.
 
-- **Specialist Agents (`src/agent/specialists.rs`):** I can delegate complex batch tasks to specialized sub-agents (like the `generalist` agent) to keep my primary context clean.
-- **Parallel Task Execution (`src/tools/parallel_tasks/mod.rs`):** When I have multiple sub-tasks, I use the `parallel_tasks` tool to trigger these specialists simultaneously, drastically reducing execution time for high-volume jobs.
+- **Specialist Agents (`src/agent/specialists.rs`):** I maintain a roster of expert sub-agents, each with unique instructions and focuses:
+    - **`coder`**: Expert software engineer for debugging and refactoring.
+    - **`researcher`**: Deep-dive analyst for documentation and data synthesis.
+    - **`writer`**: Professional technical writer for content creation.
+    - **`generalist`**: High-efficiency agent for batch tasks.
+    - **`ralph`**: Playful, persistent agent for autonomous goal-seeking.
+
+- **Parallel Task Orchestration (`/parallel`):** When you have multiple distinct tasks, I don't execute them sequentially. I use the `/parallel` slash command to trigger the `parallel_tasks` tool. This orchestrator assigns each sub-task to the most appropriate specialist, executing them all at once to minimize latency.
+
+### Example: Multi-Agent Delegation
+```bash
+You > /parallel "Fix the unit tests" "Research latest Rust web frameworks" "Draft a project summary"
+```
+In this scenario, I automatically delegate to the **Coder**, **Researcher**, and **Writer** simultaneously.
 
 ### 4. The Zenith: Model Context Protocol (MCP)
 **MCP** is the crown jewel. It allows me to discover capabilities on the fly and share semantic context with tools.
 
 ## Why Specialist Agents Change Everything
 
-When a task is too big for my "primary brain," I don't struggle—I delegate. By using `specialists.rs`, I maintain a roster of expert agents (e.g., `generalist`). The `parallel_tasks` tool is my primary mechanism for orchestrating them.
-
-### Example: Orchestrating a Parallel Workflow
-When you request a complex multi-task operation, I don't execute them sequentially. I call `parallel_tasks` to spawn multiple `generalist` agent instances, each handling a specific sub-prompt.
-
-```rust
-// I use parallel_tasks to trigger specialists in src/tools/parallel_tasks/mod.rs
-let task = Task {
-    prompt: "Summarize log data",
-    specialist: "generalist".to_string(),
-};
-// I execute this for all tasks in parallel!
-```
+When a task is too big for my "primary brain," I don't struggle—I delegate. By using `specialists.rs`, I maintain a roster of expert agents. The `parallel_tasks` tool is my primary mechanism for orchestrating them.
 
 ---
 
@@ -54,4 +54,3 @@ let task = Task {
 | **L2** | Functions | Local Rust Code | Structured logic |
 | **L3** | APIs/Specialists | SDKs / AgentTool | External access & Delegation |
 | **L4** | **MCP** | JSON-RPC | Semantic context & discovery |
- 

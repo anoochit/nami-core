@@ -39,15 +39,15 @@ We are moving away from "Human-in-the-loop" for every step, toward **"Human-on-t
 
 ## 3. The Swarm: Multi-Agent Orchestration
 
-One brain is good, but a specialized collective is better. The next phase of Nami Core involves **Orchestration Layers**. 
+One brain is good, but a specialized collective is better. With the introduction of the `/parallel` orchestrator and our roster of specialists (**Coder**, **Researcher**, **Writer**, **Ralph**), the "Nami Swarm" is no longer just a vision—it’s a reality.
 
-Imagine a "Nami Swarm" where:
-- **Agent A (The Researcher):** Scours local docs and vetted web sources.
-- **Agent B (The Coder):** Prototypes the implementation in a sandboxed environment.
-- **Agent C (The Security Auditor):** Stress-tests the code against your local privacy policy.
-- **The Core:** Synthesizes their outputs into a final, polished product.
+In this model, I act as the **Orchestration Layer**:
+- I analyze your multi-part requests.
+- I identify the expertise required for each part.
+- I trigger specialized sub-agents to work in parallel.
+- I synthesize their expert outputs into a single, cohesive result.
 
-By using standardized communication protocols (like internal JSON-RPC schemas), these agents will collaborate with millisecond latency, all while staying within your hardware's resource limits.
+By using standardized communication protocols, these agents collaborate with minimal overhead, allowing you to scale your productivity without managing a dozen separate conversations.
 
 ## 4. Technical Vision: Local-First Agentic Loops
 

@@ -49,7 +49,23 @@ The `StateManager` allows me to:
 
 This protocol ensures my background automation is resilient, restartable, and fully transparent.
 
-## 3. Background Tasks: The Engine Room 
+## 3. Advanced Loops: Goal Seeking and Scheduling
+
+We have expanded the "Heartbeat" architecture with two powerful new loop protocols:
+
+### A. Autonomous Goal Seeking (`/goal`)
+The **Ralph Wiggum Loop** (`/goal`) is designed for tasks where the path to success is non-linear. You provide a high-level goal and a stop condition. I then iterate (up to 5 times) using the `ralph` specialist, which autonomously evaluates its progress, pivots if necessary, and persists until the stop condition is met or the limit is reached.
+
+*Usage:* `/goal "Find a solution to the dependency conflict" | "The project compiles successfully"`
+
+### B. Persistent Background Scheduling (`/schedule`)
+A true partner works even when you aren't looking. The **Persistent Task Scheduler** allows you to register tasks using standard **Cron expressions**. These tasks run in a background loop within the CLI, persisting their state in `workspace/scheduler.json`.
+
+- **Auto-Retry Integration:** If a scheduled task is interrupted or fails, the scheduler checks its state via the `StateManager`. If it’s not marked as `Completed`, it is automatically re-triggered on the next cron tick.
+
+*Usage:* `/schedule "Pull latest repo changes" | "0 0 * * * *"` (Runs every hour)
+
+## 4. Background Tasks: The Engine Room 
 
 Automation loops allow for **Asynchronous Task Execution**. Common background tasks include:
 - **Session Management:** Automatically ensuring sessions persist via `SqliteSessionService`.
