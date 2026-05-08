@@ -1,4 +1,4 @@
-import { AssistantRuntimeProvider, useLocalRuntime, Thread } from "@assistant-ui/react";
+import { AssistantRuntimeProvider, useLocalRuntime, ThreadPrimitive } from "@assistant-ui/react";
 import { useEffect, useState } from "react";
 import axios from "axios";
 
@@ -64,7 +64,9 @@ export default function App() {
         {/* Main Chat Thread */}
         <div style={{ flex: 1 }}>
           {sessionId ? (
-            <Thread />
+            <ThreadPrimitive.Root>
+               {/* Simplified thread implementation */}
+            </ThreadPrimitive.Root>
           ) : (
             <div>Please select a thread or start a new one.</div>
           )}
