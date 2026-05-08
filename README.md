@@ -51,6 +51,97 @@ A modular, extensible AI-powered `Nami` built on top of [adk-rust](https://githu
 *   **Live Web Search**: Integrated Google Search via Serper.dev.
 *   **Modular Architecture**: Organized structure for adding capabilities (Weather, Search, Shell, Wiki, etc.).
 
+## 🛠 Prerequisites
+
+* Rust ([rustup](https://rustup.rs/))
+* A Telegram Bot Token from [@BotFather](https://t.me/BotFather)
+* API Key for your chosen LLM (Gemini, OpenAI, or ThaiLLM)
+* (Optional) [Serper.dev](https://serper.dev/) API Key for Google Search features.
+
+## ⚙️ Configuration
+
+1. Copy `.env.example` to `.env` and configure your credentials:
+
+```bash
+cp .env.example .env
+```
+
+```text
+GOOGLE_API_KEY=your_google_api_key_here
+THAILLM_API_KEY=your_api_key_here
+TELOXIDE_TOKEN=your_telegram_bot_token
+SERPER_API_KEY=your_serper_api_key
+```
+
+1. Customize the Bot's Soul:
+
+* Edit `workspace/AGENT.md` to change the name, personality, and tone.
+* Edit `workspace/USER.md` to provide context about yourself and your preferences.
+
+## 🏃 Getting Started
+
+### Build and Install
+
+1. **Build the application**:
+
+   ```bash
+   cargo build --release
+   ```
+
+   The generated executable will be found in `target/release/`.
+
+2. **(Optional) Install globally**:
+   To run `nami` from any directory, you can move the binary to a location in your system's `PATH`:
+
+   * **Linux/macOS**:
+
+     ```bash
+     sudo mv target/release/nami /usr/local/bin/
+     ```
+
+   * **Windows**:
+     Add the full path of the `target\release\` directory to your system's Environment Variables (PATH).
+
+### Running
+
+The application provides five primary run modes:
+
+| Mode | Command | Description |
+| :--- | :--- | :--- |
+| **Initialize** | `nami init` | Initialize project config files and database. |
+| **Telegram Bot** | `nami bot` | Start the interactive Telegram Bot. |
+| **CLI** | `nami cli` | Local interactive terminal agent with rich TUI. |
+| **Run** | `nami run <prompt>` | Execute a single prompt directly from the CLI. |
+| **Server** | `nami serve` | Run as an HTTP service. |
+
+## 🏗 Architecture
+
+The system supports multiple entry points sharing the same core agent logic:
+
+```mermaid
+graph TD
+    subgraph EntryPoints [Modes]
+        direction TB
+        Bot[Telegram Bot]
+        CLI[Interactive CLI]
+        Run[Direct Run]
+        Server[HTTP Server]
+    end
+
+    EntryPoints --> Runner[adk-rust Runner]
+    
+    Runner --> Agent[LlmAgent]
+    Runner --> DB[(SqliteSessionService)]
+    
+    Agent --> LLM[ThaiLLM/Gemini/OpenAI]
+    Agent --> SubAgents[Sub-Agents: Generalist, Coder, Researcher, Writer, Ralph]
+    Agent --> Tools[Tools]
+    Agent --> Wiki[Obsidian-Style Wiki: Graph, Tags, Daily Notes]
+    Agent --> Persona[AGENT.md & USER.md]
+    
+    SubAgents --> Agent
+```
+
 ## 💡 Developer Tips
 
 * **Production**: For high-traffic bots, migrate `teloxide` from polling to webhooks.
