@@ -11,65 +11,107 @@ Use `nami help` at any time to display this information in the terminal.
 
 ---
 
-## Available Commands
+## Core CLI Commands
 
-### Core Commands
-- `init`  
-  Initialize project configuration.
-
-- `serve`  
-  Start the API server.
-
-- `cli`  
-  Launch the interactive TUI interface.
-
----
-
-### Bot Integration
-- `bot`  
-  Start the Telegram bot service.
+| Command | Description |
+| :--- | :--- |
+| `init` | Initialize project configuration, persona files, and database. |
+| `cli` | Launch the **Interactive TUI** (Recommended). |
+| `run "<prompt>"` | Execute a single prompt directly from the terminal. |
+| `bot` | Start the Telegram bot service. |
+| `serve` | Start the HTTP API server. |
+| `help` | Display basic command-line usage instructions. |
 
 ---
 
-### Prompt Execution
-- `run "<prompt>"`  
-  Execute a prompt directly from the CLI.
+## Interactive CLI Mode (`nami cli`)
+
+Once inside the interactive CLI, you can use the following **Slash Commands** for specialized functionality:
+
+### 🧠 Task Management
+- `/plan <goal>`  
+  Initializes a structured task with specific steps and state tracking.
+  *Example:* `/plan Build a React portfolio`
+
+- `/tasks`  
+  Lists all active, in-progress, or blocked tasks.
+
+- `/status`  
+  Displays the current agent status and system telemetry.
+
+### ⚡ Automation & Delegation
+- `/parallel "<task 1>" "<task 2>" ...`  
+  Orchestrates multiple specialized agents (`coder`, `researcher`, `writer`) to perform tasks simultaneously.
+  *Example:* `/parallel "Write Rust code" "Research async traits"`
+
+- `/goal <goal> | <stop condition>`  
+  Triggers the **Ralph Wiggum** loop. The agent will autonomously retry and pivot until the stop condition is met (max 5 iterations).
+  *Example:* `/goal "Find AI news" | "Summary is written to news.md"`
+
+- `/schedule <goal> | <cron expression>`  
+  Registers a persistent background task using standard cron syntax.
+  *Example:* `/schedule "Backup workspace" | "0 0 * * * *"` (Runs every hour)
+
+### 📂 Knowledge & Memory
+- `/wiki <query>`  
+  Performs a full-text search across your Obsidian-style Markdown vault.
+- `/memo <fact>`  
+  Explicitly saves a personal fact or preference to your `MEMORIES.md`.
+- `@<file_path>`  
+  Type `@` followed by a path (with tab-completion) to inject file contents into your prompt.
+
+### 🛠 System
+- `/new`  
+  Starts a fresh session ID while maintaining persistent memory.
+- `/clear`  
+  Clears the terminal screen and re-renders the banner.
+- `/exit` or `/quit`  
+  Safely closes the CLI session.
+- `/?`  
+  Displays the in-CLI help menu.
 
 ---
 
-### Help
-- `help`  
-  Display usage instructions and available commands.
+## Usage Patterns
 
----
+### Direct Command Execution
+Use the `run` command for simple, one-off tasks:
+```bash
+nami run "Summarize my latest wiki notes"
+```
 
-## Usage Notes
+### Complex Multi-Tasking
+Leverage the parallel orchestrator to speed up development:
+```bash
+nami cli
+You > /parallel "Fix the unit tests in src/modes/" "Update the CHANGELOG.md"
+```
 
-- Commands can be executed from any directory with a valid Nami setup.
-- Prompts passed via CLI are executed in the current workspace context.
-- Interactive mode (`cli`) is recommended for exploratory workflows.
+### Autonomous Research
+Use the goal loop for tasks that require multiple steps:
+```bash
+You > /goal "Research the best Rust HTTP libraries and create a comparison table in research.md" | "A file named research.md exists"
+```
 
 ---
 
 ## Troubleshooting
 
-- **Command not found**
-  - Ensure Nami CLI is installed.
-  - Verify that the binary is available in your system `PATH`.
+- **Configuration Issues**
+  - Run `nami init` to regenerate missing config files.
+  - Verify your `.env` contains valid `GOOGLE_API_KEY` or `OPENAI_API_KEY`.
 
-- **Execution errors**
-  - Check environment variables and configuration files.
-  - Ensure the workspace is properly initialized (`nami init`).
+- **Access Denied**
+  - Files outside the `workspace/` or matched by `.namiignore` are restricted for safety.
 
-- **Bot not starting**
-  - Verify required credentials (e.g., Telegram token).
-  - Check network connectivity.
+- **Background Tasks**
+  - Scheduled tasks run quietly in the background of the `cli` mode. Check logs if a task fails to trigger.
 
 ---
 
 ## When to Use This Skill
 
 Use this skill when:
-- You need to recall CLI commands or syntax.
-- You want to guide a user on how to use Nami CLI.
-- You are constructing or validating CLI-based workflows.
+- You need to recall specific command syntax or cron formats.
+- You want to guide a user on how to use Nami's advanced features like Parallel or Goal loops.
+- You are optimizing your CLI-based AI workflow.
