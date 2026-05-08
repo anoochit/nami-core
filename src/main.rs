@@ -6,6 +6,7 @@ mod utils;
 
 use std::sync::Arc;
 
+use adk_rust::telemetry::{init_with_otlp, shutdown_telemetry};
 use adk_session::SqliteSessionService;
 use clap::{Parser, Subcommand};
 use runner::AgentRunner;
@@ -30,10 +31,20 @@ enum Commands {
 async fn main() -> anyhow::Result<()> {
     dotenvy::dotenv().ok();
 
+    // with Otel collector
+    let otel_endpoint = std::env::var("OTEL_COLLECTOR")
+        .unwrap_or_default();
+
+    if !otel_endpoint.is_empty() {
+        log::info!("Init telemetry...");
+        init_with_otlp("agent", &otel_endpoint).expect("Failed to initialize telemetry");
+    }
+
+    // parse cli
     let cli = Cli::parse();
 
     if !matches!(cli.command, Commands::Serve { .. } | Commands::Init) {
-        pretty_env_logger::init();
+        // pretty_env_logger::init();
     }
 
     if let Commands::Init = cli.command {
@@ -72,5 +83,9 @@ async fn main() -> anyhow::Result<()> {
         Commands::Init => unreachable!(),
     }
 
+    // shutdown telemetry
+    if !otel_endpoint.is_empty() {
+        shutdown_telemetry();
+    }
     Ok(())
 }

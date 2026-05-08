@@ -21,3 +21,4 @@ note/*
 mcp.json
 xmcp.json
 persona/
+mlflow.db
