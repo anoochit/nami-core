@@ -1,0 +1,39 @@
+services:
+  mlflow:
+    image: ghcr.io/mlflow/mlflow:latest
+    container_name: mlflow
+    restart: unless-stopped
+
+    ports:
+      - "5000:5000"
+
+    command: >
+      mlflow server
+      --host 0.0.0.0
+      --port 5000
+      --backend-store-uri sqlite:///mlflow.db
+      --allowed-hosts "*"
+
+    volumes:
+      - ./mlruns:/mlflow/mlruns
+      - ./mlflow.db:/mlflow/mlflow.db
+
+    working_dir: /mlflow
+
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:latest
+    container_name: otel-collector
+    restart: unless-stopped
+
+    depends_on:
+      - mlflow
+
+    ports:
+      - "4317:4317"
+      - "4318:4318"
+
+    command:
+      - --config=/etc/otelcol-contrib/config.yaml
+
+    volumes:
+      - ./otel-collector.yaml:/etc/otelcol-contrib/config.yaml
