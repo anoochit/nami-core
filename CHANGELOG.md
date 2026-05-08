@@ -2,7 +2,21 @@
 
 All notable changes to this project will be documented in this file.
 
-## [0.7.0] - 2026-05-07
+## [0.8.0] - 2026-05-08
+
+### Added
+
+- **Observability Stack**: Integrated OpenTelemetry collector and MLflow for robust tracing and experiment tracking, enabling deep insights into agent behavior.
+
+### Changed
+
+- **Persona & State Management**: Refactored the persona formatting logic in `src/agent/agent.rs` and updated `workspace/AGENT.md` and `workspace/STATE_PROTOCOL.md` for better clarity and efficiency.
+- **System Telemetry**: Added OpenTelemetry initialization to `src/main.rs`, supporting external OTLP collectors.
+
+### Fixed
+
+- **Code Cleanup**: Removed redundant `ratatui` dependencies from `Cargo.toml` and `Cargo.lock` that were no longer required.
+
 
 ### Added
 
