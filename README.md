@@ -53,8 +53,14 @@ Nami Core is designed for extreme extensibility. You can add new capabilities by
 
 ### Currently Available Skills
 *   **Imagen**: AI image generation capabilities via `.skills/imagen/`.
+*   **Book Mockup**: Generate photo-realistic book mockup images.
 *   **CLI Help**: Interactive command references and usage patterns via `cli-help`.
 *   **Publishing Suite**: Automate documentation delivery (`create-pdf`, `create-epub`).
+*   **Infographic Creator**: Scaffolding and generation for data-rich infographics.
+*   **Website Creator**: Scaffolding for static website projects.
+*   **Nami Blog Manager**: Tools for managing blog posts, metadata, and references.
+*   **Skill Creator**: Utilities for initializing, packaging, and validating new skills.
+*   **System Status**: Monitor and report on system health and agent performance.
 
 *(To add a custom skill, check the `workspace/.skills/skill-creator` documentation for templates and packaging tools.)*
 
