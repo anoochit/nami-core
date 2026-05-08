@@ -1,10 +1,10 @@
 [model]
 # Provider type: "gemini", "openai", "openrouter" or "thaillm"
-provider = "gemini"
+provider = "openai"
 # The specific model identifier
-model_name = "gemini-2.5-flash"
+model_name = "gpt-4o-mini"
 # The environment variable name that holds the API key (see .env.example)
-api_key_env = "GOOGLE_API_KEY"
+api_key_env = "OPENAI_API_KEY"
 
 # Optional settings for OpenAI-compatible providers
 # base_url = "https://api.openai.com/v1"

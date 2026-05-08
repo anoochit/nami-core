@@ -32,6 +32,7 @@ fn render_help() {
 {}  New session
 {}  List active tasks
 {}  Initialize task
+{}  Run parallel tasks
 {}  Wiki search
 {}  Save memory
 {}  Agent status
@@ -39,6 +40,7 @@ fn render_help() {
 
 Examples:
   /plan Build AI research system
+  /parallel "Fix bug in parser" "Write unit tests"
   /wiki Rust async traits
   /memo User prefers concise output
 "#,
@@ -48,6 +50,7 @@ Examples:
         style::style("/new").cyan().bold(),
         style::style("/tasks").cyan().bold(),
         style::style("/plan").cyan().bold(),
+        style::style("/parallel").cyan().bold(),
         style::style("/wiki").cyan().bold(),
         style::style("/memo").cyan().bold(),
         style::style("/status").cyan().bold(),
@@ -504,6 +507,19 @@ pub(crate) async fn run_cli(
                     if trimmed.starts_with("/plan ") {
                         let prompt =
                             format!("Initialize task: {}", trimmed.replace("/plan", "").trim());
+
+                        run_system_prompt(&mut runner, user_id, &session_id, &prompt, &nami_skin)
+                            .await?;
+
+                        continue;
+                    }
+
+                    if trimmed.starts_with("/parallel ") {
+                        let tasks = trimmed.replace("/parallel", "").trim().to_string();
+                        let prompt = format!(
+                            "Execute the following tasks in parallel using the most appropriate specialized agents (coder, researcher, writer, or generalist): {}",
+                            tasks
+                        );
 
                         run_system_prompt(&mut runner, user_id, &session_id, &prompt, &nami_skin)
                             .await?;

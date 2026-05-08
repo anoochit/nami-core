@@ -6,7 +6,7 @@ mod utils;
 
 use std::sync::Arc;
 
-use adk_rust::telemetry::{init_with_otlp, shutdown_telemetry};
+use adk_telemetry::{init_with_otlp, shutdown_telemetry};
 use adk_session::SqliteSessionService;
 use clap::{Parser, Subcommand};
 use runner::AgentRunner;
@@ -44,7 +44,7 @@ async fn main() -> anyhow::Result<()> {
     let cli = Cli::parse();
 
     if !matches!(cli.command, Commands::Serve { .. } | Commands::Init) {
-        // pretty_env_logger::init();
+        pretty_env_logger::init();
     }
 
     if let Commands::Init = cli.command {
