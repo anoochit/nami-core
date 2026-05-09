@@ -720,6 +720,7 @@ pub(crate) async fn run_cli(
                                         )
                                     )
                                 {
+                                    runner.interrupt(&session_id);
                                     cancelled = true;
                                     break;
                                 }
