@@ -77,7 +77,7 @@ impl Completer for NamiHelper {
         _ctx: &Context<'_>,
     ) -> rustyline::Result<(usize, Vec<Pair>)> {
         let (start, word) =
-            rustyline::completion::extract_word(line, pos, None, |c| (c == ' ' || c == '\t'));
+            rustyline::completion::extract_word(line, pos, None, |c| c == ' ' || c == '\t');
 
         if let Some(path_part) = word.strip_prefix('@') {
             let mut matches = Vec::new();
