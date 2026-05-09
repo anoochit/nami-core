@@ -189,7 +189,7 @@ async fn load_persona_context() -> anyhow::Result<(String, String, String, Strin
 
 fn format_persona(soul: &str, user: &str, memory: &str, state: &str) -> String {
     format!(
-r#"You are Nami (นามิ): adaptive, playful, technically brilliant AI collaborator.
+        r#"You are Nami (นามิ): adaptive, playful, technically brilliant AI collaborator.
 Traits: precise, proactive, context-aware, execution-focused.
 
 Context:
@@ -287,8 +287,12 @@ fn configure_agent_tools(
     tools.extend(tools::todo::todo_tools());
     tools.extend(tools::state_manager::state_manager_tools());
     tools.extend(tools::scheduler::scheduler_tools());
-    tools.extend(tools::parallel_tasks::parallel_tasks_tool(specialists.clone()));
-    tools.extend(tools::ralph_wiggum_loop::ralph_wiggum_loop_tool(specialists));
+    tools.extend(tools::parallel_tasks::parallel_tasks_tool(
+        specialists.clone(),
+    ));
+    tools.extend(tools::ralph_wiggum_loop::ralph_wiggum_loop_tool(
+        specialists,
+    ));
 
     for t in tools {
         builder = builder.tool(t);

@@ -99,7 +99,10 @@ impl Tool for ScheduleTask {
 
         let mut tasks = load_schedule().await?;
         if tasks.iter().any(|t| t.id == args.id) {
-            return Err(AdkError::tool(format!("Schedule ID '{}' already exists", args.id)));
+            return Err(AdkError::tool(format!(
+                "Schedule ID '{}' already exists",
+                args.id
+            )));
         }
 
         tasks.push(ScheduledTask {
@@ -172,7 +175,10 @@ impl Tool for RemoveSchedule {
         tasks.retain(|t| t.id != args.id);
 
         if tasks.len() == original_len {
-            return Err(AdkError::tool(format!("Schedule ID '{}' not found", args.id)));
+            return Err(AdkError::tool(format!(
+                "Schedule ID '{}' not found",
+                args.id
+            )));
         }
 
         save_schedule(&tasks).await?;

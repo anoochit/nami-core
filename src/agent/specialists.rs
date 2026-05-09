@@ -3,7 +3,6 @@ use adk_tool::AgentTool;
 use std::collections::HashMap;
 use std::sync::Arc;
 
-
 /// Returns a map of available specialist agents.
 ///
 /// Each specialist is wrapped as a `Tool` to be used by the main agent.
@@ -74,9 +73,15 @@ pub fn get_specialists(model: Arc<dyn Llm>) -> HashMap<String, Arc<dyn Tool>> {
     );
 
     let mut specialists: HashMap<String, Arc<dyn Tool>> = HashMap::new();
-    specialists.insert("generalist".to_string(), Arc::new(AgentTool::new(generalist)));
+    specialists.insert(
+        "generalist".to_string(),
+        Arc::new(AgentTool::new(generalist)),
+    );
     specialists.insert("coder".to_string(), Arc::new(AgentTool::new(coder)));
-    specialists.insert("researcher".to_string(), Arc::new(AgentTool::new(researcher)));
+    specialists.insert(
+        "researcher".to_string(),
+        Arc::new(AgentTool::new(researcher)),
+    );
     specialists.insert("writer".to_string(), Arc::new(AgentTool::new(writer)));
     specialists.insert("ralph".to_string(), Arc::new(AgentTool::new(ralph)));
 

@@ -1,28 +1,28 @@
-use crossterm::event::{ Event, EventStream, KeyCode, KeyEventKind, KeyModifiers };
-use crossterm::{ cursor, execute, queue, style, style::Stylize, terminal };
+use chrono::Utc;
+use crossterm::event::{Event, EventStream, KeyCode, KeyEventKind, KeyModifiers};
+use crossterm::{cursor, execute, queue, style, style::Stylize, terminal};
 use futures::StreamExt;
 use regex::Regex;
-use rustyline::completion::{ Completer, Pair };
+use rustyline::completion::{Completer, Pair};
 use rustyline::highlight::Highlighter;
 use rustyline::hint::Hinter;
 use rustyline::validate::Validator;
-use rustyline::{ Config, Context, Editor, Helper };
+use rustyline::{Config, Context, Editor, Helper};
 use std::borrow::Cow;
-use std::io::{ self, Write };
+use std::io::{self, Write};
 use std::sync::Arc;
-use chrono::Utc;
 use termimad::MadSkin;
 use uuid::Uuid;
 use walkdir::WalkDir;
 
-use crate::agent::agent::{ check_config_mtime, create_agent, get_config_mtime, get_skills_mtime };
+use crate::agent::agent::{check_config_mtime, create_agent, get_config_mtime, get_skills_mtime};
 use crate::agent::get_compaction_config;
-use crate::tools::scheduler::{ load_schedule, save_schedule };
-use crate::tools::state_manager::{ load_states, TaskStatus };
+use crate::tools::scheduler::{load_schedule, save_schedule};
+use crate::tools::state_manager::{TaskStatus, load_states};
 
 use adk_rust::Agent;
 use adk_rust::prelude::*;
-use adk_session::{ CreateRequest, GetRequest, SessionService };
+use adk_session::{CreateRequest, GetRequest, SessionService};
 
 struct NamiHelper;
 
@@ -74,14 +74,10 @@ impl Completer for NamiHelper {
         &self,
         line: &str,
         pos: usize,
-        _ctx: &Context<'_>
+        _ctx: &Context<'_>,
     ) -> rustyline::Result<(usize, Vec<Pair>)> {
-        let (start, word) = rustyline::completion::extract_word(
-            line,
-            pos,
-            None,
-            |c| (c == ' ' || c == '\t')
-        );
+        let (start, word) =
+            rustyline::completion::extract_word(line, pos, None, |c| (c == ' ' || c == '\t'));
 
         if let Some(path_part) = word.strip_prefix('@') {
             let mut matches = Vec::new();
@@ -92,10 +88,10 @@ impl Completer for NamiHelper {
                 for entry in WalkDir::new(workspace_path)
                     .max_depth(5)
                     .into_iter()
-                    .filter_map(|e| e.ok()) {
-                    if
-                        entry.file_type().is_file() &&
-                        let Ok(relative_path) = entry.path().strip_prefix(workspace_path)
+                    .filter_map(|e| e.ok())
+                {
+                    if entry.file_type().is_file()
+                        && let Ok(relative_path) = entry.path().strip_prefix(workspace_path)
                     {
                         let path_str = relative_path.to_string_lossy().replace("\\", "/");
 
@@ -126,7 +122,7 @@ impl Highlighter for NamiHelper {
     fn highlight_prompt<'b, 's: 'b, 'p: 'b>(
         &'s self,
         prompt: &'p str,
-        _default: bool
+        _default: bool,
     ) -> Cow<'b, str> {
         Cow::Borrowed(prompt)
     }
@@ -142,7 +138,7 @@ impl Highlighter for NamiHelper {
     fn highlight_candidate<'c>(
         &self,
         candidate: &'c str,
-        _completion: rustyline::CompletionType
+        _completion: rustyline::CompletionType,
     ) -> Cow<'c, str> {
         Cow::Borrowed(candidate)
     }
@@ -151,7 +147,7 @@ impl Highlighter for NamiHelper {
         &self,
         _line: &str,
         _pos: usize,
-        _kind: rustyline::highlight::CmdKind
+        _kind: rustyline::highlight::CmdKind,
     ) -> bool {
         false
     }
@@ -180,23 +176,24 @@ async fn process_file_references(input: &str) -> String {
         let workspace_path = std::path::Path::new("workspace");
         let path = workspace_path.join(file_path_str);
 
-        if path.exists() && path.is_file() && let Ok(metadata) = std::fs::metadata(&path) {
+        if path.exists()
+            && path.is_file()
+            && let Ok(metadata) = std::fs::metadata(&path)
+        {
             let size = metadata.len();
 
             if size < 4096 {
                 if let Ok(content) = tokio::fs::read_to_string(&path).await {
-                    appended_context.push_str(
-                        &format!(
-                            "\n\n--- Content from {} ---\n{}\n--- End ---\n",
-                            file_path_str,
-                            content
-                        )
-                    );
+                    appended_context.push_str(&format!(
+                        "\n\n--- Content from {} ---\n{}\n--- End ---\n",
+                        file_path_str, content
+                    ));
                 }
             } else {
-                appended_context.push_str(
-                    &format!("\n\n[REFERENCE: {} ({size} bytes)]\nUse filesystem tools.\n", file_path_str)
-                );
+                appended_context.push_str(&format!(
+                    "\n\n[REFERENCE: {} ({size} bytes)]\nUse filesystem tools.\n",
+                    file_path_str
+                ));
             }
         }
     }
@@ -214,7 +211,7 @@ async fn run_system_prompt(
     user_id: &str,
     session_id: &str,
     prompt: &str,
-    nami_skin: &MadSkin
+    nami_skin: &MadSkin,
 ) -> anyhow::Result<()> {
     let content = Content::new("user").with_text(prompt);
 
@@ -232,19 +229,17 @@ async fn run_system_prompt(
         }
     }
 
-    let rendered = termimad::FmtText
-        ::from(
-            nami_skin,
-            &response,
-            Some(
-                terminal
-                    ::size()
-                    .map(|(w, _)| w as usize)
-                    .unwrap_or(80)
-                    .saturating_sub(4)
-            )
-        )
-        .to_string();
+    let rendered = termimad::FmtText::from(
+        nami_skin,
+        &response,
+        Some(
+            terminal::size()
+                .map(|(w, _)| w as usize)
+                .unwrap_or(80)
+                .saturating_sub(4),
+        ),
+    )
+    .to_string();
 
     println!("{}", rendered);
     println!();
@@ -255,29 +250,31 @@ async fn run_system_prompt(
 fn render_banner(provider: &str, model_name: &str, session_id: &str) {
     println!(
         "{}",
-        style
-            ::style(
-                r#"
+        style::style(
+            r#"
    _  _____   __  _______
   / |/ / _ | /  |/  /  _/
  /    / __ |/ /|_/ // /
 /_/|_/_/ |_/_/  /_/___/
 
 "#
-            )
-            .magenta()
+        )
+        .magenta()
     );
 
     println!(
         "{} {}",
-        style
-            ::style(format!("Nami CLI v{}", env!("CARGO_PKG_VERSION")))
+        style::style(format!("Nami CLI v{}", env!("CARGO_PKG_VERSION")))
             .bold()
             .magenta(),
         style::style(format!("({}) using {}", provider, model_name)).dim()
     );
 
-    println!("{} {}", style::style("Session ID:").bold().magenta(), style::style(session_id).dim());
+    println!(
+        "{} {}",
+        style::style("Session ID:").bold().magenta(),
+        style::style(session_id).dim()
+    );
 
     println!("\nType /? for commands.");
     println!("Use @file for references.\n");
@@ -287,34 +284,40 @@ pub(crate) async fn ensure_session(
     sessions: &Arc<dyn SessionService>,
     app_name: &str,
     user_id: &str,
-    session_id: &str
+    session_id: &str,
 ) -> anyhow::Result<()> {
-    if
-        sessions
-            .get(GetRequest {
-                app_name: app_name.to_string(),
-                user_id: user_id.to_string(),
-                session_id: session_id.to_string(),
-                num_recent_events: Some(0),
-                after: None,
-            }).await
-            .is_ok()
+    if sessions
+        .get(GetRequest {
+            app_name: app_name.to_string(),
+            user_id: user_id.to_string(),
+            session_id: session_id.to_string(),
+            num_recent_events: Some(0),
+            after: None,
+        })
+        .await
+        .is_ok()
     {
         return Ok(());
     }
 
-    sessions.create(CreateRequest {
-        app_name: app_name.to_string(),
-        user_id: user_id.to_string(),
-        session_id: Some(session_id.to_string()),
-        state: Default::default(),
-    }).await?;
+    sessions
+        .create(CreateRequest {
+            app_name: app_name.to_string(),
+            user_id: user_id.to_string(),
+            session_id: Some(session_id.to_string()),
+            state: Default::default(),
+        })
+        .await?;
 
     Ok(())
 }
 
 fn clear_current_line(stdout: &mut io::Stdout) -> io::Result<()> {
-    queue!(stdout, terminal::Clear(terminal::ClearType::CurrentLine), cursor::MoveToColumn(0))?;
+    queue!(
+        stdout,
+        terminal::Clear(terminal::ClearType::CurrentLine),
+        cursor::MoveToColumn(0)
+    )?;
 
     stdout.flush()?;
 
@@ -341,9 +344,13 @@ pub(crate) async fn run_cli(
     sessions: Arc<dyn SessionService>,
     mut model: Arc<dyn Llm>,
     mut provider: String,
-    mut model_name: String
+    mut model_name: String,
 ) -> anyhow::Result<()> {
-    execute!(io::stdout(), terminal::Clear(terminal::ClearType::All), cursor::MoveTo(0, 0))?;
+    execute!(
+        io::stdout(),
+        terminal::Clear(terminal::ClearType::All),
+        cursor::MoveTo(0, 0)
+    )?;
 
     let app_name = "cli";
     let user_id = "default_user";
@@ -371,7 +378,9 @@ pub(crate) async fn run_cli(
         }
     });
 
-    let config = Config::builder().completion_type(rustyline::CompletionType::List).build();
+    let config = Config::builder()
+        .completion_type(rustyline::CompletionType::List)
+        .build();
 
     let mut rl: Editor<NamiHelper, rustyline::history::FileHistory> = Editor::with_config(config)?;
 
@@ -381,9 +390,13 @@ pub(crate) async fn run_cli(
 
     let mut nami_skin = MadSkin::default();
 
-    nami_skin.paragraph.set_fg(termimad::crossterm::style::Color::White);
+    nami_skin
+        .paragraph
+        .set_fg(termimad::crossterm::style::Color::White);
 
-    nami_skin.bullet.set_fg(termimad::crossterm::style::Color::Magenta);
+    nami_skin
+        .bullet
+        .set_fg(termimad::crossterm::style::Color::Magenta);
 
     let mut last_config_mtime = get_config_mtime();
     let mut last_skills_mtime = get_skills_mtime();
@@ -463,7 +476,10 @@ pub(crate) async fn run_cli(
 
                             render_banner(&provider, &model_name, &session_id);
 
-                            println!("{}\n", style::style("✨ New session started").green().bold());
+                            println!(
+                                "{}\n",
+                                style::style("✨ New session started").green().bold()
+                            );
 
                             continue;
                         }
@@ -484,8 +500,9 @@ pub(crate) async fn run_cli(
                                 user_id,
                                 &session_id,
                                 "list_active_tasks",
-                                &nami_skin
-                            ).await?;
+                                &nami_skin,
+                            )
+                            .await?;
 
                             continue;
                         }
@@ -496,8 +513,9 @@ pub(crate) async fn run_cli(
                                 user_id,
                                 &session_id,
                                 "get_system_status",
-                                &nami_skin
-                            ).await?;
+                                &nami_skin,
+                            )
+                            .await?;
 
                             continue;
                         }
@@ -506,18 +524,11 @@ pub(crate) async fn run_cli(
                     }
 
                     if trimmed.starts_with("/plan ") {
-                        let prompt = format!(
-                            "Initialize task: {}",
-                            trimmed.replace("/plan", "").trim()
-                        );
+                        let prompt =
+                            format!("Initialize task: {}", trimmed.replace("/plan", "").trim());
 
-                        run_system_prompt(
-                            &mut runner,
-                            user_id,
-                            &session_id,
-                            &prompt,
-                            &nami_skin
-                        ).await?;
+                        run_system_prompt(&mut runner, user_id, &session_id, &prompt, &nami_skin)
+                            .await?;
 
                         continue;
                     }
@@ -533,32 +544,28 @@ pub(crate) async fn run_cli(
                             "schedule_task: goal='{}', cron_expr='{}', id='{}'",
                             goal,
                             cron_expr,
-                            Uuid::new_v4().to_string().split('-').next().unwrap_or("task")
+                            Uuid::new_v4()
+                                .to_string()
+                                .split('-')
+                                .next()
+                                .unwrap_or("task")
                         );
 
-                        run_system_prompt(
-                            &mut runner,
-                            user_id,
-                            &session_id,
-                            &prompt,
-                            &nami_skin
-                        ).await?;
+                        run_system_prompt(&mut runner, user_id, &session_id, &prompt, &nami_skin)
+                            .await?;
 
                         continue;
                     }
 
                     if trimmed.starts_with("/parallel ") {
                         let tasks = trimmed.replace("/parallel", "").trim().to_string();
-                        let prompt =
-                            format!("Execute the following tasks in parallel using the most appropriate specialized agents (coder, researcher, writer, or generalist): {}", tasks);
+                        let prompt = format!(
+                            "Execute the following tasks in parallel using the most appropriate specialized agents (coder, researcher, writer, or generalist): {}",
+                            tasks
+                        );
 
-                        run_system_prompt(
-                            &mut runner,
-                            user_id,
-                            &session_id,
-                            &prompt,
-                            &nami_skin
-                        ).await?;
+                        run_system_prompt(&mut runner, user_id, &session_id, &prompt, &nami_skin)
+                            .await?;
 
                         continue;
                     }
@@ -572,56 +579,40 @@ pub(crate) async fn run_cli(
 
                         let prompt = format!(
                             "ralph_wiggum_loop: goal='{}', stop_condition='{}'",
-                            goal,
-                            stop_condition
+                            goal, stop_condition
                         );
 
-                        run_system_prompt(
-                            &mut runner,
-                            user_id,
-                            &session_id,
-                            &prompt,
-                            &nami_skin
-                        ).await?;
+                        run_system_prompt(&mut runner, user_id, &session_id, &prompt, &nami_skin)
+                            .await?;
 
                         continue;
                     }
 
                     if trimmed.starts_with("/wiki ") {
-                        let prompt = format!(
-                            "wiki_search: {}",
-                            trimmed.replace("/wiki", "").trim()
-                        );
+                        let prompt =
+                            format!("wiki_search: {}", trimmed.replace("/wiki", "").trim());
 
-                        run_system_prompt(
-                            &mut runner,
-                            user_id,
-                            &session_id,
-                            &prompt,
-                            &nami_skin
-                        ).await?;
+                        run_system_prompt(&mut runner, user_id, &session_id, &prompt, &nami_skin)
+                            .await?;
 
                         continue;
                     }
 
                     if trimmed.starts_with("/memo ") {
-                        let prompt = format!(
-                            "save_memory: {}",
-                            trimmed.replace("/memo", "").trim()
-                        );
+                        let prompt =
+                            format!("save_memory: {}", trimmed.replace("/memo", "").trim());
 
-                        run_system_prompt(
-                            &mut runner,
-                            user_id,
-                            &session_id,
-                            &prompt,
-                            &nami_skin
-                        ).await?;
+                        run_system_prompt(&mut runner, user_id, &session_id, &prompt, &nami_skin)
+                            .await?;
 
                         continue;
                     }
 
-                    println!("{} {}\n", style::style("Unknown command:").red().bold(), trimmed);
+                    println!(
+                        "{} {}\n",
+                        style::style("Unknown command:").red().bold(),
+                        trimmed
+                    );
 
                     continue;
                 }
@@ -646,7 +637,7 @@ pub(crate) async fn run_cli(
                         "{} {}",
                         style::style("⏳").magenta(),
                         style::style("Agent is thinking...").dim()
-                    )
+                    ),
                 )?;
 
                 let content = Content::new("user").with_text(enriched_prompt);
@@ -752,15 +743,13 @@ pub(crate) async fn run_cli(
                     .collect::<Vec<_>>()
                     .join("\n");
 
-                let term_width = terminal
-                    ::size()
+                let term_width = terminal::size()
                     .map(|(w, _)| w as usize)
                     .unwrap_or(80)
                     .saturating_sub(4);
 
-                let rendered = termimad::FmtText
-                    ::from(&nami_skin, &cleaned, Some(term_width))
-                    .to_string();
+                let rendered =
+                    termimad::FmtText::from(&nami_skin, &cleaned, Some(term_width)).to_string();
 
                 println!("{}", rendered);
 
@@ -780,7 +769,7 @@ pub(crate) async fn run_cli(
 async fn run_scheduler_loop(
     agent: Arc<dyn Agent>,
     sessions: Arc<dyn SessionService>,
-    model: Arc<dyn Llm>
+    model: Arc<dyn Llm>,
 ) -> anyhow::Result<()> {
     let app_name = "scheduler";
     let user_id = "system";
@@ -824,7 +813,11 @@ async fn run_scheduler_loop(
 
             let should_run = match task.last_run {
                 Some(last) => {
-                    if let Some(due) = schedule.after(&last).next() { now >= due } else { false }
+                    if let Some(due) = schedule.after(&last).next() {
+                        now >= due
+                    } else {
+                        false
+                    }
                 }
                 None => true,
             };
@@ -840,12 +833,10 @@ async fn run_scheduler_loop(
                 if current_status != TaskStatus::Completed {
                     log::info!("Scheduler triggering task: {}", task.goal);
 
-                    let content = Content::new("user").with_text(
-                        &format!(
-                            "SCHEDULED RUN: {}. Please continue working on this goal.",
-                            task.goal
-                        )
-                    );
+                    let content = Content::new("user").with_text(&format!(
+                        "SCHEDULED RUN: {}. Please continue working on this goal.",
+                        task.goal
+                    ));
 
                     let mut stream = runner.run_str(user_id, session_id, content).await?;
                     while let Some(_) = stream.next().await {}

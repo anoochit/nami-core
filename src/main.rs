@@ -6,8 +6,8 @@ mod utils;
 
 use std::sync::Arc;
 
-use adk_telemetry::{init_with_otlp, shutdown_telemetry};
 use adk_session::SqliteSessionService;
+use adk_telemetry::{init_with_otlp, shutdown_telemetry};
 use clap::{Parser, Subcommand};
 use runner::AgentRunner;
 
@@ -32,8 +32,7 @@ async fn main() -> anyhow::Result<()> {
     dotenvy::dotenv().ok();
 
     // with Otel collector
-    let otel_endpoint = std::env::var("OTEL_COLLECTOR")
-        .unwrap_or_default();
+    let otel_endpoint = std::env::var("OTEL_COLLECTOR").unwrap_or_default();
 
     if !otel_endpoint.is_empty() {
         log::info!("Init telemetry...");

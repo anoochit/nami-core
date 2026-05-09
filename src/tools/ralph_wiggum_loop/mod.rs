@@ -53,10 +53,15 @@ impl Tool for RalphWiggumLoop {
         let args: RalphWiggumLoopArgs = serde_json::from_value(args)
             .map_err(|e| AdkError::tool(format!("Invalid arguments: {}", e)))?;
 
-        let ralph = self.specialists.get("ralph")
+        let ralph = self
+            .specialists
+            .get("ralph")
             .ok_or_else(|| AdkError::tool("Specialist 'ralph' not found"))?;
 
-        let mut current_state = format!("Goal: {}\nStop Condition: {}", args.goal, args.stop_condition);
+        let mut current_state = format!(
+            "Goal: {}\nStop Condition: {}",
+            args.goal, args.stop_condition
+        );
         let mut outputs = Vec::new();
         let max_iterations = 5;
 
@@ -70,11 +75,11 @@ impl Tool for RalphWiggumLoop {
                 Ok(res) => {
                     let output_str = res.to_string();
                     outputs.push(format!("Iteration {}: {}", i, output_str));
-                    
+
                     if output_str.contains("I'm a winner!") {
                         break;
                     }
-                    
+
                     current_state = format!("{}\nLast Action: {}", current_state, output_str);
                 }
                 Err(e) => {
