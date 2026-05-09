@@ -10,7 +10,7 @@ sessions.db
 !/workspace/USER.md
 !/workspace/STATE_PROTOCOL.md
 workspace/MEMORIES.md
-/ref
+!/ref
 workspace/wiki/
 workspace/todos.json
 workspace/wiki/.obsidian
