@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { cn } from './lib/utils';
 import { api } from './lib/api';
-import { ThreadList } from './ThreadList';
-import { ThreadView } from './ThreadView';
+import { ThreadList } from './components/ThreadList';
+import { ThreadView } from './components/ThreadView';
 
 interface Message {
   id: string;
