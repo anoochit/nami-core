@@ -76,7 +76,7 @@ export const ThreadView: React.FC<ThreadViewProps> = ({ thread, input, sidebarOp
         ))}
       </div>
 
-      <div className="p-4 border-t">
+      <div className="p-4 border-t pt-8 pb-8">
         <div className="flex gap-2 max-w-3xl mx-auto border rounded-full p-1 shadow-sm focus-within:ring-2 focus-within:ring-black">
           <input 
             value={input} 
