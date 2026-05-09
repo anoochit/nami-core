@@ -54,7 +54,7 @@ export const ThreadView: React.FC<ThreadViewProps> = ({ thread, input, sidebarOp
         {thread.messages.map(m => (
           <div key={m.id} className={cn("flex gap-3", m.sender === 'user' ? "justify-end" : "justify-start")}>
             {m.sender === 'agent' && <div className="w-8 h-8 flex items-center justify-center bg-gray-800 text-white rounded-full shrink-0"><Bot size={16} /></div>}
-            <div className={cn("p-3 rounded-2xl max-w-2xl w-full mx-auto prose prose-base text-base", m.sender === 'user' ? "bg-black text-white" : "bg-gray-100 text-gray-800")}>
+            <div className={cn("p-3 rounded-2xl w-full prose prose-base text-base", m.sender === 'user' ? "bg-black text-white" : "bg-gray-100 text-gray-800")}>
               {m.sender === 'agent' ? (
                 <ReactMarkdown remarkPlugins={[remarkGfm]}>{m.text}</ReactMarkdown>
               ) : (
