@@ -1,6 +1,6 @@
 import React from 'react';
 import { MessageSquare, Plus } from 'lucide-react';
-import { cn } from './lib/utils';
+import { cn } from '../lib/utils';
 
 interface Thread {
   id: string;
