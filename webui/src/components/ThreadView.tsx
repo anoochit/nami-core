@@ -25,10 +25,12 @@ interface ThreadViewProps {
   onInputChange: (val: string) => void;
   onSendMessage: () => void;
   isLoading: boolean;
+  error?: string;
 }
 
-export const ThreadView: React.FC<ThreadViewProps> = ({ thread, input, sidebarOpen, onToggleSidebar, onInputChange, onSendMessage, isLoading }) => {
+export const ThreadView: React.FC<ThreadViewProps> = ({ thread, input, sidebarOpen, onToggleSidebar, onInputChange, onSendMessage, isLoading, error }) => {
   const scrollRef = useRef<HTMLDivElement>(null);
+  const isLastMessage = (id: string) => id === thread.messages[thread.messages.length - 1]?.id;
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -60,6 +62,15 @@ export const ThreadView: React.FC<ThreadViewProps> = ({ thread, input, sidebarOp
               ) : (
                 m.text
               )}
+
+              {isLoading && isLastMessage(m.id) && m.sender === 'agent' && (
+                <div className="w-4 h-4 mt-2 border-2 border-gray-300 border-t-black rounded-full animate-spin"></div>
+              )}
+
+              {!isLoading && error && isLastMessage(m.id) && m.sender === 'agent' && (
+                <div className="text-red-500 text-sm mt-2 font-medium">{error}</div>
+              )}
+              
             </div>
           </div>
         ))}
