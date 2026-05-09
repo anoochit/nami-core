@@ -24,9 +24,10 @@ interface ThreadViewProps {
   onToggleSidebar: () => void;
   onInputChange: (val: string) => void;
   onSendMessage: () => void;
+  isLoading: boolean;
 }
 
-export const ThreadView: React.FC<ThreadViewProps> = ({ thread, input, sidebarOpen, onToggleSidebar, onInputChange, onSendMessage }) => {
+export const ThreadView: React.FC<ThreadViewProps> = ({ thread, input, sidebarOpen, onToggleSidebar, onInputChange, onSendMessage, isLoading }) => {
   return (
     <div className="flex-1 flex flex-col h-full">
       <header className="h-14 border-b flex items-center px-4 justify-between">
@@ -36,7 +37,9 @@ export const ThreadView: React.FC<ThreadViewProps> = ({ thread, input, sidebarOp
         <h2 className="font-semibold">
           {thread.title} {thread.sessionId && <span className="text-xs text-gray-500 font-normal">({thread.sessionId})</span>}
         </h2>
-        <div className="w-8"></div>
+        <div className="w-8">
+           {isLoading && <div className="w-4 h-4 border-2 border-gray-300 border-t-black rounded-full animate-spin"></div>}
+        </div>
       </header>
 
       <div className="flex-1 overflow-y-auto p-4 space-y-4">

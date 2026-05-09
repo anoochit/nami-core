@@ -22,6 +22,7 @@ export default function App() {
   const [activeThreadId, setActiveThreadId] = useState<string>('1');
   const [input, setInput] = useState('');
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [isLoading, setIsLoading] = useState(false);
 
   // Initialize session for active thread on load
   useEffect(() => {
@@ -75,6 +76,7 @@ export default function App() {
         t.id === activeThreadId ? { ...t, messages: [...t.messages, { id: agentMsgId, sender: 'agent', text: '' }] } : t
     ));
 
+    setIsLoading(true);
     await api.runAgent('nami', 'user1', currentSessionId!, {
       role: 'user',
       parts: [{ text: input }]
@@ -95,6 +97,7 @@ export default function App() {
             } : t
         ));
     });
+    setIsLoading(false);
   };
 
   const createNewThread = async () => {
@@ -138,6 +141,7 @@ export default function App() {
         onToggleSidebar={() => setSidebarOpen(!sidebarOpen)}
         onInputChange={setInput}
         onSendMessage={sendMessage}
+        isLoading={isLoading}
       />
     </div>
   );
