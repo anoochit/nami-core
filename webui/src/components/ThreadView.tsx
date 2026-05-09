@@ -1,6 +1,7 @@
 import React from 'react';
 import { Bot, Send, ChevronLeft, ChevronRight } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import { cn } from '../lib/utils';
 
 interface Message {
@@ -44,7 +45,7 @@ export const ThreadView: React.FC<ThreadViewProps> = ({ thread, input, sidebarOp
             {m.sender === 'agent' && <div className="w-8 h-8 flex items-center justify-center bg-gray-800 text-white rounded-full shrink-0"><Bot size={16} /></div>}
             <div className={cn("p-3 rounded-2xl max-w-[70%] prose prose-sm", m.sender === 'user' ? "bg-black text-white" : "bg-gray-100 text-gray-800")}>
               {m.sender === 'agent' ? (
-                <ReactMarkdown>{m.text}</ReactMarkdown>
+                <ReactMarkdown remarkPlugins={[remarkGfm]}>{m.text}</ReactMarkdown>
               ) : (
                 m.text
               )}
