@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 import { Bot, Send, ChevronLeft, ChevronRight } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -28,6 +28,14 @@ interface ThreadViewProps {
 }
 
 export const ThreadView: React.FC<ThreadViewProps> = ({ thread, input, sidebarOpen, onToggleSidebar, onInputChange, onSendMessage, isLoading }) => {
+  const scrollRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+    }
+  }, [thread.messages]);
+
   return (
     <div className="flex-1 flex flex-col h-full">
       <header className="h-14 border-b flex items-center px-4 justify-between">
@@ -42,7 +50,7 @@ export const ThreadView: React.FC<ThreadViewProps> = ({ thread, input, sidebarOp
         </div>
       </header>
 
-      <div className="flex-1 overflow-y-auto p-4 space-y-4">
+      <div className="flex-1 overflow-y-auto p-4 space-y-4" ref={scrollRef}>
         {thread.messages.map(m => (
           <div key={m.id} className={cn("flex gap-3", m.sender === 'user' ? "justify-end" : "justify-start")}>
             {m.sender === 'agent' && <div className="w-8 h-8 flex items-center justify-center bg-gray-800 text-white rounded-full shrink-0"><Bot size={16} /></div>}
