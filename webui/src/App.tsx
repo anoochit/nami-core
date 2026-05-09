@@ -22,6 +22,24 @@ export default function App() {
   const [input, setInput] = useState('');
   const [sidebarOpen, setSidebarOpen] = useState(true);
 
+  // Initialize session for active thread on load
+  useEffect(() => {
+    const initActiveThreadSession = async () => {
+      const currentThread = threads.find(t => t.id === activeThreadId);
+      if (currentThread && !currentThread.sessionId) {
+        try {
+          const session = await api.createSession('nami', 'user1');
+          setThreads(prev => prev.map(t => 
+            t.id === activeThreadId ? { ...t, sessionId: session.session_id } : t
+          ));
+        } catch (e) {
+          console.error("Failed to initialize session on load", e);
+        }
+      }
+    };
+    initActiveThreadSession();
+  }, [activeThreadId]);
+
   const activeThread = threads.find(t => t.id === activeThreadId) || threads[0];
 
   const sendMessage = async () => {
