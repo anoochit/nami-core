@@ -37,9 +37,10 @@ export const ThreadView: React.FC<ThreadViewProps> = ({ thread, input, sidebarOp
   }, [thread.messages]);
 
   const Shimmer = () => (
-    <div className="space-y-2 w-full animate-pulse">
-      <div className="h-4 bg-gray-300 rounded w-3/4"></div>
-      <div className="h-4 bg-gray-300 rounded w-1/2"></div>
+    <div className="space-y-3 w-full animate-pulse">
+      <div className="h-3 bg-gray-300 rounded-full w-full"></div>
+      <div className="h-3 bg-gray-300 rounded-full w-5/6"></div>
+      <div className="h-3 bg-gray-300 rounded-full w-4/6"></div>
     </div>
   );
 
@@ -81,7 +82,7 @@ export const ThreadView: React.FC<ThreadViewProps> = ({ thread, input, sidebarOp
           <input 
             value={input} 
             onChange={(e) => onInputChange(e.target.value)}
-            onKeyPress={(e) => e.key === 'Enter' && onSendMessage()}
+            onKeyDown={(e) => e.key === 'Enter' && onSendMessage()}
             className="flex-1 bg-transparent px-4 py-2 outline-none" 
             placeholder="Message..."
           />
