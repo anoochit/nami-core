@@ -2,9 +2,20 @@
 
 All notable changes to this project will be documented in this file.
 
-## [0.8.0] - 2026-05-08
+## [0.9.0] - 2026-05-09
 
 ### Added
+
+- **Threaded Web UI**: Implemented a responsive React + Vite chat interface in `webui/` with persistent thread management, sidebar, and modern aesthetics using Tailwind CSS and Lucide.
+- **Backend Integration Plan**: Created `PLAN_WEBUI.md` outlining the integration path for the `adk-server` REST API.
+- **Tool Call UI Refinement**: Condensed CLI tool-calling argument display to a single, readable line for improved terminal readability.
+
+### Fixed
+
+- **CLI Interrupts**: Enabled `runner.interrupt` on `ESC`/`Ctrl+C` in CLI mode to ensure background tasks are correctly cancelled.
+- **Code Cleanup**: Removed unnecessary parentheses in closure per `cargo check` warnings.
+- **Repository Hygiene**: Removed untracked `ref` and `idea` directory/file references from Git index.
+- **Documentation**: Polished all book chapters (`book/th/`) to match the "Nami" persona and updated `AGENT.md`.
 
 - **Persistent Task Scheduler**: Implemented a `crontab`-style scheduler that runs in the background. It automatically retries unfinished tasks (using `StateManager` integration) and persists its state in `workspace/scheduler.json`.
 - **Schedule Slash Command**: Added the `/schedule` command to register and manage automated tasks with cron expressions.
