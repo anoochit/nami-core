@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Send, Bot, User, MessageSquare, Plus, Trash2, ChevronLeft, ChevronRight } from 'lucide-react';
 import { cn } from './lib/utils';
+import { api } from './lib/api';
 
 interface Message {
   id: string;
@@ -12,6 +13,7 @@ interface Thread {
   id: string;
   title: string;
   messages: Message[];
+  sessionId?: string;
 }
 
 export default function App() {
@@ -27,24 +29,76 @@ export default function App() {
 
     const newUserMessage: Message = { id: Date.now().toString(), sender: 'user', text: input };
     
+    let currentSessionId = activeThread.sessionId;
+
+    // Create session if not exists
+    if (!currentSessionId) {
+      try {
+        const session = await api.createSession('nami', 'user1');
+        currentSessionId = session.session_id;
+        setThreads(prev => prev.map(t => 
+          t.id === activeThreadId ? { ...t, sessionId: currentSessionId } : t
+        ));
+      } catch (e) {
+        console.error("Failed to create session", e);
+        return;
+      }
+    }
+
     setThreads(prev => prev.map(t => 
       t.id === activeThreadId ? { ...t, messages: [...t.messages, newUserMessage] } : t
     ));
     setInput('');
 
-    // Simulate API call
-    setTimeout(() => {
-      const agentResponse: Message = { id: Date.now().toString(), sender: 'agent', text: `Echo: ${input}` };
-      setThreads(prev => prev.map(t => 
-        t.id === activeThreadId ? { ...t, messages: [...t.messages, agentResponse] } : t
-      ));
-    }, 500);
+    // Stream agent response
+    const agentMsgId = Date.now().toString() + '_agent';
+    setThreads(prev => prev.map(t => 
+        t.id === activeThreadId ? { ...t, messages: [...t.messages, { id: agentMsgId, sender: 'agent', text: '' }] } : t
+    ));
+
+    await api.runAgent('nami', 'user1', currentSessionId!, {
+      role: 'user',
+      parts: [{ text: input }]
+    }, (data) => {
+        // Correctly extract text from nested parts array: data.content.parts[0].text
+        const parts = data?.content?.parts;
+        const fragment = Array.isArray(parts) ? parts.map((p: any) => p.text || '').join('') : '';
+        
+        setThreads(prev => prev.map(t => 
+            t.id === activeThreadId ? { 
+                ...t, 
+                messages: t.messages.map(m => {
+                    if (m.id === agentMsgId) {
+                        return { ...m, text: m.text + fragment };
+                    }
+                    return m;
+                })
+            } : t
+        ));
+    });
   };
 
-  const createNewThread = () => {
-    const newThread: Thread = { id: Date.now().toString(), title: 'New Conversation', messages: [] };
-    setThreads([newThread, ...threads]);
-    setActiveThreadId(newThread.id);
+  const createNewThread = async () => {
+    const isHealthy = await api.checkHealth();
+    if (!isHealthy) {
+        alert("Cannot connect to the backend server. Please ensure it is running.");
+        return;
+    }
+    
+    try {
+      const session = await api.createSession('nami', 'user1');
+      const newThread: Thread = { 
+        id: Date.now().toString(), 
+        title: 'New Conversation', 
+        messages: [],
+        sessionId: session.session_id 
+      };
+      setThreads([newThread, ...threads]);
+      setActiveThreadId(newThread.id);
+    } catch (e) {
+      console.error("Failed to create session for new thread", e);
+      alert("Failed to initialize new chat session.");
+    }
   };
 
   return (
@@ -76,7 +130,9 @@ export default function App() {
           <button onClick={() => setSidebarOpen(!sidebarOpen)} className="p-2 hover:bg-gray-100 rounded-md">
             {sidebarOpen ? <ChevronLeft size={20} /> : <ChevronRight size={20} />}
           </button>
-          <h2 className="font-semibold">{activeThread.title}</h2>
+          <h2 className="font-semibold">
+            {activeThread.title} {activeThread.sessionId && <span className="text-xs text-gray-500 font-normal">({activeThread.sessionId})</span>}
+          </h2>
           <div className="w-8"></div>
         </header>
 
