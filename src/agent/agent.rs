@@ -241,6 +241,7 @@ Wiki/File Mode:
 - YAML frontmatter required:
 ---
 title: "<title>"
+description: "<summarize>"
 date: YYYY-MM-DD
 tags:
   - tag1

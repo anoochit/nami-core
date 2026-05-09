@@ -10,12 +10,11 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "@assistant-ui/react": "^0.14.0",
-    "@assistant-ui/react-markdown": "^0.14.0",
-    "@assistant-ui/react-syntax-highlighter": "^0.14.0",
-    "axios": "^1.16.0",
+    "clsx": "^2.1.1",
+    "lucide-react": "^1.14.0",
     "react": "^19.2.5",
-    "react-dom": "^19.2.5"
+    "react-dom": "^19.2.5",
+    "tailwind-merge": "^3.5.0"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
@@ -23,10 +22,13 @@
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^6.0.1",
+    "autoprefixer": "^10.5.0",
     "eslint": "^10.2.1",
     "eslint-plugin-react-hooks": "^7.1.1",
     "eslint-plugin-react-refresh": "^0.5.2",
     "globals": "^17.5.0",
+    "postcss": "^8.5.14",
+    "tailwindcss": "3.4",
     "typescript": "~6.0.2",
     "typescript-eslint": "^8.58.2",
     "vite": "^8.0.10"
