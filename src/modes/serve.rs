@@ -10,7 +10,7 @@ pub(crate) async fn run_serve(
     port: u16,
 ) -> anyhow::Result<()> {
     let base_url =
-        std::env::var("A2A_BASE_URL").unwrap_or_else(|_| "http://a2a.agent.com".to_string());
+        std::env::var("A2A_BASE_URL").unwrap_or_else(|_| "http://localhost:8080".to_string());
 
     Launcher::new(agent)
         .with_compaction(get_compaction_config(model))
