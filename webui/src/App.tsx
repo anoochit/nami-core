@@ -1,8 +1,8 @@
-import React, { useState, useEffect } from 'react';
 import { cn } from './lib/utils';
 import { api } from './lib/api';
 import { ThreadList } from './components/ThreadList';
 import { ThreadView } from './components/ThreadView';
+import { useState, useEffect } from 'react';
 
 interface Message {
   id: string;
@@ -83,8 +83,8 @@ export default function App() {
     }, (data) => {
         // Correctly extract text from nested parts array: data.content.parts[0].text
         const parts = data?.content?.parts;
-        const fragment = Array.isArray(parts) ? parts.map((p: any) => p.text || '').join('') : '';
-        
+        const fragment = Array.isArray(parts) ? parts.map((p: any) =>  (p.text || '')).join('') : '';
+
         setThreads(prev => prev.map(t => 
             t.id === activeThreadId ? { 
                 ...t, 
