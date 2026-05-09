@@ -17,26 +17,6 @@ All notable changes to this project will be documented in this file.
 - **Repository Hygiene**: Removed untracked `ref` and `idea` directory/file references from Git index.
 - **Documentation**: Polished all book chapters (`book/th/`) to match the "Nami" persona and updated `AGENT.md`.
 
-- **Persistent Task Scheduler**: Implemented a `crontab`-style scheduler that runs in the background. It automatically retries unfinished tasks (using `StateManager` integration) and persists its state in `workspace/scheduler.json`.
-- **Schedule Slash Command**: Added the `/schedule` command to register and manage automated tasks with cron expressions.
-- **Ralph Wiggum Loop**: Introduced an autonomous agent loop that persists until a goal is achieved.
-- **Goal Slash Command**: Added the `/goal` command to trigger the Ralph Wiggum loop with a specific goal and stop condition.
-- **Parallel Slash Command**: Introduced the `/parallel` command in CLI mode for easy task delegation and multi-agent orchestration.
-- **Enhanced Specialized Agents**: Added `coder`, `researcher`, and `writer` specialists in `src/agent/specialists.rs` to support diverse parallel workloads.
-- **Observability Stack**: Integrated OpenTelemetry collector and MLflow for robust tracing and experiment tracking, enabling deep insights into agent behavior.
-
-### Changed
-
-- **Default Model**: Optimized the default model configuration for `gemini-2.5-flash` to ensure high-performance tool calling and responsiveness.
-- **Dependency Upgrade**: Upgraded `adk-rust` and all associated `adk-*` crates to version `0.8.0`.
-- **Logging**: Enabled `pretty_env_logger` in CLI mode for enhanced developer visibility.
-- **Persona & State Management**: Refactored the persona formatting logic in `src/agent/agent.rs` and updated `workspace/AGENT.md` and `workspace/STATE_PROTOCOL.md` for better clarity and efficiency.
-- **System Telemetry**: Added OpenTelemetry initialization to `src/main.rs`, supporting external OTLP collectors.
-
-### Fixed
-
-- **Code Cleanup**: Removed redundant `ratatui` and other unused dependencies from `Cargo.toml` and `Cargo.lock` that were no longer required.
-
 ## [0.7.0] - 2026-05-07
 
 ### Added
