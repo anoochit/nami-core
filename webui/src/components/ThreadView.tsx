@@ -36,6 +36,13 @@ export const ThreadView: React.FC<ThreadViewProps> = ({ thread, input, sidebarOp
     }
   }, [thread.messages]);
 
+  const Shimmer = () => (
+    <div className="space-y-2 w-full animate-pulse">
+      <div className="h-4 bg-gray-300 rounded w-3/4"></div>
+      <div className="h-4 bg-gray-300 rounded w-1/2"></div>
+    </div>
+  );
+
   return (
     <div className="flex-1 flex flex-col h-full">
       <header className="h-14 border-b flex items-center px-4 justify-between">
@@ -56,7 +63,11 @@ export const ThreadView: React.FC<ThreadViewProps> = ({ thread, input, sidebarOp
             {m.sender === 'agent' && <div className="w-8 h-8 flex items-center justify-center bg-gray-800 text-white rounded-full shrink-0"><Bot size={16} /></div>}
             <div className={cn("p-3 rounded-2xl w-full prose prose-base text-base", m.sender === 'user' ? "bg-black text-white" : "bg-gray-100 text-gray-800")}>
               {m.sender === 'agent' ? (
-                <ReactMarkdown remarkPlugins={[remarkGfm]}>{m.text}</ReactMarkdown>
+                isLoading && m.text === '' ? (
+                  <Shimmer />
+                ) : (
+                  <ReactMarkdown remarkPlugins={[remarkGfm]}>{m.text}</ReactMarkdown>
+                )
               ) : (
                 m.text
               )}
