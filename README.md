@@ -8,13 +8,15 @@ A modular, extensible AI-powered `Nami` built on top of [adk-rust](https://githu
 
 ### 🧠 Core Intelligence & Orchestration
 *   **Multi-Platform AI**: Powered by Gemini, Anthropic, or any OpenAI-compatible LLM (e.g., ThaiLLM).
-*   **Parallel Task Execution**: A custom `parallel_tasks` tool that orchestrates multiple sub-agents (`coder`, `researcher`, `writer`, `generalist`, `ralph`) simultaneously for high-speed multi-tasking.
+*   **Tool-Enabled Specialist Agents**: Ecosystem of specialized agents (`coder`, `researcher`, `writer`, `generalist`, `ralph`) with full access to core tools (filesystem, search, wiki), allowing for autonomous complex task execution.
+*   **Parallel Task Execution**: A custom `parallel_tasks` tool that orchestrates multiple specialists simultaneously for high-speed multi-tasking.
 *   **Autonomous Goal Loops**: A "Ralph Wiggum" loop agent that persists through multiple iterations to achieve complex goals, triggered via `/goal`.
 *   **Hybrid MCP Support**: Seamlessly connect to both local (stdio-based) and remote (streamable HTTP/SSE) [Model Context Protocol](https://modelcontextprotocol.io/) servers. Tools are automatically namespaced with `mcp_` to prevent collisions.
-*   **Hierarchical Sub-Agents**: Ecosystem of specialized agents (Codebase Investigator, Generalist, Web Developer, DevOps Engineer, Quality Assurance, Data Specialist, Documentation Architect) for complex task delegation.
 
 ### 💻 Rich User Interface
 *   **Modern TUI**: A rich, interactive CLI experience with a custom ASCII banner, animated indicators, pretty error rendering with intelligent hints, and structured layout.
+*   **Focused Input Control**: Implements terminal raw mode during processing to block echoes, ensuring a clean and focused agent execution state.
+*   **Silent Cancellation**: Support for both `Ctrl+C` and silent `ESC` interruption, allowing users to cancel requests without terminal clutter.
 *   **Slash Commands**: Quick access to system functions:
     *   `/new`: Reset current session.
     *   `/parallel`: Run tasks in parallel.

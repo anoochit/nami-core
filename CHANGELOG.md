@@ -2,6 +2,15 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.9.1] - 2026-05-10
+
+### Added
+
+- **Specialist Tool Enablement**: Specialist agents (`coder`, `researcher`, `writer`, `ralph`) now have full access to core tools (filesystem, search, wiki, etc.), allowing them to perform autonomous actions like writing files during parallel or loop executions.
+- **CLI Input Blocking**: Implemented terminal raw mode during agent thinking and tool calling. This prevents user typing from echoing to the screen, ensuring a clean and focused execution state.
+- **Silent ESC Cancellation**: Added support for silent interruption using the `ESC` key. Pressing `ESC` now cancels the current request immediately without displaying any feedback text, while `Ctrl+C` remains for explicit cancellation with a message.
+- **System Command Status**: Added "thinking" status indicators and cancellation support to all slash commands (e.g., `/plan`, `/tasks`, `/status`, `/wiki`), providing a consistent experience across all interactions.
+
 ## [0.9.0] - 2026-05-09
 
 ### Added
