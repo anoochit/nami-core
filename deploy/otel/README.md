@@ -1,125 +1,72 @@
-```
-export OTEL_EXPORTER_OTLP_ENDPOINT=http://127.0.0.1:4317
-export OTEL_EXPORTER_OTLP_PROTOCOL=grpc
-export OTEL_EXPORTER_OTLP_INSECURE=true
-```
+# Observability Stack (OpenTelemetry + MLflow)
 
-```
-export RUST_LOG=my_cli=info,hyper=info,h2=info,tonic=info
-```
+This directory contains the configuration for Nami's observability infrastructure, providing distributed tracing and experiment tracking.
 
-`docker-compose.yml`
+## 🏗 Architecture
 
-```yaml id="gkv5j8"
-services:
-  mlflow:
-    image: ghcr.io/mlflow/mlflow:latest
-    container_name: mlflow
-    restart: unless-stopped
+The tracing data flows from the application to MLflow through an OpenTelemetry Collector:
 
-    ports:
-      - "5000:5000"
-
-    command: >
-      mlflow server
-      --host 0.0.0.0
-      --port 5000
-      --backend-store-uri sqlite:///mlflow.db
-      --allowed-hosts "*"
-
-    volumes:
-      - ./mlruns:/mlflow/mlruns
-      - ./mlflow.db:/mlflow/mlflow.db
-
-    working_dir: /mlflow
-
-  otel-collector:
-    image: otel/opentelemetry-collector-contrib:latest
-    container_name: otel-collector
-    restart: unless-stopped
-
-    depends_on:
-      - mlflow
-
-    ports:
-      - "4317:4317"
-      - "4318:4318"
-
-    command:
-      - --config=/etc/otelcol-contrib/config.yaml
-
-    volumes:
-      - ./otel-collector.yaml:/etc/otelcol-contrib/config.yaml
-```
-
-`otel-collector.yaml`
-
-```yaml id="ahz6oe"
-receivers:
-  otlp:
-    protocols:
-      grpc:
-        endpoint: 0.0.0.0:4317
-      http:
-        endpoint: 0.0.0.0:4318
-
-processors:
-  batch:
-
-exporters:
-  debug:
-    verbosity: detailed
-
-  otlphttp/mlflow:
-    endpoint: http://mlflow:5000
-    headers:
-      x-mlflow-experiment-id: "1"
-
-service:
-  pipelines:
-    traces:
-      receivers: [otlp]
-      processors: [batch]
-      exporters:
-        - debug
-        - otlphttp/mlflow
-```
-
-Rust:
-
-```rust id="d5i7q4"
-use adk_telemetry::init_with_otlp;
-
-init_with_otlp(
-    "my-agent",
-    "http://localhost:4317",
-)?;
-```
-
-Start stack:
-
-```bash id="jlwm6x"
-docker compose up -d
-```
-
-View logs:
-
-```bash id="o2gm4d"
-docker compose logs -f otel-collector
-```
-
-MLflow UI:
-
-```text id="o91khz"
-http://localhost:5000
-```
-
-Expected flow:
-
-```text id="dgzntg"
-Rust App
+```text
+Nami App (Rust)
   → OTLP gRPC (:4317)
       → OTel Collector
           → OTLP HTTP
-              → MLflow /v1/traces
+              → MLflow Tracing UI (:5000)
 ```
+
+## 🚀 Quick Start
+
+1.  **Start the Docker Stack**:
+    From this directory, run:
+    ```bash
+    docker compose up -d
+    ```
+
+2.  **Configure Nami**:
+    Add the following to your root `.env` file to enable telemetry:
+    ```text
+    OTEL_COLLECTOR=http://localhost:4317
+    ```
+
+3.  **Access the Dashboard**:
+    Open [http://localhost:5000](http://localhost:5000) in your browser to view traces and experiment logs.
+
+## 🛠 Components
+
+### MLflow
+*   **Purpose**: Stores and visualizes traces.
+*   **Storage**: 
+    *   Metadata: `mlflow.db` (SQLite)
+    *   Artifacts: `./mlruns/` directory
+*   **Port**: `5000`
+
+### OpenTelemetry Collector
+*   **Purpose**: Receives, processes, and exports telemetry data.
+*   **Receivers**: OTLP (gRPC on `4317`, HTTP on `4318`)
+*   **Exporters**:
+    *   `debug`: Prints detailed trace info to the container logs.
+    *   `otlphttp/mlflow`: Forwards data to the MLflow backend.
+
+## 🔍 Troubleshooting
+
+### View Collector Logs
+To see if traces are being received correctly:
+```bash
+docker compose logs -f otel-collector
+```
+
+### Rust Application Logs
+Enable detailed logs for the OTLP exporter and networking layers:
+```bash
+# Windows (PowerShell)
+$env:RUST_LOG="nami=info,adk_telemetry=debug,tonic=info,hyper=info"
+
+# Linux/macOS
+export RUST_LOG=nami=info,adk_telemetry=debug,tonic=info,hyper=info
+```
+
+### Environment Variables Reference
+If manually configuring the OTLP exporter:
+*   `OTEL_EXPORTER_OTLP_ENDPOINT`: `http://127.0.0.1:4317`
+*   `OTEL_EXPORTER_OTLP_PROTOCOL`: `grpc`
+*   `OTEL_EXPORTER_OTLP_INSECURE`: `true`
