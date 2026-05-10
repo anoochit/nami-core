@@ -106,7 +106,13 @@ SERPER_API_KEY=your_serper_api_key
 ### Build and Install
 
 1. **Build the application**:
+   The project uses a `Makefile` to automate the build process, including WebUI asset compilation and Rust binary generation.
 
+   ```bash
+   make build
+   ```
+
+   Alternatively, for a standard Rust build (requires `webui/dist/` to be populated):
    ```bash
    cargo build --release
    ```
@@ -136,6 +142,7 @@ The application provides five primary run modes:
 | **CLI** | `nami cli` | Local interactive terminal agent with rich TUI. |
 | **Run** | `nami run <prompt>` | Execute a single prompt directly from the CLI. |
 | **Server** | `nami serve` | Run as an HTTP service. |
+| **Browse** | `nami browse` | Start server with embedded WebUI. |
 
 ## 🏗 Architecture
 

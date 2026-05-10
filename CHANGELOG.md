@@ -2,6 +2,19 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.9.2] - 2026-05-10
+
+### Added
+
+- **Embedded Browse Mode**: Added a new `browse` command that serves the application with a fully integrated WebUI embedded directly into the Rust binary using `rust-embed`.
+- **Middleware Path Interception**: Implemented custom Axum middleware in `browse` mode to catch requests for `/` and `/ui` before they reach the router, ensuring the custom UI is served at the root path and bypassing default ADK redirects.
+- **Unified Build Automation**: Introduced a root-level `Makefile` to automate the entire build pipeline, including WebUI dependency installation, asset compilation, and Rust binary generation.
+
+### Changed
+
+- **CI/CD Pipeline Enhancement**: Updated the GitHub Actions `daily-build.yml` to leverage the new `Makefile`, ensuring all automated releases include the latest compiled WebUI assets.
+- **Deployment Structure Refactor**: Moved OpenTelemetry configuration and `docker-compose.yaml` from the root `otel/` directory to `deploy/otel/` for better project organization.
+
 ## [0.9.1] - 2026-05-10
 
 ### Added
