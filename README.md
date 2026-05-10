@@ -158,18 +158,19 @@ graph TD
         Bot[Telegram Bot]
         CLI[Interactive CLI]
         Run[Direct Run]
-        Server[HTTP Server]
+        Server[HTTP Server/Browse]
     end
 
     EntryPoints --> Runner[adk-rust Runner]
     
     Runner --> Agent[LlmAgent]
     Runner --> DB[(SqliteSessionService)]
+    Runner --> Memory[(SqliteMemoryService)]
     Runner --> Scheduler[Background Scheduler]
     
     Agent --> LLM[ThaiLLM/Gemini/OpenAI]
-    Agent --> SubAgents[Sub-Agents: Generalist, Coder, Researcher, Writer, Ralph]
-    Agent --> Tools[Tools]
+    Agent --> SubAgents[Sub-Agents: Coder, Researcher, Writer, Ralph]
+    Agent --> Tools[Tools: Filesystem, Memory, Soul, etc.]
     Agent --> Wiki[Obsidian-Style Wiki: Graph, Tags, Daily Notes]
     Agent --> Persona[AGENT.md & USER.md]
     
