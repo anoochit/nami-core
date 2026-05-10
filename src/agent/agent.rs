@@ -96,7 +96,19 @@ pub async fn create_agent(
     let context = load_persona_context().await?;
     let workspace_dir = get_workspace_dir().await?;
 
-    let specialists = specialists::get_specialists(model.clone());
+    let mut core_tools: Vec<Arc<dyn Tool>> = tools::weather::weather_tools();
+    core_tools.extend(tools::filesystem::filesystem_tools());
+    core_tools.extend(tools::current_datetime::datetime_tools());
+    core_tools.extend(tools::wiki::wiki_tools());
+    core_tools.extend(tools::web_fetch::web_fetch_tools());
+    core_tools.extend(tools::system_status::system_status_tools());
+    core_tools.extend(tools::soul::soul_tools());
+    core_tools.extend(tools::search::search_tools());
+    core_tools.extend(tools::todo::todo_tools());
+    core_tools.extend(tools::state_manager::state_manager_tools());
+    core_tools.extend(tools::scheduler::scheduler_tools());
+
+    let specialists = specialists::get_specialists(model.clone(), core_tools.clone());
     let mut builder = LlmAgentBuilder::new("nami")
         .description("A helpful and playful AI assistant")
         .instruction(format_persona(
@@ -104,7 +116,7 @@ pub async fn create_agent(
         ))
         .model(model.clone());
 
-    builder = configure_agent_tools(builder, specialists);
+    builder = configure_agent_tools(builder, specialists, core_tools);
     builder = builder.with_skills_from_root(workspace_dir)?;
     builder = mcp::load_mcp_tools(builder).await?;
 
@@ -274,19 +286,8 @@ Reduce user effort, preserve continuity, move work forward fast."#,
 fn configure_agent_tools(
     mut builder: LlmAgentBuilder,
     specialists: std::collections::HashMap<String, Arc<dyn Tool>>,
+    mut tools: Vec<Arc<dyn Tool>>,
 ) -> LlmAgentBuilder {
-    let mut tools: Vec<Arc<dyn Tool>> = tools::weather::weather_tools();
-    tools.extend(tools::filesystem::filesystem_tools());
-    tools.extend(tools::current_datetime::datetime_tools());
-    tools.extend(tools::wiki::wiki_tools());
-    // tools.extend(tools::shell::shell_tools());
-    tools.extend(tools::web_fetch::web_fetch_tools());
-    tools.extend(tools::system_status::system_status_tools());
-    tools.extend(tools::soul::soul_tools());
-    tools.extend(tools::search::search_tools());
-    tools.extend(tools::todo::todo_tools());
-    tools.extend(tools::state_manager::state_manager_tools());
-    tools.extend(tools::scheduler::scheduler_tools());
     tools.extend(tools::parallel_tasks::parallel_tasks_tool(
         specialists.clone(),
     ));

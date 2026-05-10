@@ -213,21 +213,93 @@ async fn run_system_prompt(
     prompt: &str,
     nami_skin: &MadSkin,
 ) -> anyhow::Result<()> {
+    print_status_line(
+        &mut io::stdout(),
+        &format!(
+            "{} {}",
+            style::style("⏳").magenta(),
+            style::style("Agent is thinking...").dim()
+        ),
+    )?;
+
     let content = Content::new("user").with_text(prompt);
-
     let mut stream = runner.run_str(user_id, session_id, content).await?;
-
     let mut response = String::new();
+    let mut cancelled = false;
+    let mut cancelled_by_esc = false;
+    let mut event_reader = EventStream::new();
 
-    while let Some(Ok(event)) = stream.next().await {
-        if let Some(content) = event.llm_response.content {
-            for part in content.parts {
-                if let Some(text) = part.text() {
-                    response.push_str(text);
+    terminal::enable_raw_mode()?;
+
+    loop {
+        tokio::select! {
+            result = stream.next() => {
+                match result {
+                    Some(Ok(event)) => {
+                        if let Some(content) = &event.llm_response.content {
+                            for part in &content.parts {
+                                if let Some(text) = part.text() {
+                                    response.push_str(text);
+                                }
+                                if let Part::FunctionCall { name, args, .. } = part {
+                                    let args_str = args.to_string().replace('\n', " ").replace("  ", " ");
+                                    let compact_args = if args_str.len() > 60 {
+                                        format!("{}...", &args_str[..57])
+                                    } else {
+                                        args_str
+                                    };
+                                    print_status_line(
+                                        &mut io::stdout(),
+                                        &format!(
+                                            "{} {} {}({})",
+                                            style::style("🔨"),
+                                            style::style("Calling").dim().bold(),
+                                            style::style(name).cyan(),
+                                            style::style(compact_args).dim()
+                                        ),
+                                    )?;
+                                }
+                            }
+                        }
+                    }
+                    Some(Err(e)) => {
+                        response.push_str(&format!("\nError: {}", e));
+                        break;
+                    }
+                    None => break,
+                }
+            }
+            maybe_event = event_reader.next() => {
+                if let Some(Ok(Event::Key(key))) = maybe_event {
+                    if key.kind == KeyEventKind::Press {
+                        if key.code == KeyCode::Esc {
+                            runner.interrupt(session_id);
+                            cancelled = true;
+                            cancelled_by_esc = true;
+                            break;
+                        } else if key.code == KeyCode::Char('c') && key.modifiers.contains(KeyModifiers::CONTROL) {
+                            runner.interrupt(session_id);
+                            cancelled = true;
+                            break;
+                        }
+                    }
                 }
             }
         }
     }
+
+    terminal::disable_raw_mode()?;
+    clear_current_line(&mut io::stdout())?;
+
+    if cancelled {
+        if !cancelled_by_esc {
+            println!();
+            println!("{}", style::style("🚀 Request cancelled").dim());
+        }
+        return Ok(());
+    }
+
+    println!();
 
     let rendered = termimad::FmtText::from(
         nami_skin,
@@ -641,14 +713,13 @@ pub(crate) async fn run_cli(
                 )?;
 
                 let content = Content::new("user").with_text(enriched_prompt);
-
                 let mut stream = runner.run_str(user_id, &session_id, content).await?;
-
                 let mut response_buffer = String::new();
-
                 let mut cancelled = false;
-
+                let mut cancelled_by_esc = false;
                 let mut event_reader = EventStream::new();
+
+                terminal::enable_raw_mode()?;
 
                 loop {
                     tokio::select! {
@@ -707,36 +778,34 @@ pub(crate) async fn run_cli(
                             if let Some(Ok(Event::Key(key))) =
                                 maybe_event
                             {
-                                if key.kind
-                                    == KeyEventKind::Press
-                                    && (
-                                        key.code == KeyCode::Esc
-                                        || (
-                                            key.code
-                                                == KeyCode::Char('c')
-                                            && key.modifiers.contains(
-                                                KeyModifiers::CONTROL
-                                            )
-                                        )
-                                    )
-                                {
-                                    runner.interrupt(&session_id);
-                                    cancelled = true;
-                                    break;
+                                if key.kind == KeyEventKind::Press {
+                                    if key.code == KeyCode::Esc {
+                                        runner.interrupt(&session_id);
+                                        cancelled = true;
+                                        cancelled_by_esc = true;
+                                        break;
+                                    } else if key.code == KeyCode::Char('c') && key.modifiers.contains(KeyModifiers::CONTROL) {
+                                        runner.interrupt(&session_id);
+                                        cancelled = true;
+                                        break;
+                                    }
                                 }
                             }
                         }
                     }
                 }
 
+                terminal::disable_raw_mode()?;
                 clear_current_line(&mut io::stdout())?;
-                println!();
 
                 if cancelled {
-                    println!("{}", style::style("🚀 Request cancelled").dim());
-
+                    if !cancelled_by_esc {
+                        println!();
+                        println!("{}", style::style("🚀 Request cancelled").dim());
+                    }
                     continue;
                 }
+                println!();
 
                 let cleaned = response_buffer
                     .lines()
