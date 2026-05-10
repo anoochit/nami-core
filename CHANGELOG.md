@@ -6,6 +6,8 @@ All notable changes to this project will be documented in this file.
 
 ### Added
 
+- **AI Gateway Integration**: Added support and documentation for using MLflow Deployments as an AI Gateway, enabling load balancing and fallback strategies.
+- **Custom Model Base URL**: Updated the agent to respect `base_url` in `config.toml`, allowing integration with custom OpenAI-compatible endpoints like AI Gateways or local LLM servers.
 - **Embedded Browse Mode**: Added a new `browse` command that serves the application with a fully integrated WebUI embedded directly into the Rust binary using `rust-embed`.
 - **Middleware Path Interception**: Implemented custom Axum middleware in `browse` mode to catch requests for `/` and `/ui` before they reach the router, ensuring the custom UI is served at the root path and bypassing default ADK redirects.
 - **Unified Build Automation**: Introduced a root-level `Makefile` to automate the entire build pipeline, including WebUI dependency installation, asset compilation, and Rust binary generation.
@@ -13,7 +15,7 @@ All notable changes to this project will be documented in this file.
 ### Changed
 
 - **CI/CD Pipeline Enhancement**: Updated the GitHub Actions `daily-build.yml` to leverage the new `Makefile`, ensuring all automated releases include the latest compiled WebUI assets.
-- **Deployment Structure Refactor**: Moved OpenTelemetry configuration and `docker-compose.yaml` from the root `otel/` directory to `deploy/otel/` for better project organization.
+- **Deployment Structure Refactor**: Reorganized deployment configurations, moving AI Gateway and Telemetry (OpenTelemetry + MLflow) stacks to a unified `deployment/` directory for better project organization.
 
 ## [0.9.1] - 2026-05-10
 
