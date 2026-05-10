@@ -28,6 +28,7 @@ A modular, extensible AI-powered `Nami` built on top of [adk-rust](https://githu
 *   **Dynamic Persona & Soul**: Configure the bot's personality and user context via `workspace/AGENT.md` and `workspace/USER.md`. Automatically updated `workspace/MEMORIES.md` tracks personal user facts.
 
 ### 📂 Knowledge & Session Management
+*   **Long-Term Searchable Memory**: Integrated `adk-memory` with a SQLite backend. This allows the agent to search past conversations for relevant facts and projects across all modes (CLI, Bot, Serve, Browse).
 *   **Obsidian-Style Wiki KM**: A transparent, human-readable Knowledge Management system using `.md` files.
     *   `add_wiki_page`: Markdown saving with `[[wikilink]]` syntax.
     *   `get_wiki_graph`: Knowledge graph visualization.

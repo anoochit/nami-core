@@ -2,6 +2,15 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.9.4] - 2026-05-11
+
+### Added
+
+- **Long-Term Searchable Memory**: Integrated `adk-memory` with a SQLite backend to provide persistent, searchable memory across all agent modes (CLI, Bot, Serve, Browse).
+- **Memory Tools**: Implemented `recall_memory` and `add_memory` tools, allowing the agent to autonomously retrieve past context and save new facts.
+- **CLI Memory Commands**: Added `/recall` slash command for manual memory search and updated `/memo` to utilize the new database-backed storage.
+- **Cross-Session Continuity**: Updated the `AgentRunner` and `Launcher` to support the shared memory service, ensuring consistent knowledge across different interfaces.
+
 ## [0.9.3] - 2026-05-10
 
 ### Added
