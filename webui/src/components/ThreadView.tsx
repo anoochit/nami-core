@@ -44,8 +44,8 @@ export const ThreadView: React.FC<ThreadViewProps> = ({ thread, input, sidebarOp
         <button onClick={onToggleSidebar} className="p-2 hover:bg-gray-100 rounded-md">
           {sidebarOpen ? <ChevronLeft size={20} /> : <ChevronRight size={20} />}
         </button>
-        <h2 className="font-semibold">
-          {thread.title} {thread.sessionId && <span className="text-xs text-gray-500 font-normal">({thread.sessionId})</span>}
+        <h2 className="font-semibold text-center">
+          {thread.title} {thread.sessionId && <div className="text-xs text-gray-500 font-normal">({thread.sessionId})</div>}
         </h2>
         <div className="w-8">
            {isLoading && <div className="w-4 h-4 border-2 border-gray-300 border-t-black rounded-full animate-spin"></div>}
