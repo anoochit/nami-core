@@ -24,7 +24,7 @@ export const ThreadList: React.FC<ThreadListProps> = ({
 }) => {
   return (
     <div className="flex flex-col h-full ">
-      <div className="p-4 border-b">
+      <div className="p-2">
         <button
           onClick={onNewThread}
           className="w-full flex items-center justify-center gap-2 bg-black text-white p-2 rounded-md hover:bg-gray-800"
@@ -32,13 +32,13 @@ export const ThreadList: React.FC<ThreadListProps> = ({
           <Plus size={18} /> New Chat
         </button>
       </div>
-      <div className="flex-1 overflow-y-auto p-4  ">
+      <div className="flex-1 overflow-y-auto p-2  ">
         {threads.map((thread) => (
           <div
             key={thread.id}
             onClick={() => onSelectThread(thread.id)}
             className={cn(
-              "p-3 rounded-md cursor-pointer flex items-center gap-2 hover:bg-gray-200",
+              "p-3 rounded-md cursor-pointer flex items-center gap-2 hover:bg-gray-200 mb-1",
               activeThreadId === thread.id && "bg-gray-200",
             )}
           >

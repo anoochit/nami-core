@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from 'react';
-import { Bot, Send, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Bot, Send, ChevronLeft, ChevronRight, PanelLeftOpen, PanelLeftClose } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { cn } from '../lib/utils';
@@ -42,7 +42,7 @@ export const ThreadView: React.FC<ThreadViewProps> = ({ thread, input, sidebarOp
     <div className="flex-1 flex flex-col h-full">
       <header className="h-14 border-b flex items-center px-4 justify-between">
         <button onClick={onToggleSidebar} className="p-2 hover:bg-gray-100 rounded-md">
-          {sidebarOpen ? <ChevronLeft size={20} /> : <ChevronRight size={20} />}
+          {sidebarOpen ? <PanelLeftClose size={20} /> : <PanelLeftOpen size={20} />}
         </button>
         <h2 className="font-semibold text-center">
           {thread.title} {thread.sessionId && <div className="text-xs text-gray-500 font-normal">({thread.sessionId})</div>}

@@ -21,7 +21,7 @@ export default function App() {
   const [threads, setThreads] = useState<Thread[]>([{ id: '1', title: 'New Conversation', messages: [] }]);
   const [activeThreadId, setActiveThreadId] = useState<string>('1');
   const [input, setInput] = useState('');
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
   // Initialize session for active thread on load
