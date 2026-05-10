@@ -11,6 +11,10 @@ All notable changes to this project will be documented in this file.
 - **Silent ESC Cancellation**: Added support for silent interruption using the `ESC` key. Pressing `ESC` now cancels the current request immediately without displaying any feedback text, while `Ctrl+C` remains for explicit cancellation with a message.
 - **System Command Status**: Added "thinking" status indicators and cancellation support to all slash commands (e.g., `/plan`, `/tasks`, `/status`, `/wiki`), providing a consistent experience across all interactions.
 
+### Changed
+
+- **Release Build Optimization**: Configured `Cargo.toml` with high-performance release settings, including Link-Time Optimization (LTO), single codegen-unit, and symbol stripping, significantly reducing binary size and improving runtime efficiency.
+
 ## [0.9.0] - 2026-05-09
 
 ### Added

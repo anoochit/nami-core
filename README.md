@@ -71,6 +71,7 @@ Nami Core is designed for extreme extensibility. You can add new capabilities by
 *   **Sandboxed Environment**: Integrated filesystem tools for agent tasks within a `workspace/` directory, protected by a **`.namiignore` policy** (similar to `.gitignore`) to control access permissions.
 *   **Observability Stack**: Integrated OpenTelemetry collector and MLflow for robust tracing and experiment tracking.
 *   **Live Web Search**: Integrated Google Search via Serper.dev.
+*   **Performance Optimized Builds**: Highly tuned release profile with Link-Time Optimization (LTO), single codegen units, and automatic symbol stripping for maximum runtime efficiency.
 *   **Modular Architecture**: Organized structure for adding capabilities (Weather, Search, Shell, Wiki, etc.).
 
 ## 🛠 Prerequisites
