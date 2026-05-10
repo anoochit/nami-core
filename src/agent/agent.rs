@@ -163,10 +163,14 @@ async fn load_model(model_config: &ModelConfig) -> anyhow::Result<Arc<dyn Llm>> 
             &api_key,
             &model_config.model_name,
         ))?)),
-        "openai" => Ok(Arc::new(OpenAIClient::new(OpenAIConfig::new(
-            &api_key,
-            &model_config.model_name,
-        ))?)),
+        "openai" => {
+            let config = if let Some(url) = &model_config.base_url {
+                OpenAIConfig::compatible(&api_key, url, &model_config.model_name)
+            } else {
+                OpenAIConfig::new(&api_key, &model_config.model_name)
+            };
+            Ok(Arc::new(OpenAIClient::new(config)?))
+        }
         "ollama" => Ok(Arc::new(OllamaModel::new(OllamaConfig::new(
             &model_config.model_name,
         ))?)),
