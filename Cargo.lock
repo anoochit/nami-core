@@ -2064,6 +2064,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "http-range-header"
+version = "0.4.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9171a2ea8a68358193d15dd5d70c1c10a2afc3e7e4c5bc92bc9f025cebd7359c"
+
+[[package]]
 name = "httparse"
 version = "1.10.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2759,6 +2765,7 @@ dependencies = [
  "adk-tool",
  "anyhow",
  "async-trait",
+ "axum",
  "chrono",
  "clap",
  "cron",
@@ -2768,9 +2775,11 @@ dependencies = [
  "globset",
  "inquire",
  "log",
+ "mime_guess",
  "pretty_env_logger",
  "regex",
  "reqwest 0.13.3",
+ "rust-embed",
  "rustyline",
  "schemars 1.2.1",
  "serde",
@@ -2780,6 +2789,7 @@ dependencies = [
  "termimad",
  "tokio",
  "toml 1.1.2+spec-1.1.0",
+ "tower-http",
  "urlencoding",
  "uuid",
  "walkdir",
@@ -5301,12 +5311,19 @@ checksum = "68d6fdd9f81c2819c9a8b0e0cd91660e7746a8e6ea2ba7c6b2b057985f6bcb51"
 dependencies = [
  "bitflags 2.11.1",
  "bytes",
+ "futures-core",
  "futures-util",
  "http",
  "http-body",
  "http-body-util",
+ "http-range-header",
+ "httpdate",
+ "mime",
+ "mime_guess",
+ "percent-encoding",
  "pin-project-lite",
  "tokio",
+ "tokio-util",
  "tower 0.5.3",
  "tower-layer",
  "tower-service",

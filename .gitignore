@@ -16,9 +16,9 @@ workspace/todos.json
 workspace/wiki/.obsidian
 workspace/.skills/create-pdf/libs
 .idea/
-/idea
+idea/*
 note/*
 mcp.json
 xmcp.json
-persona/
+persona/*
 mlflow.db

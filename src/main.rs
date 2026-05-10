@@ -25,6 +25,7 @@ enum Commands {
     Init,                        // initialize project files
     Run { prompt: String },      // direct execution
     Serve { port: Option<u16> }, // http server
+    Browse { port: Option<u16> }, // server with embedded UI
 }
 
 #[tokio::main]
@@ -42,7 +43,7 @@ async fn main() -> anyhow::Result<()> {
     // parse cli
     let cli = Cli::parse();
 
-    if !matches!(cli.command, Commands::Serve { .. } | Commands::Init) {
+    if !matches!(cli.command, Commands::Serve { .. } | Commands::Browse { .. } | Commands::Init) {
         pretty_env_logger::init();
     }
 
@@ -78,6 +79,10 @@ async fn main() -> anyhow::Result<()> {
         Commands::Serve { port } => {
             log::info!("Running in serve mode");
             modes::serve::run_serve(agent, model, port.unwrap_or(8080)).await?;
+        }
+        Commands::Browse { port } => {
+            log::info!("Running in browse mode");
+            modes::browse::run_browse(agent, model, port.unwrap_or(8080)).await?;
         }
         Commands::Init => unreachable!(),
     }
