@@ -18,6 +18,7 @@ struct Asset;
 pub(crate) async fn run_browse(
     agent: Arc<dyn Agent>,
     model: Arc<dyn Llm>,
+    memory: Arc<dyn adk_rust::Memory>,
     port: u16,
 ) -> anyhow::Result<()> {
     let base_url =
@@ -30,6 +31,7 @@ pub(crate) async fn run_browse(
     // We intercept these requests using middleware BEFORE they reach the routing table.
     let app = Launcher::new(agent)
         .with_compaction(get_compaction_config(model))
+        .with_memory_service(memory)
         .with_a2a_base_url(base_url)
         .build_app()?
         .fallback(static_handler)

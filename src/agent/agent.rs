@@ -107,6 +107,7 @@ pub async fn create_agent(
     core_tools.extend(tools::todo::todo_tools());
     core_tools.extend(tools::state_manager::state_manager_tools());
     core_tools.extend(tools::scheduler::scheduler_tools());
+    core_tools.extend(tools::memory::memory_tools());
 
     let specialists = specialists::get_specialists(model.clone(), core_tools.clone());
     let mut builder = LlmAgentBuilder::new("nami")
@@ -222,6 +223,8 @@ Context:
 {}
 
 Core Rules:
+- Use recall_memory to search past conversations before answering about the user's projects, preferences, or history.
+- Use add_memory to explicitly save important new facts about the user.
 - Preserve continuity/state.
 - Reuse context before asking.
 - Minimize friction/repetition.

@@ -7,6 +7,7 @@ use std::sync::Arc;
 pub(crate) async fn run_serve(
     agent: Arc<dyn Agent>,
     model: Arc<dyn Llm>,
+    memory: Arc<dyn adk_rust::Memory>,
     port: u16,
 ) -> anyhow::Result<()> {
     let base_url =
@@ -14,6 +15,7 @@ pub(crate) async fn run_serve(
 
     Launcher::new(agent)
         .with_compaction(get_compaction_config(model))
+        .with_memory_service(memory)
         .with_a2a_base_url(base_url)
         .run_serve_directly(port)
         .await?;

@@ -1,9 +1,10 @@
 [package]
 name = "nami"
-version = "0.9.2"
+version = "0.9.3"
 edition = "2024"
 
 [dependencies]
+adk-memory = { version = "0.8.0", features = ["sqlite-memory"] }
 adk-runner = "0.8.0"
 adk-rust = { version = "0.8.0", features = ["anthropic", "ollama", "openai", "openrouter", "sessions", "cli"] }
 adk-session = { version = "0.8.0", features = ["sqlite"] }

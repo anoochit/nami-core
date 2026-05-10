@@ -149,6 +149,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "adk-memory"
+version = "0.8.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "94c1d94208f55477fbfcc4986e637b9601b3903d0e8c7361d1e7f774dd453a45"
+dependencies = [
+ "adk-core",
+ "async-trait",
+ "chrono",
+ "serde",
+ "serde_json",
+ "sqlx",
+ "tracing",
+]
+
+[[package]]
 name = "adk-model"
 version = "0.8.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2756,8 +2771,9 @@ dependencies = [
 
 [[package]]
 name = "nami"
-version = "0.9.2"
+version = "0.9.3"
 dependencies = [
+ "adk-memory",
  "adk-runner",
  "adk-rust",
  "adk-session",

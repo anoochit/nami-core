@@ -40,6 +40,7 @@ fn render_help() {
 {}  Run autonomous loop
 {}  Wiki search
 {}  Save memory
+{}  Recall memory
 {}  Agent status
 {}  CLI version
 
@@ -50,6 +51,7 @@ Examples:
   /schedule "Backup workspace" | "0 0 * * * *"
   /wiki Rust async traits
   /memo User prefers concise output
+  /recall project design
 "#,
         style::style("/?").cyan().bold(),
         style::style("/exit").cyan().bold(),
@@ -62,6 +64,7 @@ Examples:
         style::style("/goal").cyan().bold(),
         style::style("/wiki").cyan().bold(),
         style::style("/memo").cyan().bold(),
+        style::style("/recall").cyan().bold(),
         style::style("/status").cyan().bold(),
         style::style("/version").cyan().bold()
     );
@@ -672,7 +675,17 @@ pub(crate) async fn run_cli(
 
                     if trimmed.starts_with("/memo ") {
                         let prompt =
-                            format!("save_memory: {}", trimmed.replace("/memo", "").trim());
+                            format!("add_memory: {}", trimmed.replace("/memo", "").trim());
+
+                        run_system_prompt(&mut runner, user_id, &session_id, &prompt, &nami_skin)
+                            .await?;
+
+                        continue;
+                    }
+
+                    if trimmed.starts_with("/recall ") {
+                        let prompt =
+                            format!("recall_memory: {}", trimmed.replace("/recall", "").trim());
 
                         run_system_prompt(&mut runner, user_id, &session_id, &prompt, &nami_skin)
                             .await?;

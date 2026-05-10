@@ -8,6 +8,7 @@ use adk_session::{CreateRequest, GetRequest, SessionService};
 pub struct AgentRunner {
     agent: Arc<dyn Agent>,
     sessions: Arc<dyn SessionService>,
+    memory: Arc<dyn adk_rust::Memory>,
     app_name: String,
     model: Arc<dyn Llm>,
 }
@@ -16,12 +17,14 @@ impl AgentRunner {
     pub fn new(
         agent: Arc<dyn Agent>,
         sessions: Arc<dyn SessionService>,
+        memory: Arc<dyn adk_rust::Memory>,
         app_name: impl Into<String>,
         model: Arc<dyn Llm>,
     ) -> Self {
         Self {
             agent,
             sessions,
+            memory,
             app_name: app_name.into(),
             model,
         }
@@ -60,6 +63,7 @@ impl AgentRunner {
             .app_name(&self.app_name)
             .agent(self.agent.clone())
             .session_service(self.sessions.clone())
+            .memory_service(self.memory.clone())
             .compaction_config(get_compaction_config(self.model.clone()))
             .build()?;
 
