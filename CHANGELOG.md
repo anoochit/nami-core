@@ -2,7 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
-## [0.9.2] - 2026-05-10
+## [0.9.3] - 2026-05-10
+
+### Added
+
+- **Workspace Configuration**: Integrated `pnpm-workspace.yaml` in the WebUI directory to explicitly manage `esbuild` dependency, ensuring build consistency across environments.
+
 
 ### Added
 

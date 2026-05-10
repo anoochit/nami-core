@@ -48,11 +48,12 @@ A modular, extensible AI-powered `Nami` built on top of [adk-rust](https://githu
     *   `create-pdf`: Beautifully formatted PDF documents.
     *   `create-epub`: EPUB e-books with BOM sanitization.
 
-## 🧩 Agent Skills
+### 🧩 Agent Skills
 Nami Core is designed for extreme extensibility. You can add new capabilities by deploying modules to the `workspace/.skills/` directory.
 
 *   **Extensibility Model**: Skills are modular components that bundle specialized scripts and configuration. They allow Nami to perform complex, domain-specific tasks without modifying core code.
 *   **Skill Management**: You can manage, create, and validate skills using the `skill-creator` extension.
+*   **Workspace Configuration**: The `webui/` workspace uses `pnpm` with a workspace configuration (`pnpm-workspace.yaml`) to optimize dependency management and build reproducibility for `esbuild` and other toolchains.
 
 ### Currently Available Skills
 *   **Imagen**: AI image generation capabilities via `.skills/imagen/`.
