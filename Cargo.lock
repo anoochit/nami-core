@@ -2750,7 +2750,7 @@ dependencies = [
 
 [[package]]
 name = "nami"
-version = "0.8.0"
+version = "0.9.1"
 dependencies = [
  "adk-runner",
  "adk-rust",

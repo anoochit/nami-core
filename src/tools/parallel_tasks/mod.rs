@@ -11,7 +11,7 @@ use std::sync::Arc;
 pub struct Task {
     /// The specific task or prompt for this job.
     pub prompt: String,
-    /// The name of the specialized agent to handle this task (e.g., 'generalist').
+    /// The name of the specialized agent to handle this task (e.g., 'generalist', 'coder', 'researcher', 'writer', 'ralph').
     pub specialist: String,
 }
 
@@ -51,7 +51,10 @@ impl Tool for ParallelTasks {
                         "type": "object",
                         "properties": {
                             "prompt": { "type": "string", "description": "The prompt or instructions for the sub-agent." },
-                            "specialist": { "type": "string", "description": "The name of the sub-agent to use (e.g., 'generalist')." }
+                            "specialist": { 
+                                "type": "string", 
+                                "description": "The name of the sub-agent to use. Available: 'generalist', 'coder', 'researcher', 'writer', 'ralph'." 
+                            }
                         },
                         "required": ["prompt", "specialist"]
                     }

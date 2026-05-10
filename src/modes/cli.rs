@@ -632,7 +632,7 @@ pub(crate) async fn run_cli(
                     if trimmed.starts_with("/parallel ") {
                         let tasks = trimmed.replace("/parallel", "").trim().to_string();
                         let prompt = format!(
-                            "Execute the following tasks in parallel using the most appropriate specialized agents (coder, researcher, writer, or generalist): {}",
+                            "Execute the following tasks in parallel using the most appropriate specialized agents (coder, researcher, writer, ralph, or generalist): {}",
                             tasks
                         );
 
