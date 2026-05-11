@@ -108,6 +108,7 @@ pub async fn create_agent(
     core_tools.extend(tools::state_manager::state_manager_tools());
     core_tools.extend(tools::scheduler::scheduler_tools());
     core_tools.extend(tools::memory::memory_tools());
+    core_tools.extend(tools::imagen::imagen_tools());
 
     let specialists = specialists::get_specialists(model.clone(), core_tools.clone());
     let mut builder = LlmAgentBuilder::new("nami")

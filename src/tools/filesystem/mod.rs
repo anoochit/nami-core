@@ -72,15 +72,17 @@ async fn list_dir(args: PathArgs) -> std::result::Result<Value, AdkError> {
 }
 
 #[derive(Deserialize, JsonSchema)]
-struct ExecArgs {
-    command: String,
+pub(crate) struct ExecArgs {
+    pub(crate) command: String,
     /// Optional subdirectory within workspace
-    cwd: Option<String>,
+    pub(crate) cwd: Option<String>,
+    /// Optional stdin input for the command
+    pub(crate) input: Option<String>,
 }
 
 /// Executes a shell command within the workspace.
 #[tool]
-async fn exec_command(args: ExecArgs) -> std::result::Result<Value, AdkError> {
+pub(crate) async fn exec_command(args: ExecArgs) -> std::result::Result<Value, AdkError> {
     let root: std::path::PathBuf = get_workspace_dir().await?;
     let run_dir = match args.cwd {
         Some(c) => sandbox(&c).await?,
@@ -97,15 +99,32 @@ async fn exec_command(args: ExecArgs) -> std::result::Result<Value, AdkError> {
     #[cfg(not(target_os = "windows"))]
     command.arg("-c");
 
-    let output = command
+    let mut child = command
         .arg(&args.command)
         .current_dir(&run_dir)
         // Set HOME to workspace to prevent tools from leaking into the host system
         .env("HOME", &root)
+        .stdin(Stdio::piped())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
         .spawn()
-        .map_err(|e| AdkError::tool(e.to_string()))?
+        .map_err(|e| AdkError::tool(e.to_string()))?;
+
+    if let Some(input) = args.input {
+        use tokio::io::AsyncWriteExt;
+        if let Some(mut stdin) = child.stdin.take() {
+            stdin
+                .write_all(input.as_bytes())
+                .await
+                .map_err(|e| AdkError::tool(format!("Failed to write to stdin: {}", e)))?;
+            stdin
+                .flush()
+                .await
+                .map_err(|e| AdkError::tool(format!("Failed to flush stdin: {}", e)))?;
+        }
+    }
+
+    let output = child
         .wait_with_output()
         .await
         .map_err(|e| AdkError::tool(e.to_string()))?;

@@ -68,10 +68,12 @@ if __name__ == "__main__":
             args = {}
             
         prompt = args.get("prompt")
+        aspect_ratio = args.get("aspect_ratio", "1:1")
+        
         if not prompt and len(sys.argv) > 1:
             prompt = sys.argv[1]
-            
-        aspect_ratio = args.get("aspect_ratio", "1:1")
+            if len(sys.argv) > 2:
+                aspect_ratio = sys.argv[2]
         
         if not prompt:
             print(json.dumps({"status": "error", "message": "No prompt provided"}))
