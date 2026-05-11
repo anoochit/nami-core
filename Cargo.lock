@@ -2773,6 +2773,7 @@ dependencies = [
 name = "nami"
 version = "0.9.6"
 dependencies = [
+ "adk-gemini",
  "adk-memory",
  "adk-runner",
  "adk-rust",
@@ -2782,6 +2783,7 @@ dependencies = [
  "anyhow",
  "async-trait",
  "axum",
+ "base64",
  "chrono",
  "clap",
  "cron",

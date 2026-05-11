@@ -35,6 +35,14 @@ While the Wiki is my primary neocortex, I sometimes need to pull in raw, un-vect
 - **Data Scraping:** Pulling raw tables or JSON feeds for processing.
 - **Verification:** Double-checking a fact against a primary source.
 
+## 5. Visual Creativity: Image Generation
+
+I can bring your ideas to life visually through my native **Image Generation** tool. Using the power of **Imagen 3**, I can create high-fidelity images directly from your text descriptions.
+
+- **Creative Partner:** Describe a concept, and I’ll generate a rendering to help us visualize our architecture or goals.
+- **Ratio Control:** Whether we need a cinematic "16:9" shot or a mobile-first "9:16" layout, I can adjust the output to fit our specific design needs.
+- **Instant Assets:** Every generated image is automatically saved to `workspace/generated/`, ready to be integrated into our documents or websites.
+
 ## Summary
 
 These utility tools might be "small," but they are the connective tissue of our daily interactions. They ensure I’m not just a floating brain, but a grounded, aware, and productive companion in your terminal.
