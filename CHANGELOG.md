@@ -24,15 +24,18 @@ All notable changes to this project will be documented in this file.
 ## [0.9.8] - 2026-05-11
 
 ### Added
+
 - **Native Imagen Tool**: Implemented a native image generation tool using `gemini-2.5-flash-image-preview` and `adk-gemini`, replacing external Python script orchestration.
 - **Documentation**: Added doc comments to the new `Imagen` tool and updated `README.md` in the module for clarity.
 - **Skill Migration**: Migrated `Imagen` and `infographic` skills to utilize the new internal tool, ensuring a seamless agent experience.
 
 ### Changed
+
 - **CLI Help Skill**: Updated `workspace/.skills/cli-help/SKILL.md` to reflect the latest slash commands and TUI features.
 - **Skill Management**: Cleaned up workspace by removing legacy Python scripts and manifests for image and infographic generation.
 
 ### Removed
+
 - **Legacy Python Scripts**: Removed all external Python-based image generation scripts (`generate_image.py`, `generate_infographic.py`) to reduce dependency overhead.
 
 ## [0.9.7] - 2026-05-11
