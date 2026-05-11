@@ -16,6 +16,20 @@ All notable changes to this project will be documented in this file.
 ### Removed
 - **Legacy Python Scripts**: Removed all external Python-based image generation scripts (`generate_image.py`, `generate_infographic.py`) to reduce dependency overhead.
 
+## [0.9.7] - 2026-05-11
+
+### Added
+- **Book Reorganization**: Restructured the Nami documentation book into three thematic parts (Core, Action, Agency) and synchronized both English and Thai versions.
+- **New Book Chapter**: Added "Chapter 8: The Digital Swiss Army Knife" to both language versions, covering utility tools like Todo, Datetime, and System Status.
+- **Module Documentation**: Added comprehensive `README.md` files for all internal tool modules (`src/tools/*`) and modes (`src/modes/`) to improve codebase discoverability and maintenance.
+- **Enhanced Exec Command**: Improved the `exec_command` tool with `stdin` support, enabling better cross-platform data passing for external scripts.
+
+### Changed
+- **Metadata Standardization**: Systematically updated all book chapter files with standard YAML frontmatter and consistent numbering.
+
+### Removed
+- **Imagen Tool**: Removed the AI image generation tool and its associated Python scripts from the core toolset and workspace skills.
+
 
 ## [0.9.6] - 2026-05-11
 
