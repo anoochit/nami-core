@@ -16,13 +16,13 @@ pub struct ImagenArgs {
     pub aspect_ratio: Option<String>,
 }
 
-/// Generates a high-quality image from a text prompt using Gemini 2.5 Flash image preview.
+/// Generates a high-quality image from a text prompt.
 ///
 /// This tool takes a prompt and optional aspect ratio, generates an image, and saves it
 /// as a PNG file in the `generated/` directory within the sandbox.
 #[tool]
-async fn imagen(args: ImagenArgs) -> std::result::Result<Value, AdkError> {
-    let api_key = std::env::var("GOOGLE_API_KEY")
+async fn image_generator(args: ImagenArgs) -> std::result::Result<Value, AdkError> {
+    let api_key: String = std::env::var("GOOGLE_API_KEY")
         .map_err(|_| AdkError::tool("GOOGLE_API_KEY environment variable not set"))?;
 
     // From the README: image generation uses a Flash/image-preview model
@@ -79,5 +79,5 @@ async fn imagen(args: ImagenArgs) -> std::result::Result<Value, AdkError> {
 }
 
 pub fn imagen_tools() -> Vec<Arc<dyn Tool>> {
-    vec![Arc::new(Imagen)]
+    vec![Arc::new(ImageGenerator)]
 }

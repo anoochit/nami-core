@@ -178,17 +178,22 @@ graph TD
     SubAgents --> Agent
 ```
 
-## 💡 Developer Tips
+## 💡 Development Tips
 
-* **Production**: For high-traffic bots, migrate `teloxide` from polling to webhooks.
-* **Future Extension Ideas**:
-    * **RAG Integration**: Connect the `wiki/` vault to a vector database (like Qdrant or Milvus) for semantic search and long-term memory retrieval.
-    * **Vision & Multi-modal**: Enable vision tools to allow Nami to analyze screenshots or images sent via Telegram.
-    * **Voice Mode**: Integrate Whisper for voice-to-text, allowing you to talk to Nami directly.
-    * **Automated Evaluations**: Build an `eval/` suite to test Nami's tool-calling accuracy across different model versions.
-    * **LLM Self-Correction Loops**: Implement a meta-agent that reviews the output of other tools, automatically detecting errors and triggering a re-try or pivot if the quality threshold isn't met.
-    * **Dynamic Multi-Model Routing**: Implement an intelligent router that dynamically selects the cheapest or fastest model based on the complexity of the current task.
-    *   **Edge-Compute Caching Layer**: Add a local Redis/Key-Value cache to store frequent tool results, reducing latency and cost for repetitive tasks.
-    *   **Semantic Wiki Search**: Integrate vector embeddings for conceptual search across the knowledge base, moving beyond keyword matching.
-    *   **Contextual Link Suggestion**: Add an automated tool that identifies and suggests links between related pages based on semantic content similarity.
-    *   **Integrated Task-Knowledge Bridging**: Enhance daily note templates to automatically pull active tasks from the `StateManager` into the daily note frontmatter.
+Here are some best practices for extending and maintaining Nami:
+
+### 🚀 Getting Started & Production
+*   **Production Readiness**: For high-traffic bots, migrate `teloxide` from polling to webhooks for better reliability.
+*   **Build Optimization**: Use `make build` to ensure all assets (including WebUI) are compiled properly before generating the Rust binary.
+*   **Environment Management**: Always manage your credentials via the `.env` file; never hardcode API keys.
+
+### 🧩 Extending Nami
+*   **New Skills**: You can add new capabilities by deploying modules to the `workspace/.skills/` directory. Use the `skill-creator` extension to initialize, package, and validate them.
+*   **Specialist Agents**: For complex tasks, delegate to existing specialists (`coder`, `researcher`, `writer`) via the `parallel_tasks` tool or `/parallel` slash command.
+*   **Wiki-First Development**: Always document successful patterns in your `wiki/` vault. Use the "Wiki-before-Google" protocol to reduce noise and maintain project-specific context.
+
+### 🧠 System Architecture & Advanced Features
+*   **RAG & Memory**: Consider connecting your `wiki/` vault to a vector database (e.g., Qdrant/Milvus) for semantic search if your knowledge base outgrows simple file-based retrieval.
+*   **Tooling Strategy**: When creating new skills, prefer native Rust `#[tool]` macros over external scripts for better performance, type safety, and security.
+*   **Agentic Intelligence**: Explore the potential of Meta-Agents that review tool outputs for quality, automatically triggering re-tries or pivots when thresholds aren't met.
+*   **Task-Knowledge Bridging**: Automate your daily note templates to automatically pull active tasks from the `StateManager` to maintain a living sync between your todo list and your knowledge base.

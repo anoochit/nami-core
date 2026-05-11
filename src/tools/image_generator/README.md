@@ -1,4 +1,4 @@
-# Imagen Tool
+# Image Generator Tool
 
 This tool provides native AI image generation capabilities using the `gemini-2.5-flash-image-preview` model via the `adk-gemini` crate.
 
