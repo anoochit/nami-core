@@ -5,19 +5,23 @@ All notable changes to this project will be documented in this file.
 ## [0.9.9] - 2026-05-11
 
 ### Added
+
 - **Server Status Indicator**: Integrated a new real-time server connectivity component in the WebUI sidebar, providing visual feedback on backend health.
 - **Prompt History Navigation**: Enabled arrow-key navigation (up/down) in the WebUI input field to cycle through previous prompt history.
 - **Tool-Call Rendering**: Implemented a dedicated UI component (`ToolAccordion`) in the WebUI to display structured tool invocations and results within the chat thread.
 
 ### Changed
+
 - **Tool Output Presentation**: Refined agent persona instructions to enforce concise, natural language summaries for tool outputs, prohibiting raw JSON display in chat responses.
 - **Markdown Rendering**: Optimized `ReactMarkdown` rendering in WebUI with tightened paragraph spacing (`prose-p:m-0`) for a cleaner message layout.
 - **Streaming Logic**: Improved text streaming pre-processor in `useChat.ts` to handle Thai/non-Thai character transitions and list marker formatting, preventing word concatenation.
 - **Task Ambiguity**: Renamed Todo-tool terminology (from "task" to "todo item") to prevent confusion with State Manager tasks.
 
 ### Fixed
+
 - **Module Resolution**: Fixed a module import syntax error in `ThreadView.tsx` caused by incorrect path handling during bundling.
 
+## [0.9.8] - 2026-05-11
 
 ### Added
 - **Native Imagen Tool**: Implemented a native image generation tool using `gemini-2.5-flash-image-preview` and `adk-gemini`, replacing external Python script orchestration.
@@ -27,7 +31,6 @@ All notable changes to this project will be documented in this file.
 ### Changed
 - **CLI Help Skill**: Updated `workspace/.skills/cli-help/SKILL.md` to reflect the latest slash commands and TUI features.
 - **Skill Management**: Cleaned up workspace by removing legacy Python scripts and manifests for image and infographic generation.
-- **Image Generation Tool**: Renamed internal `imagen` tool to `image_generator` and updated related agent skills.
 
 ### Removed
 - **Legacy Python Scripts**: Removed all external Python-based image generation scripts (`generate_image.py`, `generate_infographic.py`) to reduce dependency overhead.
@@ -35,17 +38,19 @@ All notable changes to this project will be documented in this file.
 ## [0.9.7] - 2026-05-11
 
 ### Added
+
 - **Book Reorganization**: Restructured the Nami documentation book into three thematic parts (Core, Action, Agency) and synchronized both English and Thai versions.
 - **New Book Chapter**: Added "Chapter 8: The Digital Swiss Army Knife" to both language versions, covering utility tools like Todo, Datetime, and System Status.
 - **Module Documentation**: Added comprehensive `README.md` files for all internal tool modules (`src/tools/*`) and modes (`src/modes/`) to improve codebase discoverability and maintenance.
 - **Enhanced Exec Command**: Improved the `exec_command` tool with `stdin` support, enabling better cross-platform data passing for external scripts.
 
 ### Changed
+
 - **Metadata Standardization**: Systematically updated all book chapter files with standard YAML frontmatter and consistent numbering.
 
 ### Removed
-- **Imagen Tool**: Removed the AI image generation tool and its associated Python scripts from the core toolset and workspace skills.
 
+- **Imagen Tool**: Removed the AI image generation tool and its associated Python scripts from the core toolset and workspace skills.
 
 ## [0.9.6] - 2026-05-11
 
@@ -77,7 +82,6 @@ All notable changes to this project will be documented in this file.
 ### Added
 
 - **Workspace Configuration**: Integrated `pnpm-workspace.yaml` in the WebUI directory to explicitly manage `esbuild` dependency, ensuring build consistency across environments.
-
 
 ### Added
 
@@ -120,7 +124,6 @@ All notable changes to this project will be documented in this file.
 - **Repository Hygiene**: Removed untracked `ref` and `idea` directory/file references from Git index.
 - **Documentation**: Polished all book chapters (`book/th/`) to match the "Nami" persona and updated `AGENT.md`.
 
-
 ## [0.8.0] - 2026-05-08
 
 ### Added
@@ -145,14 +148,13 @@ All notable changes to this project will be documented in this file.
 
 - **Code Cleanup**: Removed redundant `ratatui` and other unused dependencies from `Cargo.toml` and `Cargo.lock` that were no longer required.
 
-
 ## [0.7.0] - 2026-05-07
 
 ### Added
 
 - **Enhanced TUI**: Improved CLI experience with better markdown rendering and terminal styling.
 - **New Agent Skills**:
-    - `Imagen`: Integrated AI image generation capabilities via `.skills/imagen/`.
+  - `Imagen`: Integrated AI image generation capabilities via `.skills/imagen/`.
 - **CLI Commands**: Added `/new` slash command in CLI mode to reset the current session.
 
 ### Changed
@@ -172,7 +174,6 @@ All notable changes to this project will be documented in this file.
 
 - **CLI Command Structure**: Simplified the CLI entry point by removing the optional prompt field and requiring explicit subcommands, improving consistency.
 - **Direct Run Mode**: Updated the `run` command to use the standardized `adk-rust` session creation API for more robust and reliable execution.
-
 
 ### Added
 
