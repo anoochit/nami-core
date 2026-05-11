@@ -72,6 +72,17 @@ async fn main() -> anyhow::Result<()> {
         adk_memory::MemoryServiceAdapter::new(memory.clone(), "nami", "default_user"),
     );
 
+    // Reflection Service
+    let reflection_svc = Arc::new(agent::reflection::ReflectionService::new(
+        model.clone(),
+        model_name.clone(),
+        sessions.clone(),
+        memory.clone(),
+    ));
+    tokio::spawn(async move {
+        reflection_svc.start().await;
+    });
+
     match cli.command {
         Commands::Bot => {
             log::info!("Running in bot mode");
