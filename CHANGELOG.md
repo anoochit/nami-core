@@ -2,19 +2,20 @@
 
 All notable changes to this project will be documented in this file.
 
-## [0.9.7] - 2026-05-11
+## [0.9.8] - 2026-05-11
 
 ### Added
-- **Book Reorganization**: Restructured the Nami documentation book into three thematic parts (Core, Action, Agency) and synchronized both English and Thai versions.
-- **New Book Chapter**: Added "Chapter 8: The Digital Swiss Army Knife" to both language versions, covering utility tools like Todo, Datetime, and System Status.
-- **Module Documentation**: Added comprehensive `README.md` files for all internal tool modules (`src/tools/*`) and modes (`src/modes/`) to improve codebase discoverability and maintenance.
-- **Enhanced Exec Command**: Improved the `exec_command` tool with `stdin` support, enabling better cross-platform data passing for external scripts.
+- **Native Imagen Tool**: Implemented a native image generation tool using `gemini-2.5-flash-image-preview` and `adk-gemini`, replacing external Python script orchestration.
+- **Documentation**: Added doc comments to the new `Imagen` tool and updated `README.md` in the module for clarity.
+- **Skill Migration**: Migrated `Imagen` and `infographic` skills to utilize the new internal tool, ensuring a seamless agent experience.
 
 ### Changed
-- **Metadata Standardization**: Systematically updated all book chapter files with standard YAML frontmatter and consistent numbering.
+- **CLI Help Skill**: Updated `workspace/.skills/cli-help/SKILL.md` to reflect the latest slash commands and TUI features.
+- **Skill Management**: Cleaned up workspace by removing legacy Python scripts and manifests for image and infographic generation.
 
 ### Removed
-- **Imagen Tool**: Removed the AI image generation tool and its associated Python scripts from the core toolset and workspace skills.
+- **Legacy Python Scripts**: Removed all external Python-based image generation scripts (`generate_image.py`, `generate_infographic.py`) to reduce dependency overhead.
+
 
 ## [0.9.6] - 2026-05-11
 
