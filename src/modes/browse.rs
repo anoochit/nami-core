@@ -34,6 +34,7 @@ pub(crate) async fn run_browse(
         .with_memory_service(memory)
         .with_a2a_base_url(base_url)
         .build_app()?
+        .merge(crate::modes::api::api_router())
         .fallback(static_handler)
         .layer(middleware::from_fn(intercept_ui))
         .layer(

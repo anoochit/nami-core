@@ -11,13 +11,18 @@ pub(crate) async fn run_serve(
     port: u16,
 ) -> anyhow::Result<()> {
     let base_url =
-        std::env::var("A2A_BASE_URL").unwrap_or_else(|_| "http://localhost:8080".to_string());
+        std::env::var("A2A_BASE_URL").unwrap_or_else(|_| format!("http://localhost:{}", port));
 
-    Launcher::new(agent)
+    let app = Launcher::new(agent)
         .with_compaction(get_compaction_config(model))
         .with_memory_service(memory)
         .with_a2a_base_url(base_url)
-        .run_serve_directly(port)
-        .await?;
+        .build_app()?
+        .merge(crate::modes::api::api_router());
+
+    let addr = format!("0.0.0.0:{port}");
+    let listener = tokio::net::TcpListener::bind(&addr).await?;
+    log::info!("ADK Server starting on http://localhost:{}", port);
+    axum::serve(listener, app).await?;
     Ok(())
 }

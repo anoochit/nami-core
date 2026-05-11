@@ -1,4 +1,4 @@
-use crate::utils::get_workspace_dir;
+use crate::utils::{get_wiki_dir};
 use adk_rust::Tool;
 use adk_rust::serde::Deserialize;
 use adk_tool::{AdkError, tool};
@@ -93,18 +93,6 @@ struct ApplyTemplateArgs {
     title: String,
     /// The name of the template file in the 'Templates' folder (without .md extension).
     template_name: String,
-}
-
-/// Helper to get the wiki directory path.
-async fn get_wiki_dir() -> std::result::Result<PathBuf, AdkError> {
-    let root: std::path::PathBuf = get_workspace_dir().await?;
-    let wiki_dir = root.join("wiki");
-    if !wiki_dir.exists() {
-        fs::create_dir_all(&wiki_dir)
-            .await
-            .map_err(|e| AdkError::tool(format!("Failed to create wiki directory: {}", e)))?;
-    }
-    Ok(wiki_dir)
 }
 
 /// Helper to convert a string to Title Case (Obsidian-style with spaces).

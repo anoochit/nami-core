@@ -8,6 +8,7 @@ A modular, extensible AI-powered `Nami` built on top of [adk-rust](https://githu
 
 ### 🧠 Core Intelligence & Orchestration
 *   **Multi-Platform AI**: Powered by Gemini, Anthropic, or any OpenAI-compatible LLM (e.g., ThaiLLM).
+*   **Agent Reflection Service**: A background service that periodically analyzes session logs to synthesize "Learnings" (facts, preferences, project context) and automatically update `MEMORIES.md` and searchable memory.
 *   **AI Gateway Integration**: Support for high-availability routing via **MLflow Deployments**, enabling load balancing and fallback strategies across multiple LLM providers.
 *   **Tool-Enabled Specialist Agents**: Ecosystem of specialized agents (`coder`, `researcher`, `writer`, `generalist`, `ralph`) with full access to core tools (filesystem, search, wiki), allowing for autonomous complex task execution.
 *   **Parallel Task Execution**: A custom `parallel_tasks` tool that orchestrates multiple specialists simultaneously for high-speed multi-tasking.
@@ -187,5 +188,7 @@ graph TD
     * **Automated Evaluations**: Build an `eval/` suite to test Nami's tool-calling accuracy across different model versions.
     * **LLM Self-Correction Loops**: Implement a meta-agent that reviews the output of other tools, automatically detecting errors and triggering a re-try or pivot if the quality threshold isn't met.
     * **Dynamic Multi-Model Routing**: Implement an intelligent router that dynamically selects the cheapest or fastest model based on the complexity of the current task.
-    * **Edge-Compute Caching Layer**: Add a local Redis/Key-Value cache to store frequent tool results, reducing latency and cost for repetitive tasks.
-    * **Agent Reflection Service**: A background service that periodically analyzes session logs to synthesize "Learnings" and automatically update `MEMORIES.md`.
+    *   **Edge-Compute Caching Layer**: Add a local Redis/Key-Value cache to store frequent tool results, reducing latency and cost for repetitive tasks.
+    *   **Semantic Wiki Search**: Integrate vector embeddings for conceptual search across the knowledge base, moving beyond keyword matching.
+    *   **Contextual Link Suggestion**: Add an automated tool that identifies and suggests links between related pages based on semantic content similarity.
+    *   **Integrated Task-Knowledge Bridging**: Enhance daily note templates to automatically pull active tasks from the `StateManager` into the daily note frontmatter.

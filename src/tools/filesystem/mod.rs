@@ -1,58 +1,13 @@
-use crate::utils::{get_workspace_dir, ignore::NamiIgnore};
+use crate::utils::{get_workspace_dir, sandbox};
 use adk_rust::prelude::*;
 use adk_rust::serde::Deserialize;
 use adk_tool::tool;
 use schemars::JsonSchema;
 use serde_json::{Value, json};
-use std::path::PathBuf;
 use std::process::Stdio;
 use std::sync::Arc;
 use tokio::fs;
 use tokio::process::Command;
-
-/// Resolves a user-provided string into a safe path within the workspace.
-async fn sandbox(user_path: &str) -> std::result::Result<PathBuf, AdkError> {
-    let root: std::path::PathBuf = get_workspace_dir().await?;
-
-    // 1. Clean the user path: remove leading slashes and drive letters (Windows)
-    // to prevent the join from treating it as a new absolute path.
-    let clean_path = user_path.trim_start_matches(['/', '\\']);
-
-    // 2. Join and normalize
-    let mut joined = root.clone();
-    joined.push(clean_path);
-
-    let mut normalized = PathBuf::new();
-    for component in joined.components() {
-        match component {
-            std::path::Component::ParentDir => {
-                normalized.pop();
-            }
-            std::path::Component::CurDir => {}
-            c => normalized.push(c),
-        }
-    }
-
-    // 3. Final Guard: The resulting path MUST still start with the workspace root.
-    if !normalized.starts_with(&root) {
-        return Err(AdkError::tool(format!(
-            "Security Error: Path '{}' attempts to escape sandbox.",
-            user_path
-        )));
-    }
-
-    // 4. .namiignore Check
-    let relative_to_root = normalized.strip_prefix(&root).unwrap_or(&normalized);
-    let ignore = NamiIgnore::load().await;
-    if ignore.is_ignored(relative_to_root) {
-        return Err(AdkError::tool(format!(
-            "Access Denied: Path '{}' is ignored by .namiignore policy.",
-            user_path
-        )));
-    }
-
-    Ok(normalized)
-}
 
 // ─── Tools ────────────────────────────────────────────────────────────────────
 

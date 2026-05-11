@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.9.5] - 2026-05-11
+
+### Added
+
+- **Agent Reflection Service**: Implemented a background service that periodically analyzes session logs to synthesize "Learnings" (facts, preferences, project context) and automatically updates `MEMORIES.md` and searchable memory.
+- **Background Logic Loop**: The service runs autonomously in the background across all modes, using the agent's model to act as a "Memory Architect".
+- **Database-Driven Discovery**: Integration with `sqlx` to scan `sessions.db` for new activity and ensure each message is processed once.
+
 ## [0.9.4] - 2026-05-11
 
 ### Added
