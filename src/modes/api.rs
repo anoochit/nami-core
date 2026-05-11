@@ -21,7 +21,7 @@ pub fn api_router() -> Router {
 }
 
 const IGNORED_DIRS: &[&str] = &[
-    ".venv", ".cache", ".config", ".local", ".npm", ".rustup",
+    ".venv", ".cache", ".config", ".local", ".npm", ".rustup", ".git"
 ];
 
 /// Lists contents of a workspace directory.
