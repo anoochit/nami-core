@@ -1,6 +1,5 @@
 pub mod current_datetime;
 pub mod filesystem;
-pub mod imagen;
 pub mod memory;
 pub mod parallel_tasks;
 pub mod ralph_wiggum_loop;
