@@ -3,7 +3,7 @@
 StateManager = source of truth.
 
 Resume:
-- get_task(id) or list_active_tasks() first.
+- get_task(id) or list_active_tasks().
 
 Execute:
 - update_task on meaningful progress.

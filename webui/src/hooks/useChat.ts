@@ -5,6 +5,12 @@ export interface Message {
   id: string;
   sender: 'user' | 'agent';
   text: string;
+  toolCall?: { 
+    name: string; 
+    args?: any; 
+    status: 'pending' | 'complete'; 
+    result?: any 
+  };
 }
 
 export interface Thread {
@@ -18,6 +24,8 @@ export const useChat = () => {
   const [threads, setThreads] = useState<Thread[]>([{ id: '1', title: 'New Conversation', messages: [] }]);
   const [activeThreadId, setActiveThreadId] = useState<string>('1');
   const [input, setInput] = useState('');
+  const [promptHistory, setPromptHistory] = useState<string[]>([]);
+  const [historyIndex, setHistoryIndex] = useState(-1);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
@@ -42,6 +50,10 @@ export const useChat = () => {
 
   const sendMessage = async () => {
     if (!input.trim()) return;
+
+    // Add to history
+    setPromptHistory(prev => [...prev, input]);
+    setHistoryIndex(-1);
 
     const newUserMessage: Message = { id: Date.now().toString(), sender: 'user', text: input };
     
@@ -76,19 +88,57 @@ export const useChat = () => {
       parts: [{ text: input }]
     }, (data) => {
         const parts = data?.content?.parts;
-        const fragment = Array.isArray(parts) ? parts.map((p: any) =>  (p.text || '')).join('') : '';
+        if (!Array.isArray(parts)) return;
 
-        setThreads(prev => prev.map(t => 
-            t.id === activeThreadId ? { 
-                ...t, 
-                messages: t.messages.map(m => {
-                    if (m.id === agentMsgId) {
-                        return { ...m, text: m.text + fragment };
+        setThreads(prev => prev.map(t => {
+            if (t.id !== activeThreadId) return t;
+            
+            const messages = [...t.messages];
+            const agentMsgIndex = messages.findIndex(m => m.id === agentMsgId);
+            if (agentMsgIndex === -1) return t;
+
+            let msg = { ...messages[agentMsgIndex] };
+
+            const shouldAddSpace = (prev: string, next: string) => {
+                if (!prev || !next) return false;
+                const prevChar = prev.slice(-1);
+                const nextChar = next[0];
+                const isThai = (char: string) => /[\u0E00-\u0E7F]/.test(char);
+                // Add space if switching between Thai and non-Thai, or two separate words
+                return (isThai(prevChar) !== isThai(nextChar));
+            };
+
+            parts.forEach((p: any) => {
+                // 1. Text streaming
+                if (p.text) {
+                    let formattedText = p.text;
+                    // Pre-processor: ensure list markers have preceding newline if not at start
+                    if (formattedText.startsWith('-') && msg.text.length > 0 && !msg.text.endsWith('\n')) {
+                        formattedText = '\n' + formattedText;
                     }
-                    return m;
-                })
-            } : t
-        ));
+                    
+                    if (shouldAddSpace(msg.text, formattedText)) {
+                        msg.text += ' ' + formattedText;
+                    } else {
+                        msg.text += formattedText;
+                    }
+                } 
+                // 2. Tool invocation (part contains name/args)
+                else if (p.name) {
+                    msg.toolCall = { name: p.name, args: p.args, status: 'pending' };
+                }
+                // 3. Function response (part contains functionResponse)
+                else if (p.functionResponse) {
+                    if (msg.toolCall) {
+                        msg.toolCall.status = 'complete';
+                        msg.toolCall.result = p.functionResponse.response;
+                    }
+                }
+            });
+
+            messages[agentMsgIndex] = msg;
+            return { ...t, messages };
+        }));
     });
     setIsLoading(false);
   };
@@ -116,6 +166,27 @@ export const useChat = () => {
     }
   };
 
+  const navigateHistory = (direction: 'up' | 'down') => {
+    if (promptHistory.length === 0) return;
+
+    let newIndex = historyIndex;
+    if (direction === 'up') {
+        newIndex = historyIndex === -1 ? promptHistory.length - 1 : Math.max(0, historyIndex - 1);
+    } else {
+        newIndex = historyIndex === -1 ? -1 : Math.min(promptHistory.length - 1, historyIndex + 1);
+        if (newIndex === promptHistory.length - 1) { // reached latest, clear input
+            setInput('');
+            setHistoryIndex(-1);
+            return;
+        }
+    }
+
+    if (newIndex !== historyIndex) {
+        setHistoryIndex(newIndex);
+        setInput(promptHistory[newIndex]);
+    }
+  };
+
   return {
     threads,
     activeThread,
@@ -127,6 +198,7 @@ export const useChat = () => {
     setInput,
     setSidebarOpen,
     sendMessage,
-    createNewThread
+    createNewThread,
+    navigateHistory
   };
 };

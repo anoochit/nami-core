@@ -11,14 +11,14 @@ use tokio::fs;
 #[derive(Serialize, Deserialize, JsonSchema, Clone)]
 struct Todo {
     id: usize,
-    task: String,
+    description: String,
     done: bool,
 }
 
 #[derive(Deserialize, JsonSchema)]
 struct AddTodoArgs {
-    /// The task description.
-    task: String,
+    /// The todo description.
+    description: String,
 }
 
 #[derive(Deserialize, JsonSchema)]
@@ -53,46 +53,46 @@ async fn save_todos(todos: &[Todo]) -> std::result::Result<(), AdkError> {
         .map_err(|e| AdkError::tool(format!("Failed to write todos: {}", e)))
 }
 
-/// Adds a new task to the TODO list.
+/// Adds a new todo item to the TODO list.
 #[tool]
 async fn add_todo(args: AddTodoArgs) -> std::result::Result<Value, AdkError> {
     let mut todos = load_todos().await?;
     let next_id = todos.iter().map(|t| t.id).max().unwrap_or(0) + 1;
     let new_todo = Todo {
         id: next_id,
-        task: args.task.clone(),
+        description: args.description.clone(),
         done: false,
     };
     todos.push(new_todo);
     save_todos(&todos).await?;
-    Ok(json!({"status": "success", "message": format!("Added todo: {}", args.task), "id": next_id}))
+    Ok(json!({"status": "success", "message": format!("Added todo item: {}", args.description), "id": next_id}))
 }
 
-/// Lists all tasks in the TODO list.
+/// Lists all todo items in the TODO list.
 #[tool]
 async fn list_todos(_args: Value) -> std::result::Result<Value, AdkError> {
     let todos = load_todos().await?;
     if todos.is_empty() {
         Ok(json!({"message": "Your TODO list is empty."}))
     } else {
-        Ok(json!({ "todos": todos }))
+        Ok(json!({ "todo_items": todos }))
     }
 }
 
-/// Marks a task as completed.
+/// Marks a todo item as completed.
 #[tool]
 async fn mark_todo_done(args: TodoIdArgs) -> std::result::Result<Value, AdkError> {
     let mut todos = load_todos().await?;
     if let Some(todo) = todos.iter_mut().find(|t| t.id == args.id) {
         todo.done = true;
         save_todos(&todos).await?;
-        Ok(json!({"status": "success", "message": format!("Marked todo #{} as done", args.id)}))
+        Ok(json!({"status": "success", "message": format!("Marked todo item #{} as done", args.id)}))
     } else {
-        Err(AdkError::tool(format!("Todo #{} not found", args.id)))
+        Err(AdkError::tool(format!("Todo item #{} not found", args.id)))
     }
 }
 
-/// Removes a task from the TODO list.
+/// Removes a todo item from the TODO list.
 #[tool]
 async fn remove_todo(args: TodoIdArgs) -> std::result::Result<Value, AdkError> {
     let mut todos = load_todos().await?;
@@ -100,9 +100,9 @@ async fn remove_todo(args: TodoIdArgs) -> std::result::Result<Value, AdkError> {
     todos.retain(|t| t.id != args.id);
     if todos.len() < initial_len {
         save_todos(&todos).await?;
-        Ok(json!({"status": "success", "message": format!("Removed todo #{}", args.id)}))
+        Ok(json!({"status": "success", "message": format!("Removed todo item #{}", args.id)}))
     } else {
-        Err(AdkError::tool(format!("Todo #{} not found", args.id)))
+        Err(AdkError::tool(format!("Todo item #{} not found", args.id)))
     }
 }
 

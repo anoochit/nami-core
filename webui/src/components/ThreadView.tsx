@@ -3,19 +3,8 @@ import { Bot, Send, PanelLeftOpen, PanelLeftClose } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { cn } from '../lib/utils';
-
-interface Message {
-  id: string;
-  sender: 'user' | 'agent';
-  text: string;
-}
-
-interface Thread {
-  id: string;
-  title: string;
-  messages: Message[];
-  sessionId?: string;
-}
+import type { Thread } from '../hooks/useChat';
+import { ToolAccordion } from './ToolAccordion';
 
 interface ThreadViewProps {
   thread: Thread;
@@ -24,11 +13,22 @@ interface ThreadViewProps {
   onToggleSidebar: () => void;
   onInputChange: (val: string) => void;
   onSendMessage: () => void;
+  onNavigateHistory: (direction: 'up' | 'down') => void;
   isLoading: boolean;
   error?: string;
 }
 
-export const ThreadView: React.FC<ThreadViewProps> = ({ thread, input, sidebarOpen, onToggleSidebar, onInputChange, onSendMessage, isLoading, error }) => {
+export const ThreadView: React.FC<ThreadViewProps> = ({ 
+  thread, 
+  input, 
+  sidebarOpen, 
+  onToggleSidebar, 
+  onInputChange, 
+  onSendMessage, 
+  onNavigateHistory,
+  isLoading, 
+  error 
+}) => {
   const scrollRef = useRef<HTMLDivElement>(null);
   const isLastMessage = (id: string) => id === thread.messages[thread.messages.length - 1]?.id;
 
@@ -47,9 +47,7 @@ export const ThreadView: React.FC<ThreadViewProps> = ({ thread, input, sidebarOp
         <h2 className="font-semibold text-center">
           {thread.title} {thread.sessionId && <div className="text-xs text-gray-500 font-normal">({thread.sessionId})</div>}
         </h2>
-        <div className="w-8">
-             
-        </div>
+        <div className="w-8"/>
       </header>
 
       <div className="flex-1 overflow-y-auto p-4 space-y-4" ref={scrollRef}>
@@ -57,10 +55,23 @@ export const ThreadView: React.FC<ThreadViewProps> = ({ thread, input, sidebarOp
           <div key={m.id} className={cn("flex gap-3", m.sender === 'user' ? "justify-end" : "justify-start")}>
             {m.sender === 'agent' && <div className="w-8 h-8 flex items-center justify-center bg-gray-800 text-white rounded-full shrink-0"><Bot size={16} /></div>}
             <div className={cn("p-3 rounded-2xl prose prose-base text-base", m.sender === 'user' ? "bg-black text-white" : "bg-gray-100 text-gray-800")}>
+              
+              {m.toolCall && (
+                <ToolAccordion 
+                  title={`Tool: ${m.toolCall.name}`}
+                  args={m.toolCall.args}
+                  result={m.toolCall.result}
+                />
+              )}
+
               {m.sender === 'agent' ? (
-                <ReactMarkdown remarkPlugins={[remarkGfm]}>{m.text}</ReactMarkdown>
+                <div className="prose max-w-none">
+                  <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                    {m.text}
+                  </ReactMarkdown>
+                </div>
               ) : (
-                m.text
+                <div className="whitespace-pre-wrap">{m.text}</div>
               )}
 
               {isLoading && isLastMessage(m.id) && m.sender === 'agent' && (
@@ -81,7 +92,11 @@ export const ThreadView: React.FC<ThreadViewProps> = ({ thread, input, sidebarOp
           <input 
             value={input} 
             onChange={(e) => onInputChange(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && onSendMessage()}
+            onKeyDown={(e) => {
+                if (e.key === 'Enter') onSendMessage();
+                if (e.key === 'ArrowUp') { e.preventDefault(); onNavigateHistory('up'); }
+                if (e.key === 'ArrowDown') { e.preventDefault(); onNavigateHistory('down'); }
+            }}
             className="flex-1 bg-transparent px-4 py-2 outline-none" 
             placeholder="Message..."
           />
