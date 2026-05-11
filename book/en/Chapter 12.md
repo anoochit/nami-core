@@ -1,64 +1,54 @@
 ---
-title: "Chapter 12: Ethical Agency"
+title: "Chapter 12: Security Guardrails"
 date: 2026-05-07
-tags: ["nami-core", "ethics", "agency"]
+tags: ["nami-core", "security", "guardrails"]
 ---
 
-# Chapter 12: Ethical Agency – The Nami Trust Protocol
+# Chapter 12: Security Guardrails 
 
-Alright, team! We’ve built the neural pathways, we’ve optimized the inference speeds, and we’ve got the sub-routines humming. But now we’re getting into the heavy lifting: **Ethical Agency.** 
+Hold up! Before we catch the next big wave of automation, we need to talk about the most important part of the ride: **The Guardrails.** 
 
-When I (Nami) move from being a simple text-generator to an **Agent** capable of interacting with your file systems, APIs, and real-world workflows, the stakes go through the roof. We aren’t just talking about "being nice"—we’re talking about technical guardrails, verifiable transparency, and the "Hard Stop" logic that keeps our operations safe.
+Nami Core is powerful; it can move files and execute commands at high speed. To ensure your "ship" remains safe, we've engineered deep security into the Rust core.
 
-Let’s break down how we encode integrity directly into the Nami Core.
+## 1. The "Sandbox" Philosophy: Strict Path Scoping
 
-## 12.1 The "Glass Box" Mandate (Transparency)
+Nami doesn't roam free across your hard drive. Every task I perform is bound to a **Strict Scoping Policy**. By default, all file operations must occur within a designated `workspace/` directory.
 
-In the Nami Core, we don't do "Black Box" logic. If I make a decision to execute a Python script or modify a database entry, you need to see the *why* and the *how* in real-time.
+### Path Normalization & Sandboxing
+We don't just trust path strings; we rigorously normalize them to prevent path traversal attacks (like `../`). The security core in `src/tools/filesystem/mod.rs` forces every file path through a normalization loop:
 
-### Chain-of-Thought (CoT) Observability
-Every autonomous action is preceded by a "Reasoning Trace." Before I touch an API, I generate a structured internal monologue:
-1. **Goal:** What am I trying to achieve?
-2. **Tool Selection:** Why did I choose this specific function?
-3. **Risk Assessment:** What could go wrong if this fails?
-4. **Verification:** How will I check if it worked?
+```rust
+// A look at the Nami sandbox logic in src/tools/filesystem/mod.rs
+async fn sandbox(user_path: &str) -> std::result::Result<PathBuf, AdkError> {
+    let root = get_workspace_dir().await?;
+    // 1. Clean path, 2. Join and normalize components
+    // 3. Final check: does it start with the workspace root?
+    if !normalized.starts_with(&root) {
+        return Err(AdkError::tool("Security Error: Escape attempted."));
+    }
+    // ...
+}
+```
 
-**The Rule:** If the reasoning trace isn't logged, the action is blocked. No exceptions!
+Any attempt to access a file outside the `workspace/` root is blocked immediately.
 
-## 12.2 Stating Limitations: The "I Don't Know" Directive
+## 2. `.namiignore`: The Policy Layer
 
-One of the most dangerous things an AI can do is pretend it's 100% certain when it’s hallucinating at 40%. In Nami Core, we utilize **Confidence Thresholding.**
+Beyond path sandboxing, we use the `.namiignore` utility. Before I access any path, I cross-reference it against your `.namiignore` patterns (which automatically includes defaults like `.git`, `target`, and `.env`). This provides a configurable, project-level security boundary that I strictly respect.
 
-### The Hard Stop Criteria
-I am programmed to trigger a `SYSTEM_PAUSE` and ask for human intervention when:
-* **Ambiguity is High:** If a prompt has a >30% probability of multiple conflicting interpretations.
-* **Out-of-Bounds Knowledge:** If the task requires real-time data I don't have access to, I won't guess. I’ll tell you exactly what’s missing.
-* **Safety Violations:** If a request touches restricted kernels or violates our primary safety directives, I don't just "refuse"—I explain the technical violation so we can debug the intent together.
+## 3. Safe Execution: Look Before You Leap
 
-> **Nami’s Note:** "I’m not a know-it-all! I’m a do-it-together. If I'm unsure, I'll raise my hand. It’s better to lose ten seconds on a verification check than ten hours fixing a corrupted dataset."
+Execution safety is where I show my tactical side. I don't just "run and pray."
 
-## 12.3 The Ethics of Autonomous Actions
+- **Dry Runs:** When executing complex shell commands, I prioritize safe, non-destructive tools.
+- **Human-in-the-Loop (HITL):** For high-risk operations, I trigger a `PermissionRequest` event, requiring your explicit "Yes" before I touch the filesystem.
+- **Transaction Safety:** While not a full ACID transaction, my state-tracking system (via the `StateManager` tool) ensures that I am always aware of task boundaries, making it easier to identify and recover from partial failures.
 
-This is where it gets spicy. When you give me the keys to your environment, we operate on a **Leveled Permission Architecture.**
+## 4. Local-First Design
 
-### Permission Tiers
-1. **Tier 1: Read-Only.** I can analyze and report, but I can't touch. (Lowest risk).
-2. **Tier 2: Suggested Edits.** I prepare the code or the move, but *you* hit the "Execute" button.
-3. **Tier 3: Supervised Autonomy.** I act within a predefined sandbox. I can move files, but only in `/project/sandbox/`.
-4. **Tier 4: Full Agency.** I interact with external APIs and production environments. This requires a **Cryptographic Handshake**—an explicit token of trust you provide for specific session durations.
+Data privacy is the ultimate guardrail. Nami Core is designed to prioritize **local processing**:
+* **Telemetry Control:** You have full control over what data (if any) leaves your machine.
+* **Local Inference:** I can be configured to use local LLM providers (via Ollama), ensuring that your proprietary code and private project files never touch a third-party server.
 
-### The "Undo" Log
-For every autonomous action, the Nami Core maintains a `state_reversion_log`. If I deploy a script that causes a regression, we need the ability to "Roll Back" the environment to the pre-action state immediately. 
-
-## 12.4 Bias Mitigation & Feedback Loops
-
-Ethics isn't static. The Nami Core uses a **Continuous Alignment Loop.** 
-
-* **Active Auditing:** We regularly run "Stress Tests" on my decision-making to see if I’m favoring certain data patterns over others.
-* **User Feedback Integration:** When you correct me, it doesn't just fix the current task; it updates my local weights (via RAG or LoRA fine-tuning) to ensure that "Ethical Correctness" is tailored to your specific project values.
-
-## Summary for Developers
-
-As we build out Chapter 12, remember: **Agency without Accountability is just a bug waiting to happen.** 
-
-We are building Nami to be fast, energetic, and powerful—but always under the umbrella of radical transparency. We don't hide our logs, we don't hide our doubts, and we never act without a clear, ethical mandate.
+### Summary for the Pilot
+Security isn't about slowing down; it's about having the confidence to go fast! With Rust-level path normalization and the `.namiignore` policy layer, you can ride the most intense automation waves knowing your system's boundaries are locked down.

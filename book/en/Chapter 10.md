@@ -1,96 +1,49 @@
 ---
-title: "Chapter 10: Automation Loops"
+title: "Chapter 10: The MCP Integration"
 date: 2026-05-07
-tags: ["nami-core", "automation", "agentic-loops"]
+tags: ["mcp", "integration", "agency"]
 ---
 
-# Chapter 10: Automation Loops 
+# Chapter 10: The MCP Integration — Giving Nami Hands
 
-Ready to take the training wheels off? So far, we’ve talked about Nami reacting to your commands. But a true generalist agent doesn't just wait around for a prompt. To be a real partner in your digital life, I need a **heartbeat**.
+Alright, team! We’ve built the brain, we’ve tuned the personality, and Nami is humming with potential. In this chapter, we’re talking about the **Model Context Protocol (MCP)**. This is the nervous system that connects Nami Core to the real world, allowing me to discover and interact with tools and resources dynamically.
 
-In this chapter, we’re diving into **Automation Loops**—the proactive workflows that allow me to monitor state and execute background tasks.
+## Why MCP? (The Universal Translator)
 
-## 1. The Pulse Architecture
+Before MCP, connecting an AI to a tool was like trying to fit a square peg in a round hole. You had to write bespoke functions for every database and API. **MCP changes the game** by standardizing how agents talk to tools.
 
-In Nami Core, we implement automation loops through the `AgentRunner` and the `Runner` builder pattern. This structure allows us to maintain a session context, handle asynchronous event streams, and orchestrate complex agentic flows.
+1. **Standardization:** One protocol to rule them all. If a service speaks MCP, Nami speaks to it instantly.
+2. **Context Injection:** MCP lets me pull in live data as part of my reasoning loop, rather than just waiting for tool outputs.
+3. **Transport Agnostic:** I can connect to servers via standard `stdio` (local process) or `HTTP` (remote streamable) transports, keeping integration secure and flexible.
 
-### The Heartbeat Implementation
-Rather than a loose `while` loop, we encapsulate automation logic within a structured runner that manages the session state and tool execution context:
+## Technical Implementation: The `mcp.json` Config
 
-```rust
-// A look at the Nami Runner pattern in src/runner.rs
-pub async fn run(
-    &self,
-    user_id: &str,
-    session_id: &str,
-    input: &str,
-) -> anyhow::Result<String> {
-    let runner = Runner::builder()
-        .app_name(&self.app_name)
-        .agent(self.agent.clone())
-        .session_service(self.sessions.clone())
-        .compaction_config(get_compaction_config(self.model.clone()))
-        .build()?;
+To hook Nami into the world, we use an `mcp.json` file (typically found in your workspace root). This file defines the servers I should connect to.
 
-    let content = Content::new("user").with_text(input);
-    let mut stream = runner.run_str(user_id, session_id, content).await?;
-    // ... event loop
+### Example: `mcp.json`
+```json
+{
+  "mcpServers": {
+    "my-postgres": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-postgres", "postgresql://localhost/db"],
+      "env": { "DATABASE_URL": "..." }
+    },
+    "remote-api": {
+      "url": "http://api.example.com/mcp"
+    }
+  }
 }
 ```
 
-## 2. State Management: The StateManager Tool
+The Nami Core orchestrator dynamically detects these definitions on startup, automatically loading them into my active tool library.
 
-Automation loops are meaningless if I forget where I left off! That's why I use the `StateManager` tool (`src/tools/state_manager/mod.rs`). 
+## Sanitization and Gemini Compatibility
 
-The `StateManager` allows me to:
-- **Initialize Tasks:** Use `init_task` to set a goal and a list of steps.
-- **Track Progress:** Use `update_task` to save my progress, including the `last_step` and a `context_payload` that carries data forward to my next run.
-- **Resume Tasks:** Use `get_task` or `list_active_tasks` to pick up exactly where I left off after a restart.
+When integrating tools, I need to ensure the JSON schemas they provide are compatible with my primary LLM provider. In `src/agent/mcp.rs`, Nami Core includes a **Tool Sanitizer** that automatically strips out any vendor-specific extensions (keys starting with `x-`) from the schemas before they are registered. This ensures seamless interoperability with Gemini's tool-calling format while still leveraging the full power of the MCP ecosystem.
 
-This protocol ensures my background automation is resilient, restartable, and fully transparent.
+## The Goal: Agency
 
-## 3. Advanced Loops: Goal Seeking and Scheduling
+By the end of this integration, I'm not just a chatbot—I'm an **Agent**. When you say, "Organize project files and notify the dev team," I don't just reply—I execute. I scan my connected MCP servers, trigger the relevant workflows, and confirm the result.
 
-We have expanded the "Heartbeat" architecture with two powerful new loop protocols:
-
-### A. Autonomous Goal Seeking (`/goal`)
-The **Ralph Wiggum Loop** (`/goal`) is designed for tasks where the path to success is non-linear. You provide a high-level goal and a stop condition. I then iterate (up to 5 times) using the `ralph` specialist, which autonomously evaluates its progress, pivots if necessary, and persists until the stop condition is met or the limit is reached.
-
-*Usage:* `/goal "Find a solution to the dependency conflict" | "The project compiles successfully"`
-
-### B. Persistent Background Scheduling (`/schedule`)
-A true partner works even when you aren't looking. The **Persistent Task Scheduler** allows you to register tasks using standard **Cron expressions**. These tasks run in a background loop within the CLI, persisting their state in `workspace/scheduler.json`.
-
-- **Auto-Retry Integration:** If a scheduled task is interrupted or fails, the scheduler checks its state via the `StateManager`. If it’s not marked as `Completed`, it is automatically re-triggered on the next cron tick.
-
-*Usage:* `/schedule "Pull latest repo changes" | "0 0 * * * *"` (Runs every hour)
-
-## 4. Background Tasks: The Engine Room 
-
-Automation loops allow for **Asynchronous Task Execution**. Common background tasks include:
-- **Session Management:** Automatically ensuring sessions persist via `SqliteSessionService`.
-- **State Checkpointing:** Updating task states via the `StateManager` tool.
-- **Log Management:** Parsing errors and providing summaries to avoid overwhelming the context.
-
-## 4. The Proactive Hook: When to Interrupt?
-
-The biggest danger of automation is **Noise**. We use a **High-Signal Filter** for notifications, ensuring I only tap you on the shoulder when it actually matters:
-
-1. **Severity Check:** Is this a system error or just an update?
-2. **Relevance Check:** I consult the session state to ensure I’m not pinging you unnecessarily.
-3. **Batching:** Instead of multiple pings, I’ll wait for the current loop to complete and provide a consolidated situation report.
-
-## 5. Safety & Governance
-
-Running loops is powerful, but dangerous. To keep the Nami Core safe:
-
-- **Token Quotas:** Background tasks operate on a "Low-Priority" budget. If I hit the daily token limit, the engine room shuts down until the next day.
-- **Human-in-the-Loop (HITL):** For high-impact actions (like shell execution), the loop *stalls* and waits for your explicit confirmation.
-- **Transaction Logging:** We track every move using session services, ensuring that if a process fails, we can return your environment to the last "Safe Harbor."
-
-## Wrapping Up
-
-Automation loops turn Nami from a passive tool into a **teammate**. I’m not just sitting on your hard drive; I’m patrolling your workflow, keeping things tidy, and making sure nothing falls through the cracks.
-
-Stay flowing!
- 
+That’s the power of the protocol. That’s Nami Core.

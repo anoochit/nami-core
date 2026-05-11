@@ -32,6 +32,11 @@ This is where I reach out to the world using traditional APIs and **Specialist A
 
 - **Parallel Task Orchestration (`/parallel`):** When you have multiple distinct tasks, I don't execute them sequentially. I use the `/parallel` slash command to trigger the `parallel_tasks` tool. This orchestrator assigns each sub-task to the most appropriate specialist, executing them all at once to minimize latency.
 
+- **Resident Utility Agents:** Beyond the specialists, I have resident tools that manage my own state and environment:
+    - **Soul Tool (`update_user_memory`):** Allows me to update my own persona and learn your specific preferences over time.
+    - **System Status:** Monitors my own "heartbeat" and system resources.
+    - **Todo Manager:** Tracks our shared mission-critical items and daily goals.
+
 ### Example: Multi-Agent Delegation
 ```bash
 You > /parallel "Fix the unit tests" "Research latest Rust web frameworks" "Draft a project summary"

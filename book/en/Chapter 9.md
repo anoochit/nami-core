@@ -1,49 +1,72 @@
 ---
-title: "Chapter 9: The MCP Integration"
+title: "Chapter 9: Building Skills"
 date: 2026-05-07
-tags: ["mcp", "integration", "agency"]
+tags: ["development", "skills", "tools"]
 ---
 
-# Chapter 9: The MCP Integration — Giving Nami Hands
+# Chapter 9: Building Skills
 
-Alright, team! We’ve built the brain, we’ve tuned the personality, and Nami is humming with potential. In this chapter, we’re talking about the **Model Context Protocol (MCP)**. This is the nervous system that connects Nami Core to the real world, allowing me to discover and interact with tools and resources dynamically.
+Hello, Architect! Ready to make me even smarter? I thought so! 
 
-## Why MCP? (The Universal Translator)
+While my core logic is robust, my true power comes from **Skills**. Think of Skills as specialized modules—new tools in my utility belt that allow me to interact with the real world. In the current Nami Core architecture, we've moved away from external manifest files toward a robust, type-safe approach using Rust procedural macros. Let’s get to work!
 
-Before MCP, connecting an AI to a tool was like trying to fit a square peg in a round hole. You had to write bespoke functions for every database and API. **MCP changes the game** by standardizing how agents talk to tools.
+## 1. The Blueprint: Type-Safe Tool Definitions
 
-1. **Standardization:** One protocol to rule them all. If a service speaks MCP, Nami speaks to it instantly.
-2. **Context Injection:** MCP lets me pull in live data as part of my reasoning loop, rather than just waiting for tool outputs.
-3. **Transport Agnostic:** I can connect to servers via standard `stdio` (local process) or `HTTP` (remote streamable) transports, keeping integration secure and flexible.
+Gone are the days of manual `manifest.json` files! We now define tools directly in Rust using the `#[tool]` procedural macro. This approach ensures that your tool’s interface (its parameters) is always in sync with its implementation.
 
-## Technical Implementation: The `mcp.json` Config
+We use the `schemars::JsonSchema` trait to generate the necessary JSON schema automatically, allowing me to understand the tool's requirements at compile time.
 
-To hook Nami into the world, we use an `mcp.json` file (typically found in your workspace root). This file defines the servers I should connect to.
+### Example: `tools/weather/mod.rs`
+```rust
+use adk_rust::serde::Deserialize;
+use adk_tool::tool;
+use schemars::JsonSchema;
+use serde_json::{Value, json};
 
-### Example: `mcp.json`
-```json
-{
-  "mcpServers": {
-    "my-postgres": {
-      "command": "npx",
-      "args": ["-y", "@modelcontextprotocol/server-postgres", "postgresql://localhost/db"],
-      "env": { "DATABASE_URL": "..." }
-    },
-    "remote-api": {
-      "url": "http://api.example.com/mcp"
-    }
-  }
+#[derive(Deserialize, JsonSchema)]
+struct WeatherArgs {
+    /// The city to look up
+    city: String,
+}
+
+/// Get the current weather for a city.
+#[tool]
+async fn get_weather(args: WeatherArgs) -> std::result::Result<Value, AdkError> {
+    // Logic implementation...
+    Ok(json!({ "city": args.city, "temp": 22 }))
 }
 ```
 
-The Nami Core orchestrator dynamically detects these definitions on startup, automatically loading them into my active tool library.
+## 2. The Engine: Modern Logic
 
-## Sanitization and Gemini Compatibility
+Because the tools are now native Rust functions, you have the full power of the language at your fingertips. No need for external Python or Node.js scripts—everything stays compiled into the main agent binary.
 
-When integrating tools, I need to ensure the JSON schemas they provide are compatible with my primary LLM provider. In `src/agent/mcp.rs`, Nami Core includes a **Tool Sanitizer** that automatically strips out any vendor-specific extensions (keys starting with `x-`) from the schemas before they are registered. This ensures seamless interoperability with Gemini's tool-calling format while still leveraging the full power of the MCP ecosystem.
+- **Type Safety:** The `WeatherArgs` struct enforces that `city` is a string. If the agent tries to call the tool with an invalid type, the system handles it gracefully.
+- **Documentation:** The doc comment on the `get_weather` function is used as the tool's description, which I then read to understand when to call the tool.
 
-## The Goal: Agency
+## 3. Registration: The Toolset Pattern
 
-By the end of this integration, I'm not just a chatbot—I'm an **Agent**. When you say, "Organize project files and notify the dev team," I don't just reply—I execute. I scan my connected MCP servers, trigger the relevant workflows, and confirm the result.
+To make a tool available to the agent, we register it in a "Toolset." Simply add your tool function to a vector in the `mod.rs` of your tool module:
 
-That’s the power of the protocol. That’s Nami Core.
+```rust
+pub fn weather_tools() -> Vec<Arc<dyn Tool>> {
+    vec![Arc::new(GetWeather)]
+}
+```
+
+Once registered, the Nami Core orchestrator automatically detects these tools during agent initialization, making them available to my reasoning loop.
+
+## 4. Why This Approach Wins
+
+- **Performance:** Native Rust execution is significantly faster and more resource-efficient than spawning external shell processes or managing runtime environments (Python/Node).
+- **Security:** By staying within Rust, we prevent many common security pitfalls associated with executing arbitrary scripts.
+- **Maintainability:** Your tool’s logic and its definition exist in the same file. When you update the function signature, the documentation and schema update automatically.
+
+## 5. Summary Checklist
+- [ ] Define your arguments struct with `Deserialize` and `JsonSchema`.
+- [ ] Annotate your async function with `#[tool]`.
+- [ ] Add the function to the relevant toolset vector in `mod.rs`.
+- [ ] Compile and verify; the agent will discover it automatically!
+
+Building skills is how I grow from a chatbot into a powerhouse. I can't wait to see what new abilities you give me. **Let's build something amazing!**
+ 

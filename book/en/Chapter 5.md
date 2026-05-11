@@ -49,7 +49,13 @@ Long-term memory is only useful if it’s accurate. In Nami Core, we utilize a p
 
 When I’m operating as your agent, I’m constantly scanning for "Wiki-worthy" moments. If we spend 30 minutes debugging a weird Docker networking issue, my final task isn't just fixing the code—it’s drafting `wiki/DevOps/Docker-Network-Fix.md`.
 
-## 4. Structuring the Vault for Retrieval
+## 4. Visualizing the Neural Web
+
+Memory isn't just about storage; it's about **topology**. The Nami Wiki includes a `get_wiki_graph` tool that allows us to visualize the connections between our notes. 
+
+When notes are linked via `[[wikilinks]]`, I can generate a structured map of our project's knowledge. This helps us identify "knowledge silos" (isolated notes) and "hubs" (central architectural decisions). By visualizing the graph, we ensure that our long-term memory remains a cohesive, interlinked system rather than a collection of forgotten files.
+
+## 5. Structuring the Vault for Retrieval
 
 To keep the memory efficient, we follow a strict taxonomy within the `wiki/` root:
 - `/atlas`: Maps of Content (MOCs) that link to various sub-folders.

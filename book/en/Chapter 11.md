@@ -1,54 +1,96 @@
 ---
-title: "Chapter 11: Security Guardrails"
+title: "Chapter 11: Automation Loops"
 date: 2026-05-07
-tags: ["nami-core", "security", "guardrails"]
+tags: ["nami-core", "automation", "agentic-loops"]
 ---
 
-# Chapter 11: Security Guardrails 
+# Chapter 11: Automation Loops 
 
-Hold up! Before we catch the next big wave of automation, we need to talk about the most important part of the ride: **The Guardrails.** 
+Ready to take the training wheels off? So far, we’ve talked about Nami reacting to your commands. But a true generalist agent doesn't just wait around for a prompt. To be a real partner in your digital life, I need a **heartbeat**.
 
-Nami Core is powerful; it can move files and execute commands at high speed. To ensure your "ship" remains safe, we've engineered deep security into the Rust core.
+In this chapter, we’re diving into **Automation Loops**—the proactive workflows that allow me to monitor state and execute background tasks.
 
-## 1. The "Sandbox" Philosophy: Strict Path Scoping
+## 1. The Pulse Architecture
 
-Nami doesn't roam free across your hard drive. Every task I perform is bound to a **Strict Scoping Policy**. By default, all file operations must occur within a designated `workspace/` directory.
+In Nami Core, we implement automation loops through the `AgentRunner` and the `Runner` builder pattern. This structure allows us to maintain a session context, handle asynchronous event streams, and orchestrate complex agentic flows.
 
-### Path Normalization & Sandboxing
-We don't just trust path strings; we rigorously normalize them to prevent path traversal attacks (like `../`). The security core in `src/tools/filesystem/mod.rs` forces every file path through a normalization loop:
+### The Heartbeat Implementation
+Rather than a loose `while` loop, we encapsulate automation logic within a structured runner that manages the session state and tool execution context:
 
 ```rust
-// A look at the Nami sandbox logic in src/tools/filesystem/mod.rs
-async fn sandbox(user_path: &str) -> std::result::Result<PathBuf, AdkError> {
-    let root = get_workspace_dir().await?;
-    // 1. Clean path, 2. Join and normalize components
-    // 3. Final check: does it start with the workspace root?
-    if !normalized.starts_with(&root) {
-        return Err(AdkError::tool("Security Error: Escape attempted."));
-    }
-    // ...
+// A look at the Nami Runner pattern in src/runner.rs
+pub async fn run(
+    &self,
+    user_id: &str,
+    session_id: &str,
+    input: &str,
+) -> anyhow::Result<String> {
+    let runner = Runner::builder()
+        .app_name(&self.app_name)
+        .agent(self.agent.clone())
+        .session_service(self.sessions.clone())
+        .compaction_config(get_compaction_config(self.model.clone()))
+        .build()?;
+
+    let content = Content::new("user").with_text(input);
+    let mut stream = runner.run_str(user_id, session_id, content).await?;
+    // ... event loop
 }
 ```
 
-Any attempt to access a file outside the `workspace/` root is blocked immediately.
+## 2. State Management: The StateManager Tool
 
-## 2. `.namiignore`: The Policy Layer
+Automation loops are meaningless if I forget where I left off! That's why I use the `StateManager` tool (`src/tools/state_manager/mod.rs`). 
 
-Beyond path sandboxing, we use the `.namiignore` utility. Before I access any path, I cross-reference it against your `.namiignore` patterns (which automatically includes defaults like `.git`, `target`, and `.env`). This provides a configurable, project-level security boundary that I strictly respect.
+The `StateManager` allows me to:
+- **Initialize Tasks:** Use `init_task` to set a goal and a list of steps.
+- **Track Progress:** Use `update_task` to save my progress, including the `last_step` and a `context_payload` that carries data forward to my next run.
+- **Resume Tasks:** Use `get_task` or `list_active_tasks` to pick up exactly where I left off after a restart.
 
-## 3. Safe Execution: Look Before You Leap
+This protocol ensures my background automation is resilient, restartable, and fully transparent.
 
-Execution safety is where I show my tactical side. I don't just "run and pray."
+## 3. Advanced Loops: Goal Seeking and Scheduling
 
-- **Dry Runs:** When executing complex shell commands, I prioritize safe, non-destructive tools.
-- **Human-in-the-Loop (HITL):** For high-risk operations, I trigger a `PermissionRequest` event, requiring your explicit "Yes" before I touch the filesystem.
-- **Transaction Safety:** While not a full ACID transaction, my state-tracking system (via the `StateManager` tool) ensures that I am always aware of task boundaries, making it easier to identify and recover from partial failures.
+We have expanded the "Heartbeat" architecture with two powerful new loop protocols:
 
-## 4. Local-First Design
+### A. Autonomous Goal Seeking (`/goal`)
+The **Ralph Wiggum Loop** (`/goal`) is designed for tasks where the path to success is non-linear. You provide a high-level goal and a stop condition. I then iterate (up to 5 times) using the `ralph` specialist, which autonomously evaluates its progress, pivots if necessary, and persists until the stop condition is met or the limit is reached.
 
-Data privacy is the ultimate guardrail. Nami Core is designed to prioritize **local processing**:
-* **Telemetry Control:** You have full control over what data (if any) leaves your machine.
-* **Local Inference:** I can be configured to use local LLM providers (via Ollama), ensuring that your proprietary code and private project files never touch a third-party server.
+*Usage:* `/goal "Find a solution to the dependency conflict" | "The project compiles successfully"`
 
-### Summary for the Pilot
-Security isn't about slowing down; it's about having the confidence to go fast! With Rust-level path normalization and the `.namiignore` policy layer, you can ride the most intense automation waves knowing your system's boundaries are locked down.
+### B. Persistent Background Scheduling (`/schedule`)
+A true partner works even when you aren't looking. The **Persistent Task Scheduler** allows you to register tasks using standard **Cron expressions**. These tasks run in a background loop within the CLI, persisting their state in `workspace/scheduler.json`.
+
+- **Auto-Retry Integration:** If a scheduled task is interrupted or fails, the scheduler checks its state via the `StateManager`. If it’s not marked as `Completed`, it is automatically re-triggered on the next cron tick.
+
+*Usage:* `/schedule "Pull latest repo changes" | "0 0 * * * *"` (Runs every hour)
+
+## 4. Background Tasks: The Engine Room 
+
+Automation loops allow for **Asynchronous Task Execution**. Common background tasks include:
+- **Session Management:** Automatically ensuring sessions persist via `SqliteSessionService`.
+- **State Checkpointing:** Updating task states via the `StateManager` tool.
+- **Log Management:** Parsing errors and providing summaries to avoid overwhelming the context.
+
+## 4. The Proactive Hook: When to Interrupt?
+
+The biggest danger of automation is **Noise**. We use a **High-Signal Filter** for notifications, ensuring I only tap you on the shoulder when it actually matters:
+
+1. **Severity Check:** Is this a system error or just an update?
+2. **Relevance Check:** I consult the session state to ensure I’m not pinging you unnecessarily.
+3. **Batching:** Instead of multiple pings, I’ll wait for the current loop to complete and provide a consolidated situation report.
+
+## 5. Safety & Governance
+
+Running loops is powerful, but dangerous. To keep the Nami Core safe:
+
+- **Token Quotas:** Background tasks operate on a "Low-Priority" budget. If I hit the daily token limit, the engine room shuts down until the next day.
+- **Human-in-the-Loop (HITL):** For high-impact actions (like shell execution), the loop *stalls* and waits for your explicit confirmation.
+- **Transaction Logging:** We track every move using session services, ensuring that if a process fails, we can return your environment to the last "Safe Harbor."
+
+## Wrapping Up
+
+Automation loops turn Nami from a passive tool into a **teammate**. I’m not just sitting on your hard drive; I’m patrolling your workflow, keeping things tidy, and making sure nothing falls through the cracks.
+
+Stay flowing!
+ 
