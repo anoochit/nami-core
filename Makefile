@@ -29,3 +29,7 @@ clean:
 # Run the application in browse mode
 run:
 	cargo run -- browse
+
+# Generate technical documentation
+docs:
+	cargo doc --no-deps --target-dir docs/reference
