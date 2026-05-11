@@ -12,6 +12,7 @@ All notable changes to this project will be documented in this file.
 ### Changed
 - **CLI Help Skill**: Updated `workspace/.skills/cli-help/SKILL.md` to reflect the latest slash commands and TUI features.
 - **Skill Management**: Cleaned up workspace by removing legacy Python scripts and manifests for image and infographic generation.
+- **Image Generation Tool**: Renamed internal `imagen` tool to `image_generator` and updated related agent skills.
 
 ### Removed
 - **Legacy Python Scripts**: Removed all external Python-based image generation scripts (`generate_image.py`, `generate_infographic.py`) to reduce dependency overhead.

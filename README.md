@@ -59,14 +59,14 @@ Nami Core is designed for extreme extensibility. You can add new capabilities by
 *   **Workspace Configuration**: The `webui/` workspace uses `pnpm` with a workspace configuration (`pnpm-workspace.yaml`) to optimize dependency management and build reproducibility for `esbuild` and other toolchains.
 
 ### Currently Available Skills
-*   **Book Mockup**: Generate photo-realistic book mockup images.
-*   **CLI Help**: Interactive command references and usage patterns via `cli-help`.
-*   **Publishing Suite**: Automate documentation delivery (`create-pdf`, `create-epub`).
-*   **Infographic Creator**: Scaffolding and generation for data-rich infographics.
-*   **Website Creator**: Scaffolding for static website projects.
-*   **Nami Blog Manager**: Tools for managing blog posts, metadata, and references.
-*   **Skill Creator**: Utilities for initializing, packaging, and validating new skills.
-*   **System Status**: Monitor and report on system health and agent performance.
+* **Book Mockup**: Generate photo-realistic book mockup images using the `image_generator` tool.
+* **CLI Help**: Interactive command references and usage patterns via `cli-help`.
+* **Publishing Suite**: Automate documentation delivery (`create-pdf`, `create-epub`).
+* **Infographic Creator**: Scaffolding and generation for data-rich infographics using the `image_generator` tool.
+* **Website Creator**: Scaffolding for static website projects.
+* **Nami Blog Manager**: Tools for managing blog posts, metadata, and references.
+* **Skill Creator**: Utilities for initializing, packaging, and validating new skills.
+* **System Status**: Monitor and report on system health and agent performance.
 
 *(To add a custom skill, check the `workspace/.skills/skill-creator` documentation for templates and packaging tools.)*
 
