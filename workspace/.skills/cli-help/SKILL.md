@@ -20,6 +20,7 @@ Use `nami help` at any time to display this information in the terminal.
 | `run "<prompt>"` | Execute a single prompt directly from the terminal. |
 | `bot` | Start the Telegram bot service. |
 | `serve` | Start the HTTP API server. |
+| `browse` | Start server with embedded WebUI. |
 | `help` | Display basic command-line usage instructions. |
 
 ---
@@ -31,40 +32,28 @@ Once inside the interactive CLI, you can use the following **Slash Commands** fo
 ### 🧠 Task Management
 - `/plan <goal>`  
   Initializes a structured task with specific steps and state tracking.
-  *Example:* `/plan Build a React portfolio`
-
 - `/tasks`  
   Lists all active, in-progress, or blocked tasks.
-
 - `/status`  
   Displays the current agent status and system telemetry.
 
 ### ⚡ Automation & Delegation
 - `/parallel "<task 1>" "<task 2>" ...`  
-  Orchestrates multiple specialized agents (`coder`, `researcher`, `writer`) to perform tasks simultaneously.
-  *Example:* `/parallel "Write Rust code" "Research async traits"`
-
+  Orchestrates multiple specialized agents to perform tasks simultaneously.
 - `/goal <goal> | <stop condition>`  
-  Triggers the **Ralph Wiggum** loop. The agent will autonomously retry and pivot until the stop condition is met (max 5 iterations).
-  *Example:* `/goal "Find AI news" | "Summary is written to news.md"`
-
+  Triggers the autonomous "Ralph Wiggum" loop agent, which persists through multiple iterations to achieve complex goals.
 - `/schedule <goal> | <cron expression>`  
   Registers a persistent background task using standard cron syntax.
-  *Example:* `/schedule "Backup workspace" | "0 0 * * * *"` (Runs every hour)
 
 ### 📂 Knowledge & Memory
-- `/wiki <query>`  
-  Performs a full-text search across your Obsidian-style Markdown vault.
-- `/memo <fact>`  
-  Explicitly saves a personal fact or preference to your `MEMORIES.md`.
 - `@<file_path>`  
-  Type `@` followed by a path (with tab-completion) to inject file contents into your prompt.
+  Reference files from the `workspace/` directly in the prompt using tab-completion.
+- `/wiki <query>`  
+  Searches your Obsidian-style Markdown vault.
 
 ### 🛠 System
 - `/new`  
-  Starts a fresh session ID while maintaining persistent memory.
-- `/clear`  
-  Clears the terminal screen and re-renders the banner.
+  Resets the current session while maintaining persistent memory.
 - `/exit` or `/quit`  
   Safely closes the CLI session.
 - `/?`  
@@ -99,19 +88,16 @@ You > /goal "Research the best Rust HTTP libraries and create a comparison table
 
 - **Configuration Issues**
   - Run `nami init` to regenerate missing config files.
-  - Verify your `.env` contains valid `GOOGLE_API_KEY` or `OPENAI_API_KEY`.
+  - Verify your `.env` contains valid API keys.
 
 - **Access Denied**
   - Files outside the `workspace/` or matched by `.namiignore` are restricted for safety.
-
-- **Background Tasks**
-  - Scheduled tasks run quietly in the background of the `cli` mode. Check logs if a task fails to trigger.
 
 ---
 
 ## When to Use This Skill
 
 Use this skill when:
-- You need to recall specific command syntax or cron formats.
-- You want to guide a user on how to use Nami's advanced features like Parallel or Goal loops.
+- You need to recall specific command syntax or slash commands.
+- You want to guide a user on how to use Nami's advanced features like Parallel, Goal loops, or Task management.
 - You are optimizing your CLI-based AI workflow.

@@ -1,6 +1,6 @@
 use crate::utils::sandbox;
-use adk_rust::prelude::*;
 use adk_gemini::{Gemini, Part};
+use adk_rust::prelude::*;
 use adk_rust::serde::Deserialize;
 use adk_tool::tool;
 use base64::{Engine as _, engine::general_purpose};
@@ -19,8 +19,7 @@ async fn imagen(args: ImagenArgs) -> std::result::Result<Value, AdkError> {
     let api_key = std::env::var("GOOGLE_API_KEY")
         .map_err(|_| AdkError::tool("GOOGLE_API_KEY environment variable not set"))?;
 
-    // ✅ From the README: image generation uses a Flash/image-preview model,
-    //    not "imagen-3.0-generate-001" (that's the Python genai SDK name).
+    // From the README: image generation uses a Flash/image-preview model
     let model = "models/gemini-2.5-flash-image-preview".to_string();
     let client = Gemini::with_model(api_key, model)
         .map_err(|e| AdkError::tool(format!("Failed to create Gemini client: {}", e)))?;
@@ -37,9 +36,9 @@ async fn imagen(args: ImagenArgs) -> std::result::Result<Value, AdkError> {
         .await
         .map_err(|e| AdkError::tool(format!("Image generation failed: {}", e)))?;
 
-    // ✅ From the README: parts is Option<Vec<Part>>, so unwrap it first.
-    //    The image variant is Part::InlineData { inline_data } where
-    //    inline_data.data is base64-encoded and inline_data.mime_type identifies it.
+    // From the README: parts is Option<Vec<Part>>, so unwrap it first.
+    // The image variant is Part::InlineData { inline_data } where
+    // inline_data.data is base64-encoded and inline_data.mime_type identifies it.
     let image_bytes = res
         .candidates
         .iter()
