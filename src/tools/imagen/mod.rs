@@ -10,10 +10,16 @@ use std::sync::Arc;
 
 #[derive(Deserialize, JsonSchema)]
 pub struct ImagenArgs {
+    /// The text prompt describing the image to be generated.
     pub prompt: String,
+    /// The aspect ratio for the image (e.g., "1:1", "16:9", "9:16"). Defaults to "1:1".
     pub aspect_ratio: Option<String>,
 }
 
+/// Generates a high-quality image from a text prompt using Gemini 2.5 Flash image preview.
+///
+/// This tool takes a prompt and optional aspect ratio, generates an image, and saves it
+/// as a PNG file in the `generated/` directory within the sandbox.
 #[tool]
 async fn imagen(args: ImagenArgs) -> std::result::Result<Value, AdkError> {
     let api_key = std::env::var("GOOGLE_API_KEY")
