@@ -78,6 +78,6 @@ async fn image_generator(args: ImagenArgs) -> std::result::Result<Value, AdkErro
     }))
 }
 
-pub fn imagen_tools() -> Vec<Arc<dyn Tool>> {
+pub fn image_generator_tools() -> Vec<Arc<dyn Tool>> {
     vec![Arc::new(ImageGenerator)]
 }

@@ -1,19 +1,19 @@
 ---
 name: create-infographic
-description: Generate professional infographics from text data or descriptions using the internal 'imagen' tool. Use this skill whenever the user wants to visualize data, stats, processes, comparisons, or summaries as an image — even if they say "make a chart image", "turn this into a visual", "illustrate these stats", or "create an infographic." Trigger on any request to turn structured or unstructured information into a shareable visual graphic.
+description: Generate professional infographics from text data or descriptions using the internal 'image_generator' tool. Use this skill whenever the user wants to visualize data, stats, processes, comparisons, or summaries as an image — even if they say "make a chart image", "turn this into a visual", "illustrate these stats", or "create an infographic." Trigger on any request to turn structured or unstructured information into a shareable visual graphic.
 ---
 
 # Skill: Create Infographic
 
-Transform raw data or a text description into a visually appealing infographic using the internal `imagen` tool.
+Transform raw data or a text description into a visually appealing infographic using the internal `image_generator` tool.
 
 ## Prerequisites
 
-* Ensure `GOOGLE_API_KEY` is set in your environment as the `imagen` tool requires it for authentication.
+* Ensure `GOOGLE_API_KEY` is set in your environment as the `image_generator` tool requires it for authentication.
 
 ## Usage
 
-Use the `imagen` tool directly from the terminal or via agent orchestration.
+Use the `image_generator` tool directly from the terminal or via agent orchestration.
 
 ### Example
 
@@ -42,7 +42,7 @@ The quality of the output depends heavily on the `prompt`. When the user's input
 ## Workflow
 
 1. **Gather content:** If the user hasn't provided structured data, ask what they want the infographic to show.
-2. **Call the `imagen` tool** with a detailed `prompt` that includes visual style and data structure.
+2. **Call the `image_generator` tool** with a detailed `prompt` that includes visual style and data structure.
 3. **Confirm output:** The tool saves the image to `generated/` and returns the file path. Share this path with the user.
 4. **Iterate if needed:** If the result doesn't match expectations, refine the prompt (more specific labels, different style, or ratio) and re-run.
 

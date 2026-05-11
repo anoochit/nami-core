@@ -97,20 +97,21 @@ pub async fn create_agent(
     let workspace_dir = get_workspace_dir().await?;
 
     let mut core_tools: Vec<Arc<dyn Tool>> = tools::weather::weather_tools();
-    core_tools.extend(tools::filesystem::filesystem_tools());
     core_tools.extend(tools::current_datetime::datetime_tools());
-    core_tools.extend(tools::wiki::wiki_tools());
-    core_tools.extend(tools::web_fetch::web_fetch_tools());
-    core_tools.extend(tools::system_status::system_status_tools());
-    core_tools.extend(tools::soul::soul_tools());
-    core_tools.extend(tools::search::search_tools());
-    core_tools.extend(tools::todo::todo_tools());
-    core_tools.extend(tools::state_manager::state_manager_tools());
-    core_tools.extend(tools::scheduler::scheduler_tools());
+    core_tools.extend(tools::filesystem::filesystem_tools());
+    core_tools.extend(tools::image_generator::image_generator_tools());
     core_tools.extend(tools::memory::memory_tools());
-    core_tools.extend(tools::image_generator::imagen_tools());
+    core_tools.extend(tools::scheduler::scheduler_tools());
+    core_tools.extend(tools::search::search_tools());
+    core_tools.extend(tools::soul::soul_tools());
+    core_tools.extend(tools::state_manager::state_manager_tools());
+    core_tools.extend(tools::system_status::system_status_tools());
+    core_tools.extend(tools::todo::todo_tools());
+    core_tools.extend(tools::web_fetch::web_fetch_tools());
+    core_tools.extend(tools::wiki::wiki_tools());
 
     let specialists = specialists::get_specialists(model.clone(), core_tools.clone());
+    
     let mut builder = LlmAgentBuilder::new("nami")
         .description("A helpful and playful AI assistant")
         .instruction(format_persona(
@@ -123,6 +124,7 @@ pub async fn create_agent(
     builder = mcp::load_mcp_tools(builder).await?;
 
     let agent = builder.build()?;
+    
     Ok((Arc::new(agent), model))
 }
 
