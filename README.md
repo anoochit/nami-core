@@ -47,7 +47,6 @@ A modular, extensible AI-powered `Nami` built on top of [adk-rust](https://githu
 *   **Todo Management**: Built-in task manager for tracking goals and daily items (`add_todo`, `list_todos`, `mark_todo_done`).
 
 ### 🛠 Specialized Skills & Tools
-*   **AI Image Generation**: Integrated `Imagen` capabilities via `.skills/imagen/` for high-quality image creation.
 *   **Publishing Skills**: Compile workspace documents into distributable formats:
     *   `create-pdf`: Beautifully formatted PDF documents.
     *   `create-epub`: EPUB e-books with BOM sanitization.
@@ -60,7 +59,6 @@ Nami Core is designed for extreme extensibility. You can add new capabilities by
 *   **Workspace Configuration**: The `webui/` workspace uses `pnpm` with a workspace configuration (`pnpm-workspace.yaml`) to optimize dependency management and build reproducibility for `esbuild` and other toolchains.
 
 ### Currently Available Skills
-*   **Imagen**: AI image generation capabilities via `.skills/imagen/`.
 *   **Book Mockup**: Generate photo-realistic book mockup images.
 *   **CLI Help**: Interactive command references and usage patterns via `cli-help`.
 *   **Publishing Suite**: Automate documentation delivery (`create-pdf`, `create-epub`).
