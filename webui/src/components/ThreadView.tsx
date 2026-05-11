@@ -65,7 +65,7 @@ export const ThreadView: React.FC<ThreadViewProps> = ({
               )}
 
               {m.sender === 'agent' ? (
-                <div className="prose max-w-none">
+                <div className="prose max-w-none prose-p:m-0">
                   <ReactMarkdown remarkPlugins={[remarkGfm]}>
                     {m.text}
                   </ReactMarkdown>
