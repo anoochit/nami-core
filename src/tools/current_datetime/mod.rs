@@ -6,6 +6,7 @@ use adk_tool::{AdkError, tool};
 use schemars::JsonSchema;
 use serde_json::{Value, json};
 
+/// Arguments for the `get_current_datetime` tool.
 #[derive(Deserialize, JsonSchema)]
 struct DateTimeArgs {
     /// Optional timezone offset in hours from UTC (e.g. 5.5 for IST, -5.0 for EST).

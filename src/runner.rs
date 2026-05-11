@@ -5,6 +5,7 @@ use std::sync::Arc;
 use adk_rust::prelude::*;
 use adk_session::{CreateRequest, GetRequest, SessionService};
 
+/// Manages the execution of agent-based tasks within a specific application context.
 pub struct AgentRunner {
     agent: Arc<dyn Agent>,
     sessions: Arc<dyn SessionService>,
@@ -14,6 +15,7 @@ pub struct AgentRunner {
 }
 
 impl AgentRunner {
+    /// Creates a new `AgentRunner`.
     pub fn new(
         agent: Arc<dyn Agent>,
         sessions: Arc<dyn SessionService>,
@@ -30,6 +32,7 @@ impl AgentRunner {
         }
     }
 
+    /// Executes a single input within a session, returning the agent's response.
     pub async fn run(
         &self,
         user_id: &str,

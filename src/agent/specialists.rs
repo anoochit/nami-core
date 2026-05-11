@@ -6,6 +6,11 @@ use std::sync::Arc;
 /// Returns a map of available specialist agents.
 ///
 /// Each specialist is wrapped as a `Tool` to be used by the main agent.
+///
+/// # Arguments
+///
+/// * `model` - The LLM model to be used by the specialists.
+/// * `tools` - A list of tools to be made available to the specialists.
 pub fn get_specialists(
     model: Arc<dyn Llm>,
     tools: Vec<Arc<dyn Tool>>,

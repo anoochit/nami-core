@@ -12,19 +12,27 @@ use futures::StreamExt;
 
 const COMPACTION_THRESHOLD: usize = 80; // compact when > 80 bullet points
 
+/// Tracks the state of the reflection service to avoid re-processing old sessions.
 #[derive(Debug, Serialize, Deserialize, Default)]
 struct ReflectionState {
+    /// Timestamp of the last event processed.
     last_processed_timestamp: Option<DateTime<Utc>>,
+    /// Current count of insights generated.
     insight_count: usize,
 }
 
+/// Service that synthesizes conversational history into persistent insights.
 pub struct ReflectionService {
+    /// LLM provider for synthesis.
     model: Arc<dyn Llm>,
+    /// Name of the model to use.
     model_name: String,
+    /// Service for persisting insights to long-term memory.
     memory: Arc<dyn MemoryService>,
 }
 
 impl ReflectionService {
+    /// Creates a new `ReflectionService`.
     pub fn new(
         model: Arc<dyn Llm>,
         model_name: String,
@@ -34,6 +42,7 @@ impl ReflectionService {
         Self { model, model_name, memory }
     }
 
+    /// Starts the service background loop.
     pub async fn start(self: Arc<Self>) {
         log::info!("Reflection Service started.");
         let mut interval = tokio::time::interval(std::time::Duration::from_secs(60 * 30));
@@ -45,6 +54,7 @@ impl ReflectionService {
         }
     }
 
+    /// Executes a single reflection cycle: fetches logs, synthesizes insights, and updates memory.
     async fn run_cycle(&self) -> anyhow::Result<()> {
         log::info!("Running reflection cycle...");
 

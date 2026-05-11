@@ -17,25 +17,30 @@ use adk_rust::model::{OpenAIClient, OpenAIConfig};
 /// Application configuration structure loaded from `config.toml`.
 #[derive(Debug, Deserialize, Clone, PartialEq)]
 pub struct AppConfig {
+    /// LLM provider configuration.
     pub model: ModelConfig,
 }
 
 /// Configuration details for the LLM provider and specific model.
 #[derive(Debug, Deserialize, Clone, PartialEq)]
 pub struct ModelConfig {
+    /// Name of the LLM provider (e.g., "gemini", "anthropic").
     pub provider: String,
+    /// Identifier for the model to use.
     pub model_name: String,
+    /// Environment variable name containing the API key for this provider.
     pub api_key_env: String,
+    /// Optional base URL for API requests, useful for compatible providers.
     #[allow(dead_code)]
     pub base_url: Option<String>,
 }
 
-/// Returns the last modification time of config.toml
+/// Returns the last modification time of `config.toml`.
 pub fn get_config_mtime() -> Option<SystemTime> {
     std::fs::metadata("config.toml").ok()?.modified().ok()
 }
 
-/// Returns the last modification time of the skills directory.
+/// Returns the last modification time of the `.skills` directory within the workspace.
 pub fn get_skills_mtime() -> Option<SystemTime> {
     let workspace_dir = std::path::Path::new("workspace");
     let skills_dir = workspace_dir.join(".skills");
@@ -55,7 +60,9 @@ pub fn get_skills_mtime() -> Option<SystemTime> {
     Some(latest)
 }
 
-/// Checks if config.toml has changed since the last known modification time.
+/// Checks if `config.toml` has changed since the last known modification time.
+/// 
+/// If changed, updates `last_mtime` and returns the newly loaded configuration.
 pub fn check_config_mtime(last_mtime: &mut Option<SystemTime>) -> Option<AppConfig> {
     if let Ok(metadata) = std::fs::metadata("config.toml") {
         if let Ok(mtime) = metadata.modified() {
@@ -83,11 +90,9 @@ pub fn get_compaction_config(model: Arc<dyn Llm>) -> EventsCompactionConfig {
     }
 }
 
-/// Orchestrates the building of the main AI agent, loading configuration, persona context,
-/// and setting up tools, skills, and MCP servers.
+/// Orchestrates the building of the main AI agent, loading configuration, persona context, and setting up tools, skills, and MCP servers.
 ///
-/// Returns a tuple containing the built agent, the model instance, the provider name,
-/// the model name, and the config receiver.
+/// Returns a tuple containing the built agent, the model instance, the provider name, the model name, and the config receiver.
 /// Factory function to build the agent and model.
 pub async fn create_agent(
     app_config: &AppConfig,

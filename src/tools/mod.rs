@@ -1,3 +1,7 @@
+//! The `tools` module defines all executable capabilities available to the Nami agent.
+//!
+//! Each sub-module represents a specific domain-driven toolset, allowing the agent to perform real-world tasks.
+
 pub mod current_datetime;
 pub mod filesystem;
 pub mod image_generator;

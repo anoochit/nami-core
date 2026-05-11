@@ -12,6 +12,7 @@ use adk_telemetry::{init_with_otlp, shutdown_telemetry};
 use clap::{Parser, Subcommand};
 use runner::AgentRunner;
 
+/// The command-line interface for the application.
 #[derive(Parser)]
 #[command(name = "agent-app")]
 struct Cli {
@@ -19,14 +20,30 @@ struct Cli {
     command: Commands,
 }
 
+/// Supported commands for the application.
 #[derive(Subcommand)]
 enum Commands {
-    Bot,                         // namiClaw
-    Cli,                         // command line interface
-    Init,                        // initialize project files
-    Run { prompt: String },      // direct execution
-    Serve { port: Option<u16> }, // http server
-    Browse { port: Option<u16> }, // server with embedded UI
+    /// Run the bot mode (e.g., Telegram integration).
+    Bot,
+    /// Run the interactive CLI mode.
+    Cli,
+    /// Initialize the project configuration and database.
+    Init,
+    /// Execute a prompt directly and exit.
+    Run {
+        /// The prompt to execute.
+        prompt: String
+    },
+    /// Start the HTTP server.
+    Serve {
+        /// Optional port to serve on.
+        port: Option<u16>
+    },
+    /// Browse mode with embedded WebUI.
+    Browse {
+        /// Optional port for the browser UI.
+        port: Option<u16>
+    },
 }
 
 #[tokio::main]

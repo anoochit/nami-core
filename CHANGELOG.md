@@ -2,7 +2,22 @@
 
 All notable changes to this project will be documented in this file.
 
-## [0.9.8] - 2026-05-11
+## [0.9.9] - 2026-05-11
+
+### Added
+- **Server Status Indicator**: Integrated a new real-time server connectivity component in the WebUI sidebar, providing visual feedback on backend health.
+- **Prompt History Navigation**: Enabled arrow-key navigation (up/down) in the WebUI input field to cycle through previous prompt history.
+- **Tool-Call Rendering**: Implemented a dedicated UI component (`ToolAccordion`) in the WebUI to display structured tool invocations and results within the chat thread.
+
+### Changed
+- **Tool Output Presentation**: Refined agent persona instructions to enforce concise, natural language summaries for tool outputs, prohibiting raw JSON display in chat responses.
+- **Markdown Rendering**: Optimized `ReactMarkdown` rendering in WebUI with tightened paragraph spacing (`prose-p:m-0`) for a cleaner message layout.
+- **Streaming Logic**: Improved text streaming pre-processor in `useChat.ts` to handle Thai/non-Thai character transitions and list marker formatting, preventing word concatenation.
+- **Task Ambiguity**: Renamed Todo-tool terminology (from "task" to "todo item") to prevent confusion with State Manager tasks.
+
+### Fixed
+- **Module Resolution**: Fixed a module import syntax error in `ThreadView.tsx` caused by incorrect path handling during bundling.
+
 
 ### Added
 - **Native Imagen Tool**: Implemented a native image generation tool using `gemini-2.5-flash-image-preview` and `adk-gemini`, replacing external Python script orchestration.

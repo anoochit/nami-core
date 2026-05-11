@@ -11,16 +11,24 @@ use serde_json::Value;
 use std::collections::HashMap;
 use std::sync::Arc;
 
+/// Holds configuration for multiple MCP servers.
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct CombinedMcpConfig {
+    /// Mapping of server name to server configuration.
     mcp_servers: HashMap<String, McpServerEntry>,
 }
 
+/// Represents the transport configuration for an MCP server.
 #[derive(Deserialize)]
 #[serde(untagged)]
 enum McpServerEntry {
-    Http { url: String },
+    /// Remote server accessed over HTTP.
+    Http { 
+        /// Base URL for the MCP server.
+        url: String 
+    },
+    /// Local server accessed via Stdio.
     Stdio(McpServerConfig),
 }
 

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { api } from '../lib/api';
 import { cn } from '../lib/utils';
 import { Wifi, WifiOff } from 'lucide-react';
