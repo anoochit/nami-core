@@ -8,38 +8,76 @@ use axum::{
 use serde_json::json;
 use tokio::fs;
 use walkdir::WalkDir;
-use crate::utils::{get_workspace_dir, get_wiki_dir, sandbox, ignore::NamiIgnore};
+use crate::utils::{get_wiki_dir, sandbox, ignore::NamiIgnore};
 
+/// Returns the Axum Router for the API.
 pub fn api_router() -> Router {
     Router::new()
-        .route("/api/workspace/files", get(list_workspace_files))
-        .route("/api/workspace/files/*path", get(read_workspace_file))
+        .route("/api/workspace/files", get(list_folder_contents))
+        .route("/api/workspace/files/{*path}", get(list_folder_contents))
+        .route("/api/workspace/read/{*path}", get(read_workspace_file))
         .route("/api/wiki/pages", get(list_wiki_pages))
-        .route("/api/wiki/pages/*title", get(read_wiki_page))
+        .route("/api/wiki/pages/{*title}", get(read_wiki_page))
 }
 
-async fn list_workspace_files() -> impl IntoResponse {
-    let root = match get_workspace_dir().await {
-        Ok(r) => r,
+const IGNORED_DIRS: &[&str] = &[
+    ".venv", ".cache", ".config", ".local", ".npm", ".rustup",
+];
+
+/// Lists contents of a workspace directory.
+/// 
+/// If `path` is provided, lists contents of the specified relative path.
+/// If `path` is not provided, lists the workspace root contents.
+async fn list_folder_contents(path: Option<Path<String>>) -> impl IntoResponse {
+    let path = path.map(|p| p.0).unwrap_or_default();
+    let folder_path = match sandbox(&path).await {
+        Ok(p) => p,
+        Err(e) => return (StatusCode::FORBIDDEN, e.to_string()).into_response(),
+    };
+
+    if !folder_path.is_dir() {
+        return (StatusCode::BAD_REQUEST, "Path is not a directory").into_response();
+    }
+
+    let ignore = NamiIgnore::load().await;
+    let mut entries = Vec::new();
+
+    let mut read_dir = match tokio::fs::read_dir(&folder_path).await {
+        Ok(rd) => rd,
         Err(e) => return (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()).into_response(),
     };
 
-    let ignore = NamiIgnore::load().await;
-    let mut files = Vec::new();
-
-    for entry in WalkDir::new(&root).into_iter().filter_map(|e| e.ok()) {
+    while let Ok(Some(entry)) = read_dir.next_entry().await {
         let path = entry.path();
-        if path.is_file() {
-            let relative = path.strip_prefix(&root).unwrap_or(path);
-            if !ignore.is_ignored(relative) {
-                files.push(relative.to_string_lossy().replace("\\", "/"));
+        let relative = match path.strip_prefix(&folder_path) {
+            Ok(r) => r.to_owned(),
+            Err(_) => continue,
+        };
+
+        // Skip hardcoded ignored dirs
+        if let Some(name) = relative.file_name() {
+            if IGNORED_DIRS.contains(&name.to_string_lossy().as_ref()) {
+                continue;
             }
         }
+
+        if ignore.is_ignored(&relative) {
+            continue;
+        }
+
+        let name = relative.to_string_lossy().replace("\\", "/");
+        let is_dir = path.is_dir();
+
+        entries.push(json!({
+            "name": if path.is_dir() { format!("{}/", name) } else { name },
+            "type": if is_dir { "folder" } else { "file" }
+        }));
     }
 
-    Json(json!({ "files": files })).into_response()
+    Json(json!({ "entries": entries })).into_response()
 }
 
+/// Reads the content of a file within the workspace.
 async fn read_workspace_file(Path(path): Path<String>) -> impl IntoResponse {
     let full_path = match sandbox(&path).await {
         Ok(p) => p,
@@ -56,6 +94,7 @@ async fn read_workspace_file(Path(path): Path<String>) -> impl IntoResponse {
     }
 }
 
+/// Lists all Markdown pages available in the wiki.
 async fn list_wiki_pages() -> impl IntoResponse {
     let wiki_dir = match get_wiki_dir().await {
         Ok(d) => d,
@@ -75,6 +114,7 @@ async fn list_wiki_pages() -> impl IntoResponse {
     Json(json!({ "pages": pages })).into_response()
 }
 
+/// Reads the content of a specific wiki page by title.
 async fn read_wiki_page(Path(title): Path<String>) -> impl IntoResponse {
     match get_wiki_dir().await {
         Ok(_) => (),
