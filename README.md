@@ -1,5 +1,7 @@
 # nami: AI Bot
 
+> **Note:** This project is currently under active development.
+
 A modular, extensible AI-powered `Nami` built on top of [adk-rust](https://github.com/zavora-ai/adk-rust) and the [teloxide](https://github.com/teloxide/teloxide) framework. This project demonstrates how to leverage modern Rust libraries to build sophisticated AI agents with persistent sessions, filesystem sandbox capabilities, and dynamic persona management.
 
 ![Screenshot](screenshots/nami-avatar.png)
