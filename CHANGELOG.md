@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.9.6] - 2026-05-11
+
+### Added
+
+- **Workspace & Wiki API**: Added new REST endpoints (`/api/workspace/files` and `/api/wiki/pages`) to allow WebUI and external tools to access and read workspace files and wiki content safely.
+- **Serve Mode API Support**: Integrated the custom API router into both `serve` and `browse` modes by manually managing the Axum server startup.
+- **Sandbox Security**: Refactored sandbox and path security logic into a shared utility to ensure consistent protection across agent tools and API endpoints.
+
 ## [0.9.5] - 2026-05-11
 
 ### Added
