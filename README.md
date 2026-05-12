@@ -175,8 +175,8 @@ graph TD
     EntryPoints --> Runner[adk-rust Runner]
     
     Runner --> Agent[LlmAgent]
-    Runner --> DB[(SqliteSessionService)]
-    Runner --> Memory[(SqliteMemoryService)]
+    Runner --> DB[(Session Service)]
+    Runner --> Memory[(Memory Service)]
     Runner --> Scheduler[Background Scheduler]
     Runner --> Reflection[Reflection Service]
     
@@ -186,7 +186,7 @@ graph TD
     Agent --> Wiki[Obsidian-Style Wiki: Graph, Tags, Daily Notes]
     Agent --> Persona[AGENT.md & USER.md]
 
-     Reflection --> Memory
+    Reflection --> Memory
     Reflection --> UserMemory["MEMORIES.md"]
     
     SubAgents --> Agent
