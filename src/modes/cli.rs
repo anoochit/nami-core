@@ -246,8 +246,8 @@ async fn run_system_prompt(
                                 }
                                 if let Part::FunctionCall { name, args, .. } = part {
                                     let args_str = args.to_string().replace('\n', " ").replace("  ", " ");
-                                    let compact_args = if args_str.len() > 60 {
-                                        format!("{}...", &args_str[..57])
+                                    let compact_args = if args_str.chars().count() > 60 {
+                                        format!("{}...", args_str.chars().take(57).collect::<String>())
                                     } else {
                                         args_str
                                     };
@@ -752,8 +752,8 @@ pub(crate) async fn run_cli(
 
                                             if let Part::FunctionCall { name, args, .. } = part {
                                                 let args_str = args.to_string().replace('\n', " ").replace("  ", " ");
-                                                let compact_args = if args_str.len() > 60 {
-                                                    format!("{}...", &args_str[..57])
+                                                let compact_args = if args_str.chars().count() > 60 {
+                                                    format!("{}...", args_str.chars().take(57).collect::<String>())
                                                 } else {
                                                     args_str
                                                 };
