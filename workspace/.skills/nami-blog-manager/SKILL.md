@@ -24,7 +24,10 @@ Refer to [config.md](references/config.md) for repository and path details.
 - Read each file to extract `title` and `date` from the frontmatter.
 - Sort posts by date in descending order (newest first).
 - Update `index.md` by replacing the "Latest Posts" list.
-- Format: `- [Title](posts/YYYY-MM-DD-title) (YYYY-MM-DD)`.
+- Format: `- [Title](posts/YYYY-MM-DD-title.html) (YYYY-MM-DD)`.
+- Important: links in `index.md` must include the `.html` extension because the published GitHub Pages site resolves Markdown posts as HTML pages.
+  - Correct: `posts/YYYY-MM-DD-title.html`
+  - Incorrect: `posts/YYYY-MM-DD-title`
 
 ### 3. Deployment (Push to GitHub)
 - Consolidate all changes (new posts and updated index).
