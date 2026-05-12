@@ -16,6 +16,12 @@ All notable changes to this project will be documented in this file.
 - **Configuration Inheritance**: Enhanced `load_model_with_fallback` to ensure regional settings (`project_id`, `location`) correctly propagate from global defaults to specialized agents.
 - **Source Documentation**: Added comprehensive `rustdoc` comments to the core agent module (`src/agent/agent.rs`) to improve architectural clarity and maintainability.
 
+### Fixed
+
+- **Vertex AI Tool Schema Compatibility**: Corrected schema definitions for tools (`summarize_wiki`, `get_system_status`, `list_todos`, `list_wiki_pages`, `get_wiki_graph`, `sanitize_wiki_vault`, `check_broken_links`) to use empty structs, ensuring compatibility with Vertex AI's `OBJECT` parameters schema.
+- **Syntax and Typo Fixes**: Resolved a syntax error in `src/tools/todo/mod.rs` (`todo_tools` function) and restored the missing `ListTodosArgs` struct definition.
+- **Unintended Change Reverted**: Reverted an accidental change in `src/agent/agent.rs` where `overlap_size` was incorrectly set to `1` instead of `0`.
+
 ## [0.9.9] - 2026-05-11
 
 ### Added
