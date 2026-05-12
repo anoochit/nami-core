@@ -1,10 +1,14 @@
 [model]
-# Provider type: "gemini", "openai", "anthropic", "openrouter", "ollama" or "thaillm"
+# Provider type: "gemini", "vertex", "openai", "anthropic", "openrouter", "ollama" or "thaillm"
 provider = "gemini"
 # The specific model identifier
 model_name = "gemini-2.5-flash"
 # The environment variable name that holds the API key (see .env.example)
 api_key_env = "GOOGLE_API_KEY"
+
+# Vertex AI settings
+# project_id = "{project_id_str}"
+# location = "{location_str}"
 
 # Optional settings for OpenAI-compatible providers
 # base_url = "https://api.openai.com/v1"

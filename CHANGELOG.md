@@ -2,6 +2,20 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.9.10] - 2026-05-12
+
+### Added
+
+- **Vertex AI Support**: Implemented native support for Google Cloud Vertex AI using Application Default Credentials (ADC), enabling seamless integration with enterprise-grade Gemini models.
+- **Regional Configuration**: Added `project_id` and `location` fields to `ModelConfig` and `ReflectionConfig` to support regional LLM deployments and Google Cloud residency requirements.
+- **Interactive Vertex Setup**: Updated the `init` command to interactively configure Vertex AI settings, automatically detecting and prompting for necessary Google Cloud parameters.
+
+### Changed
+
+- **Model Loading Logic**: Refactored `load_model` to skip mandatory API key environment variable checks when using the "vertex" provider, relying on system-level ADC.
+- **Configuration Inheritance**: Enhanced `load_model_with_fallback` to ensure regional settings (`project_id`, `location`) correctly propagate from global defaults to specialized agents.
+- **Source Documentation**: Added comprehensive `rustdoc` comments to the core agent module (`src/agent/agent.rs`) to improve architectural clarity and maintainability.
+
 ## [0.9.9] - 2026-05-11
 
 ### Added
