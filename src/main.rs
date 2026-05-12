@@ -74,12 +74,30 @@ async fn main() -> anyhow::Result<()> {
 
     // shared setup
     log::info!("Building agent...");
+    let config = agent::load_config_sync().unwrap_or_else(|e| {
+        log::warn!("Failed to load config.toml: {}. Using defaults.", e);
+        agent::AppConfig {
+            model: agent::ModelConfig {
+                provider: Some("gemini".to_string()),
+                model_name: "gemini-2.5-flash".to_string(),
+                api_key_env: Some("GOOGLE_API_KEY".to_string()),
+                base_url: None,
+            },
+            specialists: None,
+            image_generation: None,
+            reflection: None,
+            embedding: None,
+        }
+    });
+
     let (agent, model, provider, model_name) = agent::build_agent().await?;
     log::info!("Agent built successfully.");
+
     // session
     let sessions = SqliteSessionService::new("sessions.db?mode=rwc").await?;
     sessions.migrate().await?;
     let sessions = Arc::new(sessions);
+
     // memory
     let memory = SqliteMemoryService::new("sqlite:memory.db?mode=rwc").await?;
     memory.migrate().await?;
@@ -90,15 +108,24 @@ async fn main() -> anyhow::Result<()> {
     );
 
     // Reflection Service
-    let reflection_svc = Arc::new(agent::reflection::ReflectionService::new(
-        model.clone(),
-        model_name.clone(),
-        sessions.clone(),
-        memory.clone(),
-    ));
-    tokio::spawn(async move {
-        reflection_svc.start().await;
-    });
+    if config.reflection.as_ref().map(|r| r.enabled).unwrap_or(false) {
+        let reflection_model_cfg = config.reflection.as_ref().and_then(|r| r.to_model_config());
+        let reflection_model = agent::load_model_with_fallback(&reflection_model_cfg, &config.model).await?;
+        let reflection_model_name = reflection_model_cfg
+            .as_ref()
+            .map(|c| c.model_name.clone())
+            .unwrap_or_else(|| config.model.model_name.clone());
+
+        let reflection_svc = Arc::new(agent::reflection::ReflectionService::new(
+            reflection_model,
+            reflection_model_name,
+            sessions.clone(),
+            memory.clone(),
+        ));
+        tokio::spawn(async move {
+            reflection_svc.start().await;
+        });
+    }
 
     match cli.command {
         Commands::Bot => {

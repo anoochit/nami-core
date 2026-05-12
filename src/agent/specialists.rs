@@ -9,12 +9,21 @@ use std::sync::Arc;
 ///
 /// # Arguments
 ///
-/// * `model` - The LLM model to be used by the specialists.
+/// * `default_model` - The fallback LLM model.
+/// * `specific_models` - Individual models for each specialist.
 /// * `tools` - A list of tools to be made available to the specialists.
 pub fn get_specialists(
-    model: Arc<dyn Llm>,
+    default_model: Arc<dyn Llm>,
+    specific_models: std::collections::HashMap<String, Arc<dyn Llm>>,
     tools: Vec<Arc<dyn Tool>>,
 ) -> HashMap<String, Arc<dyn Tool>> {
+    let get_model = |name: &str| {
+        specific_models
+            .get(name)
+            .cloned()
+            .unwrap_or_else(|| default_model.clone())
+    };
+
     let mut generalist_builder = LlmAgentBuilder::new("generalist")
         .description(
             "A high-efficiency agent with access to all tools. Use this for repetitive batch tasks or high-volume data processing to keep the main conversation history lean."
@@ -22,7 +31,7 @@ pub fn get_specialists(
         .instruction(
             "You are a generalist agent. Perform the requested batch tasks or data processing efficiently."
         )
-        .model(model.clone());
+        .model(get_model("generalist"));
 
     for t in &tools {
         generalist_builder = generalist_builder.tool(t.clone());
@@ -40,7 +49,7 @@ pub fn get_specialists(
         .instruction(
             "You are an expert software engineer. Provide clean, efficient, and well-documented code solutions. Focus on best practices and system integrity."
         )
-        .model(model.clone());
+        .model(get_model("coder"));
 
     for t in &tools {
         coder_builder = coder_builder.tool(t.clone());
@@ -54,7 +63,7 @@ pub fn get_specialists(
         .instruction(
             "You are a deep-dive researcher. Analyze information meticulously, identify key insights, and provide comprehensive summaries based on available data."
         )
-        .model(model.clone());
+        .model(get_model("researcher"));
 
     for t in &tools {
         researcher_builder = researcher_builder.tool(t.clone());
@@ -72,7 +81,7 @@ pub fn get_specialists(
         .instruction(
             "You are a professional technical writer. Craft clear, engaging, and well-structured content tailored to the requested audience and format."
         )
-        .model(model.clone());
+        .model(get_model("writer"));
 
     for t in &tools {
         writer_builder = writer_builder.tool(t.clone());
@@ -90,7 +99,7 @@ pub fn get_specialists(
         .instruction(
             "You are Ralph Wiggum. You are simple, literal, and very persistent. You might say silly things, but you never stop trying to reach your goal. When you are done, say 'I'm a winner!'"
         )
-        .model(model.clone());
+        .model(get_model("ralph"));
 
     for t in &tools {
         ralph_builder = ralph_builder.tool(t.clone());

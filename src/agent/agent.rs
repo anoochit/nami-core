@@ -3,6 +3,7 @@ use adk_rust::agent::LlmEventSummarizer;
 use adk_rust::prelude::*;
 use anyhow::Context;
 use serde::Deserialize;
+use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::SystemTime;
 
@@ -19,20 +20,65 @@ use adk_rust::model::{OpenAIClient, OpenAIConfig};
 pub struct AppConfig {
     /// LLM provider configuration.
     pub model: ModelConfig,
+    /// Optional configuration for specialized agents.
+    pub specialists: Option<SpecialistsConfig>,
+    /// Optional configuration for image generation.
+    pub image_generation: Option<ModelConfig>,
+    /// Optional configuration for reflection service.
+    pub reflection: Option<ReflectionConfig>,
+    /// Optional configuration for embedding service.
+    pub embedding: Option<ModelConfig>,
 }
 
 /// Configuration details for the LLM provider and specific model.
 #[derive(Debug, Deserialize, Clone, PartialEq)]
 pub struct ModelConfig {
     /// Name of the LLM provider (e.g., "gemini", "anthropic").
-    pub provider: String,
+    pub provider: Option<String>,
     /// Identifier for the model to use.
     pub model_name: String,
     /// Environment variable name containing the API key for this provider.
-    pub api_key_env: String,
+    pub api_key_env: Option<String>,
     /// Optional base URL for API requests, useful for compatible providers.
     #[allow(dead_code)]
     pub base_url: Option<String>,
+}
+
+/// Configuration for individual specialized agents.
+#[derive(Debug, Deserialize, Clone, PartialEq)]
+pub struct SpecialistsConfig {
+    pub coder: Option<ModelConfig>,
+    pub researcher: Option<ModelConfig>,
+    pub writer: Option<ModelConfig>,
+    pub ralph: Option<ModelConfig>,
+    pub generalist: Option<ModelConfig>,
+}
+
+/// Configuration for the reflection service.
+#[derive(Debug, Deserialize, Clone, PartialEq)]
+pub struct ReflectionConfig {
+    /// Whether the reflection service is enabled.
+    #[serde(default)]
+    pub enabled: bool,
+    /// Name of the LLM provider.
+    pub provider: Option<String>,
+    /// Identifier for the model to use.
+    pub model_name: Option<String>,
+    /// Environment variable name containing the API key.
+    pub api_key_env: Option<String>,
+    /// Optional base URL.
+    pub base_url: Option<String>,
+}
+
+impl ReflectionConfig {
+    pub fn to_model_config(&self) -> Option<ModelConfig> {
+        self.model_name.as_ref().map(|name| ModelConfig {
+            provider: self.provider.clone(),
+            model_name: name.clone(),
+            api_key_env: self.api_key_env.clone(),
+            base_url: self.base_url.clone(),
+        })
+    }
 }
 
 /// Returns the last modification time of `config.toml`.
@@ -61,7 +107,7 @@ pub fn get_skills_mtime() -> Option<SystemTime> {
 }
 
 /// Checks if `config.toml` has changed since the last known modification time.
-/// 
+///
 /// If changed, updates `last_mtime` and returns the newly loaded configuration.
 pub fn check_config_mtime(last_mtime: &mut Option<SystemTime>) -> Option<AppConfig> {
     if let Ok(metadata) = std::fs::metadata("config.toml") {
@@ -75,7 +121,7 @@ pub fn check_config_mtime(last_mtime: &mut Option<SystemTime>) -> Option<AppConf
     None
 }
 
-fn load_config_sync() -> anyhow::Result<AppConfig> {
+pub fn load_config_sync() -> anyhow::Result<AppConfig> {
     let config_str = std::fs::read_to_string("config.toml")?;
     let config: AppConfig = toml::from_str(&config_str)?;
     Ok(config)
@@ -101,10 +147,17 @@ pub async fn create_agent(
     let context = load_persona_context().await?;
     let workspace_dir = get_workspace_dir().await?;
 
+    // Load image generation model
+    let image_model = if let Some(ref image_cfg) = app_config.image_generation {
+        Some(load_model_with_fallback(&Some(image_cfg.clone()), &app_config.model).await?)
+    } else {
+        None
+    };
+
     let mut core_tools: Vec<Arc<dyn Tool>> = tools::weather::weather_tools();
     core_tools.extend(tools::current_datetime::datetime_tools());
     core_tools.extend(tools::filesystem::filesystem_tools());
-    core_tools.extend(tools::image_generator::image_generator_tools());
+    core_tools.extend(tools::image_generator::image_generator_tools(image_model));
     core_tools.extend(tools::memory::memory_tools());
     core_tools.extend(tools::scheduler::scheduler_tools());
     core_tools.extend(tools::search::search_tools());
@@ -115,8 +168,44 @@ pub async fn create_agent(
     core_tools.extend(tools::web_fetch::web_fetch_tools());
     core_tools.extend(tools::wiki::wiki_tools());
 
-    let specialists = specialists::get_specialists(model.clone(), core_tools.clone());
-    
+    // Load specialist models
+    let mut specialist_models = HashMap::new();
+    if let Some(ref specs) = app_config.specialists {
+        if let Some(ref coder_cfg) = specs.coder {
+            specialist_models.insert(
+                "coder".to_string(),
+                load_model_with_fallback(&Some(coder_cfg.clone()), &app_config.model).await?,
+            );
+        }
+        if let Some(ref researcher_cfg) = specs.researcher {
+            specialist_models.insert(
+                "researcher".to_string(),
+                load_model_with_fallback(&Some(researcher_cfg.clone()), &app_config.model).await?,
+            );
+        }
+        if let Some(ref writer_cfg) = specs.writer {
+            specialist_models.insert(
+                "writer".to_string(),
+                load_model_with_fallback(&Some(writer_cfg.clone()), &app_config.model).await?,
+            );
+        }
+        if let Some(ref ralph_cfg) = specs.ralph {
+            specialist_models.insert(
+                "ralph".to_string(),
+                load_model_with_fallback(&Some(ralph_cfg.clone()), &app_config.model).await?,
+            );
+        }
+        if let Some(ref generalist_cfg) = specs.generalist {
+            specialist_models.insert(
+                "generalist".to_string(),
+                load_model_with_fallback(&Some(generalist_cfg.clone()), &app_config.model).await?,
+            );
+        }
+    }
+
+    let specialists =
+        specialists::get_specialists(model.clone(), specialist_models, core_tools.clone());
+
     let mut builder = LlmAgentBuilder::new("nami")
         .description("A helpful and playful AI assistant")
         .instruction(format_persona(
@@ -129,7 +218,7 @@ pub async fn create_agent(
     builder = mcp::load_mcp_tools(builder).await?;
 
     let agent = builder.build()?;
-    
+
     Ok((Arc::new(agent), model))
 }
 
@@ -138,16 +227,24 @@ pub async fn build_agent() -> anyhow::Result<(Arc<dyn Agent>, Arc<dyn Llm>, Stri
         log::warn!("Failed to load config.toml: {}. Using defaults.", e);
         AppConfig {
             model: ModelConfig {
-                provider: "gemini".to_string(),
+                provider: Some("gemini".to_string()),
                 model_name: "gemini-2.5-flash".to_string(),
-                api_key_env: "GOOGLE_API_KEY".to_string(),
+                api_key_env: Some("GOOGLE_API_KEY".to_string()),
                 base_url: None,
             },
+            specialists: None,
+            image_generation: None,
+            reflection: None,
+            embedding: None,
         }
     });
 
     let (provider, model_name) = (
-        app_config.model.provider.clone(),
+        app_config
+            .model
+            .provider
+            .clone()
+            .unwrap_or_else(|| "gemini".to_string()),
         app_config.model.model_name.clone(),
     );
     let (agent, model) = create_agent(&app_config).await?;
@@ -155,11 +252,17 @@ pub async fn build_agent() -> anyhow::Result<(Arc<dyn Agent>, Arc<dyn Llm>, Stri
     Ok((agent, model, provider, model_name))
 }
 
-async fn load_model(model_config: &ModelConfig) -> anyhow::Result<Arc<dyn Llm>> {
-    let api_key = std::env::var(&model_config.api_key_env)
-        .with_context(|| format!("Environment variable {} not set", model_config.api_key_env))?;
+pub async fn load_model(model_config: &ModelConfig) -> anyhow::Result<Arc<dyn Llm>> {
+    let api_key_env = model_config
+        .api_key_env
+        .as_deref()
+        .unwrap_or("GOOGLE_API_KEY");
+    let api_key = std::env::var(api_key_env)
+        .with_context(|| format!("Environment variable {} not set", api_key_env))?;
 
-    match model_config.provider.as_str() {
+    let provider = model_config.provider.as_deref().unwrap_or("gemini");
+
+    match provider {
         "gemini" => Ok(Arc::new(GeminiModel::new(
             &api_key,
             &model_config.model_name,
@@ -188,7 +291,29 @@ async fn load_model(model_config: &ModelConfig) -> anyhow::Result<Arc<dyn Llm>> 
             "https://thaillm.or.th/api/v1",
             &model_config.model_name,
         ))?)),
-        _ => anyhow::bail!("Unsupported provider: {}", model_config.provider),
+        _ => anyhow::bail!("Unsupported provider: {}", provider),
+    }
+}
+
+pub async fn load_model_with_fallback(
+    specific: &Option<ModelConfig>,
+    default: &ModelConfig,
+) -> anyhow::Result<Arc<dyn Llm>> {
+    match specific {
+        Some(config) => {
+            let mut effective_config = config.clone();
+            if effective_config.provider.is_none() {
+                effective_config.provider = default.provider.clone();
+            }
+            if effective_config.api_key_env.is_none() {
+                effective_config.api_key_env = default.api_key_env.clone();
+            }
+            if effective_config.base_url.is_none() {
+                effective_config.base_url = default.base_url.clone();
+            }
+            load_model(&effective_config).await
+        }
+        None => load_model(default).await,
     }
 }
 

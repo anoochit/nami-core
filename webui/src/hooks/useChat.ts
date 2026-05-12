@@ -28,6 +28,7 @@ export const useChat = () => {
   const [historyIndex, setHistoryIndex] = useState(-1);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     const initActiveThreadSession = async () => {
@@ -83,73 +84,82 @@ export const useChat = () => {
     ));
 
     setIsLoading(true);
-    await api.runAgent('nami', 'user1', currentSessionId!, {
-      role: 'user',
-      parts: [{ text: input }]
-    }, (data) => {
-        const parts = data?.content?.parts;
-        if (!Array.isArray(parts)) return;
+    setError(null);
+    try {
+      await api.runAgent('nami', 'user1', currentSessionId!, {
+        role: 'user',
+        parts: [{ text: input }]
+      }, (data) => {
+          const parts = data?.content?.parts;
+          if (!Array.isArray(parts)) return;
 
-        setThreads(prev => prev.map(t => {
-            if (t.id !== activeThreadId) return t;
-            
-            const messages = [...t.messages];
-            const agentMsgIndex = messages.findIndex(m => m.id === agentMsgId);
-            if (agentMsgIndex === -1) return t;
+          setThreads(prev => prev.map(t => {
+              if (t.id !== activeThreadId) return t;
+              
+              const messages = [...t.messages];
+              const agentMsgIndex = messages.findIndex(m => m.id === agentMsgId);
+              if (agentMsgIndex === -1) return t;
 
-            let msg = { ...messages[agentMsgIndex] };
+              const msg = { ...messages[agentMsgIndex] };
 
-            const shouldAddSpace = (prev: string, next: string) => {
-                if (!prev || !next) return false;
-                const prevChar = prev.slice(-1);
-                const nextChar = next[0];
-                const isThai = (char: string) => /[\u0E00-\u0E7F]/.test(char);
-                // Add space if switching between Thai and non-Thai, or two separate words
-                return (isThai(prevChar) !== isThai(nextChar));
-            };
+              const shouldAddSpace = (prev: string, next: string) => {
 
-            parts.forEach((p: any) => {
-                // 1. Text streaming
-                if (p.text) {
-                    let formattedText = p.text;
-                    // Pre-processor: ensure list markers have preceding newline if not at start
-                    if (formattedText.startsWith('-') && msg.text.length > 0 && !msg.text.endsWith('\n')) {
-                        formattedText = '\n' + formattedText;
-                    }
-                    
-                    if (shouldAddSpace(msg.text, formattedText)) {
-                        msg.text += ' ' + formattedText;
-                    } else {
-                        msg.text += formattedText;
-                    }
-                } 
-                // 2. Tool invocation (part contains name/args)
-                else if (p.name) {
-                    msg.toolCall = { name: p.name, args: p.args, status: 'pending' };
-                }
-                // 3. Function response (part contains functionResponse)
-                else if (p.functionResponse) {
-                    if (msg.toolCall) {
-                        msg.toolCall.status = 'complete';
-                        msg.toolCall.result = p.functionResponse.response;
-                    }
-                }
-            });
+                  if (!prev || !next) return false;
+                  const prevChar = prev.slice(-1);
+                  const nextChar = next[0];
+                  const isThai = (char: string) => /[\u0E00-\u0E7F]/.test(char);
+                  // Add space if switching between Thai and non-Thai, or two separate words
+                  return (isThai(prevChar) !== isThai(nextChar));
+              };
 
-            messages[agentMsgIndex] = msg;
-            return { ...t, messages };
-        }));
-    });
-    setIsLoading(false);
+              parts.forEach((p: any) => {
+                  // 1. Text streaming
+                  if (p.text) {
+                      let formattedText = p.text;
+                      // Pre-processor: ensure list markers have preceding newline if not at start
+                      if (formattedText.startsWith('-') && msg.text.length > 0 && !msg.text.endsWith('\n')) {
+                          formattedText = '\n' + formattedText;
+                      }
+                      
+                      if (shouldAddSpace(msg.text, formattedText)) {
+                          msg.text += ' ' + formattedText;
+                      } else {
+                          msg.text += formattedText;
+                      }
+                  } 
+                  // 2. Tool invocation (part contains name/args)
+                  else if (p.name) {
+                      msg.toolCall = { name: p.name, args: p.args, status: 'pending' };
+                  }
+                  // 3. Function response (part contains functionResponse)
+                  else if (p.functionResponse) {
+                      if (msg.toolCall) {
+                          msg.toolCall.status = 'complete';
+                          msg.toolCall.result = p.functionResponse.response;
+                      }
+                  }
+              });
+
+              messages[agentMsgIndex] = msg;
+              return { ...t, messages };
+          }));
+      });
+    } catch (e: any) {
+      console.error("Agent execution failed", e);
+      setError(e.message || "An unexpected error occurred");
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const createNewThread = async () => {
     const isHealthy = await api.checkHealth();
     if (!isHealthy) {
-        alert("Cannot connect to the backend server. Please ensure it is running.");
+        setError("Cannot connect to the backend server. Please ensure it is running.");
         return;
     }
     
+    setError(null);
     try {
       const session = await api.createSession('nami', 'user1');
       const newThread: Thread = { 
@@ -160,9 +170,9 @@ export const useChat = () => {
       };
       setThreads([newThread, ...threads]);
       setActiveThreadId(newThread.id);
-    } catch (e) {
+    } catch (e: any) {
       console.error("Failed to create session for new thread", e);
-      alert("Failed to initialize new chat session.");
+      setError(e.message || "Failed to initialize new chat session.");
     }
   };
 
@@ -172,13 +182,15 @@ export const useChat = () => {
     let newIndex = historyIndex;
     if (direction === 'up') {
         newIndex = historyIndex === -1 ? promptHistory.length - 1 : Math.max(0, historyIndex - 1);
-    } else {
-        newIndex = historyIndex === -1 ? -1 : Math.min(promptHistory.length - 1, historyIndex + 1);
+    } else if (historyIndex !== -1) {
+        newIndex = Math.min(promptHistory.length - 1, historyIndex + 1);
         if (newIndex === promptHistory.length - 1) { // reached latest, clear input
             setInput('');
             setHistoryIndex(-1);
             return;
         }
+    } else {
+        return; // already at latest
     }
 
     if (newIndex !== historyIndex) {
@@ -194,6 +206,7 @@ export const useChat = () => {
     input,
     sidebarOpen,
     isLoading,
+    error,
     setActiveThreadId,
     setInput,
     setSidebarOpen,

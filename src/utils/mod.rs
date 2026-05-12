@@ -2,10 +2,56 @@ use adk_rust::prelude::*;
 use std::path::PathBuf;
 use tokio::fs;
 use crate::utils::ignore::NamiIgnore;
+use serde_json;
 
 pub mod ignore;
 
 const WORKSPACE_NAME: &str = "workspace";
+
+/// Returns a clean, user-friendly error message by stripping technical details and parsing JSON.
+pub fn clean_error_message(e: impl std::fmt::Display) -> String {
+    let err_str = e.to_string();
+
+    if err_str.contains("insufficient_quota") {
+        return "API Quota Exceeded: You have exceeded your OpenAI quota. Please check your plan and billing details.".to_string();
+    }
+
+    if err_str.contains("rate_limited") || err_str.contains("429 Too Many Requests") {
+        return "Rate Limit Reached: The AI provider is currently rate limiting requests. Please wait a moment before trying again.".to_string();
+    }
+
+    if err_str.contains("invalid_api_key") || err_str.contains("401 Unauthorized") {
+        return "Invalid API Key: The API key provided is invalid or has expired. Please check your configuration.".to_string();
+    }
+
+    // Try to extract a clean message from common error patterns
+    let mut clean_msg = err_str.clone();
+
+    // If it contains a JSON error from a provider, try to parse it
+    if let Some(json_start) = err_str.find('{') {
+        if let Ok(v) = serde_json::from_str::<serde_json::Value>(&err_str[json_start..]) {
+            if let Some(msg) = v.get("error").and_then(|e| e.get("message")).and_then(|m| m.as_str()) {
+                clean_msg = msg.to_string();
+            } else if let Some(msg) = v.get("message").and_then(|m| m.as_str()) {
+                clean_msg = msg.to_string();
+            }
+        }
+    }
+
+    // If it's the specific format ADK uses, try to strip the prefix
+    if clean_msg.contains("error=") {
+        if let Some(idx) = clean_msg.rfind("error=") {
+            clean_msg = clean_msg[idx + 6..].to_string();
+        }
+    }
+
+    // Strip any remaining JSON-like trailing parts if we didn't parse them
+    if let Some(idx) = clean_msg.find("): {") {
+        clean_msg = clean_msg[..idx].to_string();
+    }
+
+    clean_msg.trim().to_string()
+}
 
 /// Returns the absolute path to the sandbox directory.
 /// Ensures the directory exists on disk.

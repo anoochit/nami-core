@@ -25,7 +25,10 @@ export const api = {
         sessionId,
       }),
     });
-    if (!response.ok) throw new Error("Failed to create session");
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.message || errorData.error || "Failed to create session");
+    }
     return { session_id: sessionId };
   },
 
@@ -51,6 +54,11 @@ export const api = {
         }),
       },
     );
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(errorText || `Request failed with status ${response.status}`);
+    }
 
     if (!response.body) throw new Error("No response body");
 

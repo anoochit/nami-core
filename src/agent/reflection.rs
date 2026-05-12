@@ -49,7 +49,8 @@ impl ReflectionService {
         loop {
             interval.tick().await;
             if let Err(e) = self.run_cycle().await {
-                log::error!("Reflection cycle failed: {:?}", e);
+                let clean_msg = crate::utils::clean_error_message(e);
+                log::error!("Reflection cycle failed: {}", clean_msg);
             }
         }
     }

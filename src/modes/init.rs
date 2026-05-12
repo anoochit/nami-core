@@ -108,6 +108,39 @@ provider = "{provider}"
 model_name = "{model_name}"
 # The environment variable name that holds the API key
 api_key_env = "{api_key_env}"
+
+# --- Granular Service Configurations (Optional) ---
+# If a section is missing, it falls back to the default [model] settings.
+
+[specialists.coder]
+# provider = "anthropic"
+# model_name = "claude-3-5-sonnet-latest"
+# api_key_env = "ANTHROPIC_API_KEY"
+
+[specialists.researcher]
+# model_name = "gemini-2.5-pro"
+
+[specialists.writer]
+
+[specialists.ralph]
+
+[specialists.generalist]
+
+[image_generation]
+# Image generation is optimized for Gemini providers.
+provider = "gemini"
+model_name = "models/gemini-2.5-flash-image-preview"
+api_key_env = "GOOGLE_API_KEY"
+
+[reflection]
+# Reflection service synthesizes memories in the background.
+enabled = false
+// # model_name = "gemini-2.5-flash"
+
+[embedding]
+# Configuration for vector embeddings used in long-term memory.
+# model_name = "text-embedding-004"
+
 "#
     );
     write_file("config.toml", &config_content)?;

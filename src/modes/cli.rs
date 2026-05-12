@@ -209,6 +209,11 @@ async fn process_file_references(input: &str) -> String {
     final_prompt
 }
 
+fn format_error(e: impl std::fmt::Display) -> String {
+    let clean_msg = crate::utils::clean_error_message(e);
+    format!("\n\n> ❌ Error\n> \n> {}\n\n", clean_msg)
+}
+
 async fn run_system_prompt(
     runner: &mut Runner,
     user_id: &str,
@@ -266,7 +271,7 @@ async fn run_system_prompt(
                         }
                     }
                     Some(Err(e)) => {
-                        response.push_str(&format!("\nError: {}", e));
+                        response.push_str(&format_error(e));
                         break;
                     }
                     None => break,
@@ -485,7 +490,11 @@ pub(crate) async fn run_cli(
             agent = new_agent;
             model = new_model;
 
-            provider = new_config.model.provider.clone();
+            provider = new_config
+                .model
+                .provider
+                .clone()
+                .unwrap_or_else(|| "gemini".to_string());
             model_name = new_config.model.model_name.clone();
 
             config_changed = true;
@@ -773,12 +782,7 @@ pub(crate) async fn run_cli(
                                 }
 
                                 Some(Err(e)) => {
-                                    response_buffer.push_str(
-                                        &format!(
-                                            "\nError: {}",
-                                            e
-                                        )
-                                    );
+                                    response_buffer.push_str(&format_error(e));
 
                                     break;
                                 }

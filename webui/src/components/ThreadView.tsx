@@ -1,8 +1,8 @@
 import React, { useEffect, useRef } from 'react';
-import { Bot, Send, PanelLeftOpen, PanelLeftClose } from 'lucide-react';
+import { Bot, Send, PanelLeftOpen, PanelLeftClose, AlertCircle } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { cn } from '../lib/utils';
+import { cn, formatError } from '../lib/utils';
 import type { Thread } from '../hooks/useChat';
 import { ToolAccordion } from './ToolAccordion';
 
@@ -79,7 +79,17 @@ export const ThreadView: React.FC<ThreadViewProps> = ({
               )}
 
               {!isLoading && error && isLastMessage(m.id) && m.sender === 'agent' && (
-                <div className="text-red-500 text-sm mt-2 font-medium">{error}</div>
+                <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-800">
+                  <div className="flex items-center gap-2 mb-1 font-bold">
+                    <AlertCircle size={16} />
+                    <span>System Error</span>
+                  </div>
+                  <div className="prose prose-sm prose-red max-w-none">
+                    <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                      {formatError(error)}
+                    </ReactMarkdown>
+                  </div>
+                </div>
               )}
               
             </div>

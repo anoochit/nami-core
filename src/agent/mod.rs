@@ -8,4 +8,7 @@ pub mod mcp;
 pub mod reflection;
 pub mod specialists;
 
-pub use agent::{build_agent, get_compaction_config};
+pub use agent::{
+    AppConfig, ModelConfig, build_agent, get_compaction_config, load_config_sync,
+    load_model_with_fallback,
+};

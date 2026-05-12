@@ -12,6 +12,7 @@ export default function App() {
     input,
     sidebarOpen,
     isLoading,
+    error,
     setActiveThreadId,
     setInput,
     setSidebarOpen,
@@ -44,6 +45,7 @@ export default function App() {
         onSendMessage={sendMessage}
         onNavigateHistory={navigateHistory}
         isLoading={isLoading}
+        error={error ?? undefined}
       />
     </div>
   );
