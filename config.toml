@@ -1,10 +1,10 @@
 [model]
 # Provider type: "gemini", "openai", "openrouter" or "thaillm"
-provider = "openai"
+provider = "openrouter"
 # The specific model identifier
-model_name = "gpt-5.5-2026-04-23"
+model_name = "tencent/hy3-preview"
 # The environment variable name that holds the API key (see .env.example)
-api_key_env = "OPENAI_API_KEY"
+api_key_env = "OPENROUTER_API_KEY"
 
 # Optional settings for OpenAI-compatible providers
 # base_url = "https://api.openai.com/v1"

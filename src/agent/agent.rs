@@ -33,24 +33,34 @@ pub struct AppConfig {
 /// Configuration details for the LLM provider and specific model.
 #[derive(Debug, Deserialize, Clone, PartialEq)]
 pub struct ModelConfig {
-    /// Name of the LLM provider (e.g., "gemini", "anthropic").
+    /// Name of the LLM provider (e.g., "gemini", "anthropic", "vertex", "openai").
     pub provider: Option<String>,
-    /// Identifier for the model to use.
+    /// Identifier for the model to use (e.g., "gemini-1.5-pro", "gpt-4o").
     pub model_name: String,
     /// Environment variable name containing the API key for this provider.
+    /// Defaults to "GOOGLE_API_KEY" for Gemini if not specified.
     pub api_key_env: Option<String>,
-    /// Optional base URL for API requests, useful for compatible providers.
+    /// Optional base URL for API requests, useful for compatible providers or local proxies.
     #[allow(dead_code)]
     pub base_url: Option<String>,
+    /// Google Cloud Project ID, required for Vertex AI.
+    pub project_id: Option<String>,
+    /// Google Cloud Location (region), required for Vertex AI.
+    pub location: Option<String>,
 }
 
 /// Configuration for individual specialized agents.
 #[derive(Debug, Deserialize, Clone, PartialEq)]
 pub struct SpecialistsConfig {
+    /// Configuration for the coding specialist.
     pub coder: Option<ModelConfig>,
+    /// Configuration for the research specialist.
     pub researcher: Option<ModelConfig>,
+    /// Configuration for the writing specialist.
     pub writer: Option<ModelConfig>,
+    /// Configuration for the Ralph Wiggum (recursive) agent.
     pub ralph: Option<ModelConfig>,
+    /// Configuration for the generalist agent.
     pub generalist: Option<ModelConfig>,
 }
 
@@ -60,23 +70,30 @@ pub struct ReflectionConfig {
     /// Whether the reflection service is enabled.
     #[serde(default)]
     pub enabled: bool,
-    /// Name of the LLM provider.
+    /// Name of the LLM provider for the reflection service.
     pub provider: Option<String>,
-    /// Identifier for the model to use.
+    /// Identifier for the model to use for reflection.
     pub model_name: Option<String>,
     /// Environment variable name containing the API key.
     pub api_key_env: Option<String>,
-    /// Optional base URL.
+    /// Optional base URL for the reflection service.
     pub base_url: Option<String>,
+    /// Google Cloud Project ID for Vertex AI reflection.
+    pub project_id: Option<String>,
+    /// Google Cloud Location for Vertex AI reflection.
+    pub location: Option<String>,
 }
 
 impl ReflectionConfig {
+    /// Converts the reflection configuration into a standard `ModelConfig`.
     pub fn to_model_config(&self) -> Option<ModelConfig> {
         self.model_name.as_ref().map(|name| ModelConfig {
             provider: self.provider.clone(),
             model_name: name.clone(),
             api_key_env: self.api_key_env.clone(),
             base_url: self.base_url.clone(),
+            project_id: self.project_id.clone(),
+            location: self.location.clone(),
         })
     }
 }
@@ -121,6 +138,7 @@ pub fn check_config_mtime(last_mtime: &mut Option<SystemTime>) -> Option<AppConf
     None
 }
 
+/// Synchronously loads the application configuration from `config.toml`.
 pub fn load_config_sync() -> anyhow::Result<AppConfig> {
     let config_str = std::fs::read_to_string("config.toml")?;
     let config: AppConfig = toml::from_str(&config_str)?;
@@ -231,6 +249,8 @@ pub async fn build_agent() -> anyhow::Result<(Arc<dyn Agent>, Arc<dyn Llm>, Stri
                 model_name: "gemini-2.5-flash".to_string(),
                 api_key_env: Some("GOOGLE_API_KEY".to_string()),
                 base_url: None,
+                project_id: None,
+                location: None,
             },
             specialists: None,
             image_generation: None,
@@ -252,15 +272,28 @@ pub async fn build_agent() -> anyhow::Result<(Arc<dyn Agent>, Arc<dyn Llm>, Stri
     Ok((agent, model, provider, model_name))
 }
 
+/// Loads and initializes an LLM instance based on the provided configuration.
+/// 
+/// For most providers, it fetches an API key from an environment variable.
+/// For the "vertex" provider, it initializes using Application Default Credentials (ADC).
 pub async fn load_model(model_config: &ModelConfig) -> anyhow::Result<Arc<dyn Llm>> {
+    let provider = model_config.provider.as_deref().unwrap_or("gemini");
+
+    // Vertex AI uses Application Default Credentials (ADC) and doesn't require an explicit API key.
+    if provider == "vertex" {
+        return Ok(Arc::new(GeminiModel::new_google_cloud_adc(
+            model_config.project_id.as_deref().unwrap_or_default(),
+            model_config.location.as_deref().unwrap_or_default(),
+            &model_config.model_name,
+        )?));
+    }
+
     let api_key_env = model_config
         .api_key_env
         .as_deref()
         .unwrap_or("GOOGLE_API_KEY");
     let api_key = std::env::var(api_key_env)
         .with_context(|| format!("Environment variable {} not set", api_key_env))?;
-
-    let provider = model_config.provider.as_deref().unwrap_or("gemini");
 
     match provider {
         "gemini" => Ok(Arc::new(GeminiModel::new(
@@ -295,6 +328,7 @@ pub async fn load_model(model_config: &ModelConfig) -> anyhow::Result<Arc<dyn Ll
     }
 }
 
+/// Loads a model using a specific configuration, falling back to default values for missing fields.
 pub async fn load_model_with_fallback(
     specific: &Option<ModelConfig>,
     default: &ModelConfig,
@@ -311,12 +345,22 @@ pub async fn load_model_with_fallback(
             if effective_config.base_url.is_none() {
                 effective_config.base_url = default.base_url.clone();
             }
+            if effective_config.project_id.is_none() {
+                effective_config.project_id = default.project_id.clone();
+            }
+            if effective_config.location.is_none() {
+                effective_config.location = default.location.clone();
+            }
             load_model(&effective_config).await
         }
         None => load_model(default).await,
     }
 }
 
+/// Loads the persona context from various markdown files in the workspace.
+/// 
+/// It reads identity (AGENT.md), user profile (USER.md), memories (MEMORIES.md),
+/// and operating procedures (STATE_PROTOCOL.md) to build the agent's world-view.
 async fn load_persona_context() -> anyhow::Result<(String, String, String, String)> {
     let workspace_dir = get_workspace_dir().await?;
 
@@ -337,6 +381,9 @@ async fn load_persona_context() -> anyhow::Result<(String, String, String, Strin
     Ok((agent_md, user_md, memories_md, protocol_md))
 }
 
+/// Formats the system instruction string based on the provided persona context.
+/// 
+/// This instruction defines the agent's behavior, output format, and operational priorities.
 fn format_persona(soul: &str, user: &str, memory: &str, state: &str) -> String {
     format!(
         r#"You are a focused execution assistant. Minimize friction. Maximize signal.
@@ -385,6 +432,7 @@ Minimize user friction → Maximize execution velocity → Preserve project cont
     )
 }
 
+/// Registers and configures tools for the agent, including specialists and parallel execution handlers.
 fn configure_agent_tools(
     mut builder: LlmAgentBuilder,
     specialists: std::collections::HashMap<String, Arc<dyn Tool>>,

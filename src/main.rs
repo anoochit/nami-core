@@ -82,6 +82,8 @@ async fn main() -> anyhow::Result<()> {
                 model_name: "gemini-2.5-flash".to_string(),
                 api_key_env: Some("GOOGLE_API_KEY".to_string()),
                 base_url: None,
+                project_id: None,
+                location: None,
             },
             specialists: None,
             image_generation: None,

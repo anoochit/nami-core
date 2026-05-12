@@ -13,6 +13,7 @@ pub async fn initialize_project() -> anyhow::Result<()> {
     let providers = vec![
         "anthropic",
         "gemini",
+        "vertex",
         "ollama",
         "openai",
         "openrouter",
@@ -29,10 +30,24 @@ pub async fn initialize_project() -> anyhow::Result<()> {
 
     // 2. Choose Model
     let models = match provider.as_str() {
-        "anthropic" => vec!["claude-sonnet-4-5-20250929", "custom"],
+        "anthropic" => vec![
+            "claude-opus-4-6",
+            "claude-sonnet-4-6",
+            "claude-haiku-4-5-20251001",
+            "claude-opus-4-5-20251101",
+            "claude-sonnet-4-5-20250929",
+            "custom",
+        ],
         "gemini" => vec![
             "gemini-pro-latest",
             "gemini-flash-latest",
+            "gemini-3.1-pro-preview",
+            "gemini-3-flash-preview",
+            "gemini-2.5-pro",
+            "gemini-2.5-flash",
+            "custom",
+        ],
+        "vertex" => vec![
             "gemini-3.1-pro-preview",
             "gemini-3-flash-preview",
             "gemini-2.5-pro",
@@ -67,10 +82,23 @@ pub async fn initialize_project() -> anyhow::Result<()> {
         model_selection.to_string()
     };
 
-    // 3. Enter LLM API Key
-    let api_key = Password::new("Enter API Key:")
-        .with_display_mode(inquire::PasswordDisplayMode::Masked)
-        .prompt()?;
+    // 3. Enter LLM API Key (Skipped for Vertex AI as it uses ADC)
+    let api_key = if provider != "vertex" {
+        Password::new("Enter API Key:")
+            .with_display_mode(inquire::PasswordDisplayMode::Masked)
+            .prompt()?
+    } else {
+        String::new()
+    };
+
+    // Vertex AI specific configuration
+    let (project_id, location) = if provider == "vertex" {
+        let pid = Text::new("Enter Google Cloud Project ID:").prompt()?;
+        let loc = Text::new("Enter Google Cloud Location (e.g., us-central1):").prompt()?;
+        (Some(pid), Some(loc))
+    } else {
+        (None, None)
+    };
 
     // 4. Enter Telegram API Key (Optional)
     let telegram_key = Password::new("Enter Telegram API Key:")
@@ -99,15 +127,21 @@ pub async fn initialize_project() -> anyhow::Result<()> {
     std::fs::create_dir_all("workspace")?;
     std::fs::create_dir_all("workspace/.skills/cli-help")?;
 
+    let project_id_str = project_id.unwrap_or_default();
+    let location_str = location.unwrap_or_default();
+
     // 1. config.toml
     let config_content = format!(
         r#"[model]
-# Provider type: "anthropic","gemini","ollama", "openai", "openrouter" or "thaillm",
+# Provider type: "anthropic","gemini","vertex", "ollama", "openai", "openrouter" or "thaillm",
 provider = "{provider}"
 # The specific model identifier
 model_name = "{model_name}"
 # The environment variable name that holds the API key
 api_key_env = "{api_key_env}"
+# Vertex AI settings
+project_id = "{project_id_str}"
+location = "{location_str}"
 
 # --- Granular Service Configurations (Optional) ---
 # If a section is missing, it falls back to the default [model] settings.
@@ -135,7 +169,7 @@ api_key_env = "GOOGLE_API_KEY"
 [reflection]
 # Reflection service synthesizes memories in the background.
 enabled = false
-// # model_name = "gemini-2.5-flash"
+# model_name = "gemini-2.5-flash"
 
 [embedding]
 # Configuration for vector embeddings used in long-term memory.

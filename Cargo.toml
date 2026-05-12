@@ -6,7 +6,7 @@ edition = "2024"
 [dependencies]
 adk-memory = { version = "0.8.0", features = ["sqlite-memory"] }
 adk-runner = "0.8.0"
-adk-rust = { version = "0.8.0", features = ["anthropic", "ollama", "openai", "openrouter", "sessions", "cli", "gemini"] }
+adk-rust = { version = "0.8.0", features = ["anthropic", "ollama", "openai", "openrouter", "sessions", "cli", "gemini", "gemini-vertex"] }
 adk-session = { version = "0.8.0", features = ["sqlite"] }
 adk-telemetry = { version = "0.8.0", features = ["otlp"] }
 adk-tool = { version = "0.8.0", features = ["http-transport"] }
@@ -46,7 +46,6 @@ mime_guess = "2.0.5"
 axum = "0.8.0-rc.1"
 tower-http = { version = "0.6.10", features = ["fs", "cors"] }
 base64 = "0.22.1"
-adk-gemini = "0.8.0"
 
 [profile.dev]
 opt-level = 0
