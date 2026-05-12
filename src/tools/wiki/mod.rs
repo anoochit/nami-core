@@ -45,11 +45,7 @@ struct SearchWikiByTagArgs {
 }
 
 #[derive(Deserialize, JsonSchema)]
-struct GetWikiGraphArgs {
-    /// Optional reason for fetching the graph.
-    #[allow(dead_code)]
-    reason: Option<String>,
-}
+struct GetWikiGraphArgs {}
 
 #[derive(Deserialize, JsonSchema)]
 struct CreateDailyNoteArgs {
@@ -60,11 +56,7 @@ struct CreateDailyNoteArgs {
 }
 
 #[derive(Deserialize, JsonSchema)]
-struct SanitizeWikiVaultArgs {
-    /// Optional reason for sanitizing the vault.
-    #[allow(dead_code)]
-    reason: Option<String>,
-}
+struct SanitizeWikiVaultArgs {}
 
 #[derive(Deserialize, JsonSchema)]
 struct GetBacklinksArgs {
@@ -73,11 +65,7 @@ struct GetBacklinksArgs {
 }
 
 #[derive(Deserialize, JsonSchema)]
-struct CheckBrokenLinksArgs {
-    /// Optional reason for checking broken links.
-    #[allow(dead_code)]
-    reason: Option<String>,
-}
+struct CheckBrokenLinksArgs {}
 
 #[derive(Deserialize, JsonSchema)]
 struct RenameWikiPageArgs {
@@ -94,6 +82,9 @@ struct ApplyTemplateArgs {
     /// The name of the template file in the 'Templates' folder (without .md extension).
     template_name: String,
 }
+
+#[derive(Deserialize, JsonSchema, Debug)]
+struct SummarizeWikiArgs {}
 
 /// Helper to convert a string to Title Case (Obsidian-style with spaces).
 /// Converts dashes (except in dates), underscores, and multiple spaces into single spaces and capitalizes each word.
@@ -243,9 +234,12 @@ async fn get_wiki_page(args: WikiPageArgs) -> std::result::Result<Value, AdkErro
     Ok(json!({ "title": args.title, "content": content }))
 }
 
+#[derive(Deserialize, JsonSchema)]
+struct ListWikiPagesArgs {}
+
 /// Lists all available wiki pages recursively.
 #[tool]
-async fn list_wiki_pages(_args: serde_json::Value) -> std::result::Result<Value, AdkError> {
+async fn list_wiki_pages(_args: ListWikiPagesArgs) -> std::result::Result<Value, AdkError> {
     let wiki_dir = get_wiki_dir().await?;
     let mut pages = Vec::new();
 
@@ -435,7 +429,7 @@ async fn create_daily_note(args: CreateDailyNoteArgs) -> std::result::Result<Val
 
 /// Generates a 'SUMMARY.md' file that indexes all available wiki pages recursively with a brief overview.
 #[tool]
-async fn summarize_wiki(_args: serde_json::Value) -> std::result::Result<Value, AdkError> {
+async fn summarize_wiki(_args: SummarizeWikiArgs) -> std::result::Result<Value, AdkError> {
     let wiki_dir = get_wiki_dir().await?;
     let mut summary_content =
         "# Wiki Summary Index\n\nGenerated automatically by Nami.\n\n".to_string();

@@ -9,15 +9,11 @@ use sysinfo::{Disks, Networks, System};
 // ─── Tools ────────────────────────────────────────────────────────────────────
 
 #[derive(serde::Deserialize, JsonSchema)]
-struct NoArgs {
-    /// Optional reason for requesting system status.
-    #[allow(dead_code)]
-    reason: Option<String>,
-}
+struct GetSystemStatusArgs {}
 
 /// Retrieves system information including CPU usage, memory stats, disk space, network stats, and latency to google.com.
 #[tool]
-async fn get_system_status(_args: NoArgs) -> std::result::Result<Value, AdkError> {
+async fn get_system_status(_args: GetSystemStatusArgs) -> std::result::Result<Value, AdkError> {
     let mut sys = System::new_all();
     sys.refresh_all();
 

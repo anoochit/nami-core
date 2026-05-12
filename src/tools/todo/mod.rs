@@ -53,6 +53,9 @@ async fn save_todos(todos: &[Todo]) -> std::result::Result<(), AdkError> {
         .map_err(|e| AdkError::tool(format!("Failed to write todos: {}", e)))
 }
 
+#[derive(Deserialize, JsonSchema)]
+struct ListTodosArgs {}
+
 /// Adds a new todo item to the TODO list.
 #[tool]
 async fn add_todo(args: AddTodoArgs) -> std::result::Result<Value, AdkError> {
@@ -70,7 +73,7 @@ async fn add_todo(args: AddTodoArgs) -> std::result::Result<Value, AdkError> {
 
 /// Lists all todo items in the TODO list.
 #[tool]
-async fn list_todos(_args: Value) -> std::result::Result<Value, AdkError> {
+async fn list_todos(_args: ListTodosArgs) -> std::result::Result<Value, AdkError> {
     let todos = load_todos().await?;
     if todos.is_empty() {
         Ok(json!({"message": "Your TODO list is empty."}))
