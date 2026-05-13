@@ -1,0 +1,28 @@
+metadata_dir = "/var/lib/garage/meta"
+data_dir = "/var/lib/garage/data"
+db_engine = "sqlite"
+metadata_auto_snapshot_interval = "6h"
+
+# Single-node setup — set replication_factor = 3 for multi-node clusters
+replication_factor = 1
+compression_level = 2
+
+rpc_bind_addr = "[::]:3901"
+rpc_public_addr = "127.0.0.1:3901"
+
+rpc_secret = "e3bf5de8294b484382f0451dcbefdca3ba3f4c91e42c908f2d1862ba3cf66e37"
+
+[s3_api]
+s3_region = "garage"
+api_bind_addr = "[::]:3900"
+
+[s3_web]
+bind_addr = "[::]:3902"
+root_domain = ".web.localhost"
+index = "index.html"
+
+[admin]
+api_bind_addr = "[::]:3903"
+# Generate strong tokens: openssl rand -base64 32
+admin_token = "B1RmU4dAiMgxnXKYq2vO7sHj+PQfl7nG0gBl4Xd1YHQ="
+metrics_token = "dsYtZ8XAe/QDAGkpiLlRRxSkZTNPh9i1UORHo3e2384="
