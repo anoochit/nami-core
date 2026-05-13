@@ -9,7 +9,4 @@ tags: [daily]
 ## Summary
 A brief overview of today's post.
 
-## Tasks
-- [ ] 
-
 ## Notes

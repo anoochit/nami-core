@@ -105,7 +105,16 @@ pub async fn initialize_project() -> anyhow::Result<()> {
         .with_display_mode(inquire::PasswordDisplayMode::Masked)
         .prompt()?;
 
-    // 5. Enter Serper API Key (Optional)
+    // 5. Enter LINE Credentials (Optional)
+    let line_secret = Password::new("Enter LINE Channel Secret:")
+        .with_display_mode(inquire::PasswordDisplayMode::Masked)
+        .prompt()?;
+
+    let line_token = Password::new("Enter LINE Channel Access Token:")
+        .with_display_mode(inquire::PasswordDisplayMode::Masked)
+        .prompt()?;
+
+    // 6. Enter Serper API Key (Optional)
     let serper_api_key = Password::new("Enter Serper API Key for Google Search:")
         .with_display_mode(inquire::PasswordDisplayMode::Masked)
         .prompt()?;
@@ -183,6 +192,8 @@ enabled = false
     let env_content = format!(
         r#"{api_key_env}={api_key}
 TELOXIDE_TOKEN={telegram_key}
+LINE_CHANNEL_SECRET={line_secret}
+LINE_CHANNEL_ACCESS_TOKEN={line_token}
 SERPER_API_KEY={serper_api_key}
 "#
     );

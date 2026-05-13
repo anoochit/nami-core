@@ -44,6 +44,11 @@ enum Commands {
         /// Optional port for the browser UI.
         port: Option<u16>
     },
+    /// Run the LINE bot mode.
+    Line {
+        /// Optional port for the LINE webhook server.
+        port: Option<u16>
+    },
 }
 
 #[tokio::main]
@@ -156,6 +161,17 @@ async fn main() -> anyhow::Result<()> {
         Commands::Browse { port } => {
             log::info!("Running in browse mode");
             modes::browse::run_browse(agent, model, memory_adapter, port.unwrap_or(8080)).await?;
+        }
+        Commands::Line { port } => {
+            log::info!("Running in LINE bot mode");
+            let runner = Arc::new(AgentRunner::new(
+                agent,
+                sessions.clone(),
+                memory_adapter,
+                "line",
+                model,
+            ));
+            modes::line::run_line(runner, port.unwrap_or(8080)).await?;
         }
         Commands::Init => unreachable!(),
     }
