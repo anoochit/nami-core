@@ -9,7 +9,8 @@ pub async fn initialize_project() -> anyhow::Result<()> {
 
     skin.print_text("# AI Agent Initializer\n");
 
-    // 1. Choose LLM Provider
+    // --- 1. LLM Configuration ---
+    skin.print_text("### 1. LLM Configuration\n");
     let providers = vec![
         "anthropic",
         "gemini",
@@ -28,7 +29,6 @@ pub async fn initialize_project() -> anyhow::Result<()> {
         provider_selection.to_string()
     };
 
-    // 2. Choose Model
     let models = match provider.as_str() {
         "anthropic" => vec![
             "claude-opus-4-6",
@@ -82,16 +82,14 @@ pub async fn initialize_project() -> anyhow::Result<()> {
         model_selection.to_string()
     };
 
-    // 3. Enter LLM API Key (Skipped for Vertex AI as it uses ADC)
     let api_key = if provider != "vertex" {
-        Password::new("Enter API Key:")
+        Password::new("Enter LLM API Key:")
             .with_display_mode(inquire::PasswordDisplayMode::Masked)
             .prompt()?
     } else {
         String::new()
     };
 
-    // Vertex AI specific configuration
     let (project_id, location) = if provider == "vertex" {
         let pid = Text::new("Enter Google Cloud Project ID:").prompt()?;
         let loc = Text::new("Enter Google Cloud Location (e.g., us-central1):").prompt()?;
@@ -99,25 +97,6 @@ pub async fn initialize_project() -> anyhow::Result<()> {
     } else {
         (None, None)
     };
-
-    // 4. Enter Telegram API Key (Optional)
-    let telegram_key = Password::new("Enter Telegram API Key:")
-        .with_display_mode(inquire::PasswordDisplayMode::Masked)
-        .prompt()?;
-
-    // 5. Enter LINE Credentials (Optional)
-    let line_secret = Password::new("Enter LINE Channel Secret:")
-        .with_display_mode(inquire::PasswordDisplayMode::Masked)
-        .prompt()?;
-
-    let line_token = Password::new("Enter LINE Channel Access Token:")
-        .with_display_mode(inquire::PasswordDisplayMode::Masked)
-        .prompt()?;
-
-    // 6. Enter Serper API Key (Optional)
-    let serper_api_key = Password::new("Enter Serper API Key for Google Search:")
-        .with_display_mode(inquire::PasswordDisplayMode::Masked)
-        .prompt()?;
 
     // Determine Env Var Name based on provider
     let api_key_env = match provider.as_str() {
@@ -129,6 +108,31 @@ pub async fn initialize_project() -> anyhow::Result<()> {
         "ollama" => "OLLAMA_API_KEY",
         _ => "API_KEY",
     };
+
+    // --- 2. Search Configuration ---
+    skin.print_text("\n### 2. Search Configuration\n");
+    let serper_api_key = Password::new("Enter Serper API Key (optional):")
+        .with_display_mode(inquire::PasswordDisplayMode::Masked)
+        .prompt()?;
+
+    // --- 3. Bot Configuration ---
+    skin.print_text("\n### 3. Bot Configuration\n");
+    let telegram_key = Password::new("Enter Telegram API Key (optional):")
+        .with_display_mode(inquire::PasswordDisplayMode::Masked)
+        .prompt()?;
+
+    let line_secret = Password::new("Enter LINE Channel Secret (optional):")
+        .with_display_mode(inquire::PasswordDisplayMode::Masked)
+        .prompt()?;
+
+    let line_token = Password::new("Enter LINE Channel Access Token (optional):")
+        .with_display_mode(inquire::PasswordDisplayMode::Masked)
+        .prompt()?;
+
+    // --- 4. Observability Configuration ---
+    skin.print_text("\n### 4. Observability Configuration\n");
+    let otel_collector = Text::new("Enter OTEL_COLLECTOR URL (e.g., http://localhost:4317) (optional):")
+        .prompt()?;
 
     // --- File Generation ---
 
@@ -195,6 +199,7 @@ TELOXIDE_TOKEN={telegram_key}
 LINE_CHANNEL_SECRET={line_secret}
 LINE_CHANNEL_ACCESS_TOKEN={line_token}
 SERPER_API_KEY={serper_api_key}
+OTEL_COLLECTOR={otel_collector}
 "#
     );
     write_file(".env", &env_content)?;
