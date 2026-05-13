@@ -6,10 +6,12 @@ The `modes` module contains the entry-point implementations for the various ways
 ## Architecture & Responsibilities
 - **`cli.rs`**: Interactive TUI interface with rich formatting and command handling.
 - **`bot.rs`**: Telegram integration using the `teloxide` framework.
+- **`line.rs`**: LINE Bot integration with webhook verification and messaging API support.
 - **`serve.rs`**: HTTP REST API for external integrations.
 - **`browse.rs`**: A specialized serve mode that bundles and serves the WebUI and API endpoints.
 - **`init.rs`**: Logic for bootstrapping the project configuration and database.
 - **`api.rs`**: RESTful API endpoints for workspace and wiki access.
+- **`run.rs`**: Non-interactive direct execution of the agent with a single prompt.
 
 ## Dependencies
 - **External**: `axum`, `teloxide`, `tower-http`
