@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.9.11] - 2026-05-13
+
+### Added
+
+- **LINE Bot Integration**: Implemented a new run mode for LINE messaging platform.
+  - Added `line` subcommand to the CLI.
+  - Implemented a webhook server using Axum with HMAC-SHA256 signature verification.
+  - Integrated with LINE Messaging API for replying to user messages.
+- **Enhanced Documentation**: Updated the `modes` module `README.md` with comprehensive descriptions for all current run modes, including the new LINE integration and the direct `run` command.
+
 ## [0.9.10] - 2026-05-12
 
 ### Added

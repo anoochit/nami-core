@@ -11,6 +11,7 @@ A modular, extensible AI-powered `Nami` built on top of [adk-rust](https://githu
 ### 🧠 Core Intelligence & Orchestration
 
 * **Multi-Platform AI**: Powered by Gemini, Anthropic, or any OpenAI-compatible LLM (e.g., ThaiLLM).
+* **Telegram & LINE Bot Integration**: Seamlessly interact with the agent through popular messaging platforms. Supports persistent sessions and high-performance message processing.
 * **Agent Reflection Service**: A background service that periodically analyzes session logs to synthesize "Learnings" (facts, preferences, project context) and automatically update `MEMORIES.md` and searchable memory.
 * **AI Gateway Integration**: Support for high-availability routing via **MLflow Deployments**, enabling load balancing and fallback strategies across multiple LLM providers.
 * **Tool-Enabled Specialist Agents**: Ecosystem of specialized agents (`coder`, `researcher`, `writer`, `generalist`, `ralph`) with full access to core tools (filesystem, search, wiki), allowing for autonomous complex task execution.
@@ -146,12 +147,13 @@ SERPER_API_KEY=your_serper_api_key
 
 ### Running
 
-The application provides five primary run modes:
+The application provides several run modes:
 
 | Mode | Command | Description |
 | :--- | :--- | :--- |
 | **Initialize** | `nami init` | Initialize project config files and database. |
 | **Telegram Bot** | `nami bot` | Start the interactive Telegram Bot. |
+| **LINE Bot** | `nami line` | Start the LINE Bot webhook server. |
 | **CLI** | `nami cli` | Local interactive terminal agent with rich TUI. |
 | **Run** | `nami run <prompt>` | Execute a single prompt directly from the CLI. |
 | **Server** | `nami serve` | Run as an HTTP service. |
@@ -166,6 +168,7 @@ graph TD
     subgraph EntryPoints [Modes]
         direction TB
         Bot[Telegram Bot]
+        Line[LINE Bot]
         CLI[Interactive CLI]
         Run[Direct Run]
         Server[HTTP Server/Browse]
