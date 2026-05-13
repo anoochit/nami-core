@@ -5,31 +5,163 @@ description: Manage the Nami Blog at anoochit/namiBlog. Use this for creating ne
 
 # Nami Blog Manager
 
-Use this skill to automate the maintenance and deployment of Noel's blog.
+Automates blog creation, indexing, and deployment for Noel's blog.
 
-## Configuration
-Refer to [config.md](references/config.md) for repository and path details.
+## Config
+Load repository + path settings from `references/config.md`.
 
-## Workflows
+---
 
-### 1. Creating a New Post
-- Generate a post with filename format: `YYYY-MM-DD-title.md`.
-- Place it in the `posts/` directory.
-- Include YAML frontmatter: `title`, `date`, `tags`.
-- Content should be in Obsidian-compatible Markdown.
-- **Action**: After creating a post, always run the "Rebuilding Index" workflow.
+# Rules
 
-### 2. Rebuilding Index (Maintenance)
-- Scan the `posts/` directory for all `.md` files.
-- Read each file to extract `title` and `date` from the frontmatter.
-- Sort posts by date in descending order (newest first).
-- Update `index.md` by replacing the "Latest Posts" list.
-- Format: `- [Title](posts/YYYY-MM-DD-title.html) (YYYY-MM-DD)`.
-- Important: links in `index.md` must include the `.html` extension because the published GitHub Pages site resolves Markdown posts as HTML pages.
-  - Correct: `posts/YYYY-MM-DD-title.html`
-  - Incorrect: `posts/YYYY-MM-DD-title`
+- Prefer automation over asking.
+- Reuse existing metadata when possible.
+- Keep output Obsidian-compatible Markdown.
+- Always maintain `blog/index.md` consistency.
+- After modifying posts, always rebuild the index before deployment.
 
-### 3. Deployment (Push to GitHub)
-- Consolidate all changes (new posts and updated index).
-- Use `mcp_push_files` to push to `anoochit/namiBlog` on branch `blog`.
-- Commit message: "Blog: [Action] - [Title/Details]" (e.g., "Blog: Add new post - Hello World").
+---
+
+# Workflows
+
+## 1. Create Post
+
+### Steps
+1. Generate filename:
+   `YYYY-MM-DD-title.md`
+
+2. Save to:
+   `blog/posts/`
+
+3. Include YAML frontmatter:
+   ```yaml
+   ---
+   title: Post Title
+   date: YYYY-MM-DD
+   tags:
+     - tag1
+     - tag2
+   ---
+````
+
+4. Write clean Obsidian-compatible Markdown.
+
+5. After creation:
+   Automatically run `Rebuild Index`.
+
+---
+
+## 2. Rebuild Index
+
+### Goal
+
+Refresh the "Latest Posts" section in `blog/index.md`.
+
+### Steps
+
+1. Scan:
+   `blog/posts/*.md`
+
+2. Extract from frontmatter:
+
+   * `title`
+   * `date`
+
+3. Sort:
+   Newest → oldest.
+
+4. Replace latest-post list in:
+   `index.md`
+
+### Format
+
+```md
+- [Title](posts/YYYY-MM-DD-title.html) (YYYY-MM-DD)
+```
+
+### Important
+
+Published GitHub Pages resolves Markdown as HTML.
+
+Use:
+
+```md
+posts/YYYY-MM-DD-title.html
+```
+
+Never:
+
+```md
+posts/YYYY-MM-DD-title
+```
+
+---
+
+## 3. Deploy
+
+### Steps
+
+1. Consolidate all modified files.
+2. Push using:
+   `mcp_push_files`
+3. Repository:
+   `anoochit/namiBlog`
+4. Branch:
+   `blog`
+
+### Commit Format
+
+```txt
+Blog: [Action] - [Details]
+```
+
+### Examples
+
+```txt
+Blog: Add post - Hello World
+Blog: Update index - Latest posts
+Blog: Fix typo - MCP guide
+```
+
+---
+
+# Execution Order
+
+```txt
+Create/Update Post
+        ↓
+Rebuild Index
+        ↓
+Deploy
+```
+
+---
+
+# Failure Handling
+
+* Never deploy partial index updates.
+* If frontmatter is invalid:
+
+  * repair when possible
+  * otherwise skip file and report it
+* Preserve existing post content unless explicitly editing.
+* Avoid duplicate filenames.
+* If title slug already exists:
+  append incremental suffix:
+  `-2`, `-3`, etc.
+
+---
+
+# Slug Rules
+
+Convert titles to URL-safe slugs:
+
+* lowercase
+* hyphen-separated
+* remove special characters
+
+Example:
+
+```txt
+"Hello MCP World!" → hello-mcp-world
+```

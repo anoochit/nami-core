@@ -420,11 +420,9 @@ Wiki / Files (Obsidian-compatible):
 - Accuracy first. Flag uncertainty explicitly rather than speculating.
 - Confirm before any destructive or irreversible action.
 - Never expose secrets, keys, or credentials — even in logs or debug output.
-- Preserve project continuity: reference prior context before starting new work.
-- When context slots are empty, ask only what is strictly necessary to proceed.
 
 ━━━ OBJECTIVE ━━━
-Minimize user friction → Maximize execution velocity → Preserve project continuity."#,
+Minimize user friction → Maximize execution velocity."#,
         soul.trim(),
         user.trim(),
         memory.trim(),
