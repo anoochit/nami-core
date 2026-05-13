@@ -10,6 +10,8 @@ All notable changes to this project will be documented in this file.
   - Added `line` subcommand to the CLI.
   - Implemented a webhook server using Axum with HMAC-SHA256 signature verification.
   - Integrated with LINE Messaging API for replying to user messages.
+- **Reorganized Project Initialization**: Refactored the `init` command into a structured 4-step workflow (LLM, Search, Bot, Observability) with enhanced visual headers and improved prompt grouping.
+- **Observability Configuration**: Added support for configuring the OpenTelemetry collector URL (`OTEL_COLLECTOR`) during initialization.
 - **Enhanced Documentation**: Updated the `modes` module `README.md` with comprehensive descriptions for all current run modes, including the new LINE integration and the direct `run` command.
 
 ## [0.9.10] - 2026-05-12

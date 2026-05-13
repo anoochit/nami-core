@@ -107,6 +107,7 @@ GOOGLE_API_KEY=your_google_api_key_here
 THAILLM_API_KEY=your_api_key_here
 TELOXIDE_TOKEN=your_telegram_bot_token
 SERPER_API_KEY=your_serper_api_key
+OTEL_COLLECTOR=your_otel_collector_url
 ```
 
 1. Customize the Bot's Soul:
