@@ -4,6 +4,7 @@ use adk_rust::Launcher;
 use adk_rust::Llm;
 use std::sync::Arc;
 use tower_http::cors::CorsLayer;
+use axum::{routing::get, response::Redirect, Router};
 
 pub(crate) async fn run_serve(
     agent: Arc<dyn Agent>,
@@ -20,6 +21,9 @@ pub(crate) async fn run_serve(
         .with_a2a_base_url(base_url)
         .build_app()?
         .merge(crate::modes::api::api_router())
+        .merge(Router::new().route("/.well-known/agent-card.json", get(|| async {
+            Redirect::temporary("/.well-known/agent.json")
+        })))
         .layer(CorsLayer::permissive());
 
     let addr = format!("0.0.0.0:{port}");
