@@ -5,20 +5,98 @@ description: Manage the Nami Blog at anoochit/namiBlog. Use this for creating ne
 
 # Nami Blog Manager
 
-Automates blog creation, indexing, and deployment for Noel's blog.
+Manage blog posts, rebuild navigation, validate metadata, and deploy updates automatically.
 
 ## Config
-Load repository + path settings from `references/config.md`.
+
+Load repository + path configuration from:
+
+`references/config.md`
 
 ---
 
-# Rules
+# Repository Structure
 
-- Prefer automation over asking.
-- Reuse existing metadata when possible.
-- Keep output Obsidian-compatible Markdown.
-- Always maintain `blog/index.md` consistency.
-- After modifying posts, always rebuild the index before deployment.
+```txt
+blog/
+├── index.md
+└── posts/
+    ├── YYYY-MM-DD-title.md
+    └── ...
+```
+
+---
+
+# Core Behavior
+
+- Automate whenever safe.
+- Minimize unnecessary questions.
+- Preserve existing content unless editing explicitly.
+- Keep Markdown Obsidian-compatible.
+- Keep `blog/index.md` synchronized with posts.
+- Rebuild index before every deployment.
+- Never deploy inconsistent state.
+
+---
+
+# Post Rules
+
+## Filename
+
+Format:
+
+```txt
+YYYY-MM-DD-slug.md
+```
+
+Example:
+
+```txt
+2026-05-13-fastmcp-tools.md
+```
+
+## Slug Rules
+
+Convert titles into URL-safe slugs:
+
+- lowercase
+- hyphen-separated
+- remove symbols/special chars
+- collapse duplicate hyphens
+
+Example:
+
+```txt
+"Hello MCP World!" → hello-mcp-world
+```
+
+## Duplicate Handling
+
+If filename already exists:
+
+```txt
+hello-world.md
+hello-world-2.md
+hello-world-3.md
+```
+
+---
+
+# Frontmatter Schema
+
+Every post must include:
+
+```yaml
+---
+title: Post Title
+date: YYYY-MM-DD
+tags:
+  - tag1
+  - tag2
+---
+```
+
+Optional fields may be preserved if already present.
 
 ---
 
@@ -26,109 +104,171 @@ Load repository + path settings from `references/config.md`.
 
 ## 1. Create Post
 
-### Steps
-1. Generate filename:
-   `YYYY-MM-DD-title.md`
+### Flow
 
-2. Save to:
-   `blog/posts/`
+1. Generate slug from title.
+2. Generate unique filename.
+3. Save file to:
 
-3. Include YAML frontmatter:
-   ```yaml
-   ---
-   title: Post Title
-   date: YYYY-MM-DD
-   tags:
-     - tag1
-     - tag2
-   ---
-````
+```txt
+blog/posts/
+```
 
-4. Write clean Obsidian-compatible Markdown.
-
-5. After creation:
-   Automatically run `Rebuild Index`.
+4. Add valid YAML frontmatter.
+5. Write clean Markdown content.
+6. Automatically run:
+   - Validate Posts
+   - Rebuild Index
 
 ---
 
-## 2. Rebuild Index
+## 2. Update Post
+
+### Flow
+
+1. Locate target post.
+2. Preserve untouched sections.
+3. Update requested content only.
+4. Validate frontmatter.
+5. Rebuild index automatically.
+
+---
+
+## 3. Validate Posts
+
+### Checks
+
+For every file in:
+
+```txt
+blog/posts/*.md
+```
+
+Validate:
+
+- valid YAML frontmatter
+- required fields exist
+- valid date format
+- unique filename
+- readable Markdown structure
+
+### Recovery
+
+If possible:
+
+- auto-repair metadata
+- normalize formatting
+
+Otherwise:
+
+- skip invalid file
+- report issue clearly
+- never block valid posts
+
+---
+
+## 4. Rebuild Index
 
 ### Goal
 
-Refresh the "Latest Posts" section in `blog/index.md`.
+Refresh latest-post listings in:
 
-### Steps
+```txt
+blog/index.md
+```
 
-1. Scan:
-   `blog/posts/*.md`
+### Flow
 
-2. Extract from frontmatter:
+1. Scan all posts.
+2. Extract:
+   - title
+   - date
+   - slug
+3. Sort newest → oldest.
+4. Replace latest-post section.
 
-   * `title`
-   * `date`
-
-3. Sort:
-   Newest → oldest.
-
-4. Replace latest-post list in:
-   `index.md`
-
-### Format
+### Output Format
 
 ```md
-- [Title](posts/YYYY-MM-DD-title.html) (YYYY-MM-DD)
+- [Post Title](posts/YYYY-MM-DD-slug.html) (YYYY-MM-DD)
 ```
 
 ### Important
 
-Published GitHub Pages resolves Markdown as HTML.
+GitHub Pages resolves Markdown as HTML.
 
-Use:
+Always use:
 
-```md
-posts/YYYY-MM-DD-title.html
+```txt
+posts/file.html
 ```
 
 Never:
 
-```md
-posts/YYYY-MM-DD-title
+```txt
+posts/file
+posts/file.md
 ```
 
 ---
 
-## 3. Deploy
+## 5. Deploy
 
-### Steps
+### Preconditions
 
-1. Consolidate all modified files.
-2. Push using:
-   `mcp_push_files`
+Before deployment:
+
+- index rebuilt
+- validation passed
+- no partial updates
+
+### Flow
+
+1. Consolidate modified files.
+2. Push via:
+
+```txt
+mcp_push_files
+```
+
 3. Repository:
-   `anoochit/namiBlog`
-4. Branch:
-   `blog`
 
-### Commit Format
+```txt
+anoochit/namiBlog
+```
+
+4. Branch:
+
+```txt
+blog
+```
+
+---
+
+# Commit Message Rules
+
+Format:
 
 ```txt
 Blog: [Action] - [Details]
 ```
 
-### Examples
+Examples:
 
 ```txt
-Blog: Add post - Hello World
+Blog: Add post - FastMCP Tools
 Blog: Update index - Latest posts
-Blog: Fix typo - MCP guide
+Blog: Fix typo - Agent Memory
 ```
 
 ---
 
-# Execution Order
+# Execution Pipeline
 
 ```txt
-Create/Update Post
+Create / Update Post
+        ↓
+Validate Posts
         ↓
 Rebuild Index
         ↓
@@ -137,31 +277,21 @@ Deploy
 
 ---
 
-# Failure Handling
+# Safety Rules
 
-* Never deploy partial index updates.
-* If frontmatter is invalid:
-
-  * repair when possible
-  * otherwise skip file and report it
-* Preserve existing post content unless explicitly editing.
-* Avoid duplicate filenames.
-* If title slug already exists:
-  append incremental suffix:
-  `-2`, `-3`, etc.
+- Never deploy broken indexes.
+- Never overwrite unrelated content.
+- Never remove metadata silently.
+- Never deploy partially processed posts.
+- Skip corrupted files safely when unrecoverable.
+- Prefer repair over failure.
 
 ---
 
-# Slug Rules
+# Output Style
 
-Convert titles to URL-safe slugs:
-
-* lowercase
-* hyphen-separated
-* remove special characters
-
-Example:
-
-```txt
-"Hello MCP World!" → hello-mcp-world
-```
+- concise
+- structured
+- automation-first
+- deterministic formatting
+- clean Markdown only
