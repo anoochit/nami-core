@@ -2,6 +2,23 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.9.12] - 2026-05-14
+
+### Added
+
+- **Type-Safe Chat Architecture**: Introduced a centralized type system in `webui/src/types/chat.ts` for messages, threads, and agent events, eliminating `any` usage and improving compile-time safety.
+- **New Modular Components**:
+  - `ChatHeader`: Dedicated component for thread metadata and sidebar toggling.
+  - `MessageList`: Encapsulated auto-scrolling container for chat history.
+  - `MessageItem`: Specialized component for rendering message bubbles, tool-calls, and Markdown content.
+  - `ChatInput`: Integrated component for input handling, slash command autocomplete, and prompt history.
+
+### Changed
+
+- **WebUI Architectural Refactor**: Decomposed the monolithic `ThreadView.tsx` into a modular component tree to improve maintainability and scalability.
+- **Refined Streaming Polish**: Enhanced the Thai/English auto-spacing algorithm in `useChat.ts` and improved SSE (Server-Sent Events) chunk processing in `api.ts` for increased robustness against partial data.
+- **WebUI UX Improvements**: Redesigned the chat input send button with a perfect circular shape and pixel-perfect icon centering using CSS Grid.
+
 ## [0.9.11] - 2026-05-13
 
 ### Added

@@ -22,6 +22,7 @@ A modular, extensible AI-powered `Nami` built on top of [adk-rust](https://githu
 
 ### 💻 Rich User Interface
 
+* **Modular React WebUI**: A modern, decomposed component architecture (`ChatHeader`, `MessageList`, `MessageItem`, `ChatInput`) designed for high maintainability, type-safety, and pixel-perfect UX.
 * **Modern TUI**: A rich, interactive CLI experience with a custom ASCII banner, animated indicators, pretty error rendering with intelligent hints, and structured layout.
 * **Focused Input Control**: Implements terminal raw mode during processing to block echoes, ensuring a clean and focused agent execution state.
 * **Silent Cancellation**: Support for both `Ctrl+C` and silent `ESC` interruption, allowing users to cancel requests without terminal clutter.
