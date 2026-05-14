@@ -36,8 +36,9 @@ pub async fn run_agui(
 
     let addr = format!("0.0.0.0:{}", port);
     let listener = tokio::net::TcpListener::bind(&addr).await?;
-    log::info!("AG-UI server running on http://{}", addr);
 
+    println!("AG-UI server running on http://{}", addr);
+    println!("Press Ctrl+C to stop\n");
     axum::serve(listener, app).await?;
     Ok(())
 }

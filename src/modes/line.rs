@@ -45,7 +45,8 @@ pub async fn run_line(
 
     let addr = format!("0.0.0.0:{}", port);
     let listener = tokio::net::TcpListener::bind(&addr).await?;
-    log::info!("LINE Bot Webhook server starting on http://localhost:{}", port);
+    println!("LINE Bot Webhook server starting on http://{}", addr);
+    println!("Press Ctrl+C to stop\n");
     axum::serve(listener, app).await?;
 
     Ok(())

@@ -28,7 +28,8 @@ pub(crate) async fn run_serve(
 
     let addr = format!("0.0.0.0:{port}");
     let listener = tokio::net::TcpListener::bind(&addr).await?;
-    log::info!("ADK Server starting on http://localhost:{}", port);
+    println!("ADK Server starting on http://{}", addr);
+    println!("Press Ctrl+C to stop\n");
     axum::serve(listener, app).await?;
     Ok(())
 }
