@@ -36,7 +36,26 @@ impl CommandRegistry {
 
     pub fn format_prompt(&self, name: &str, args: &str) -> Option<String> {
         self.get_command(name).map(|template| {
-            template.replace("{args}", args)
+            let parts: Vec<&str> = args.split('|').map(|s| s.trim()).collect();
+            let mut formatted = template.clone();
+            
+            // Support specific placeholders
+            if let Some(goal) = parts.get(0) {
+                formatted = formatted.replace("{goal}", goal);
+            }
+            if let Some(cron) = parts.get(1) {
+                formatted = formatted.replace("{cron}", cron);
+            }
+            if let Some(stop) = parts.get(1) {
+                formatted = formatted.replace("{stop}", stop);
+            }
+            
+            // Fallback for {args}
+            formatted = formatted.replace("{args}", args);
+            // Replace {uuid} for task IDs
+            formatted = formatted.replace("{uuid}", &uuid::Uuid::new_v4().to_string().split('-').next().unwrap_or("task"));
+
+            formatted
         })
     }
 }

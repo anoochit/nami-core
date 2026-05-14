@@ -474,7 +474,7 @@ async fn handle_slash_command(
                 env!("CARGO_PKG_VERSION")
             );
         }
-
+        
         "/tasks" => {
             run_system_prompt(runner, user_id, session_id, "list_active_tasks", nami_skin).await?;
         }
@@ -550,45 +550,45 @@ pub(crate) async fn run_cli(
         .bullet
         .set_fg(termimad::crossterm::style::Color::Magenta);
 
-    let mut last_config_mtime = get_config_mtime();
-    let mut last_skills_mtime = get_skills_mtime();
+    // let mut last_config_mtime = get_config_mtime();
+    // let mut last_skills_mtime = get_skills_mtime();
 
     loop {
-        let mut config_changed = false;
+        // let mut config_changed = false;
 
-        if let Some(new_config) = check_config_mtime(&mut last_config_mtime) {
-            let (new_agent, new_model) = create_agent(&new_config).await?;
+        // if let Some(new_config) = check_config_mtime(&mut last_config_mtime) {
+        //     let (new_agent, new_model) = create_agent(&new_config).await?;
 
-            agent = new_agent;
-            model = new_model;
+        //     agent = new_agent;
+        //     model = new_model;
 
-            provider = new_config
-                .model
-                .provider
-                .clone()
-                .unwrap_or_else(|| "gemini".to_string());
-            model_name = new_config.model.model_name.clone();
+        //     provider = new_config
+        //         .model
+        //         .provider
+        //         .clone()
+        //         .unwrap_or_else(|| "gemini".to_string());
+        //     model_name = new_config.model.model_name.clone();
 
-            config_changed = true;
-        }
+        //     config_changed = true;
+        // }
 
-        let current_skills_mtime = get_skills_mtime();
+        // let current_skills_mtime = get_skills_mtime();
 
-        if last_skills_mtime != current_skills_mtime {
-            last_skills_mtime = current_skills_mtime;
-            config_changed = true;
-        }
+        // if last_skills_mtime != current_skills_mtime {
+        //     last_skills_mtime = current_skills_mtime;
+        //     config_changed = true;
+        // }
 
-        if config_changed {
-            runner = Runner::builder()
-                .app_name(app_name)
-                .agent(agent.clone())
-                .session_service(sessions.clone())
-                .compaction_config(get_compaction_config(model.clone()))
-                .build()?;
+        // if config_changed {
+        //     runner = Runner::builder()
+        //         .app_name(app_name)
+        //         .agent(agent.clone())
+        //         .session_service(sessions.clone())
+        //         .compaction_config(get_compaction_config(model.clone()))
+        //         .build()?;
 
-            println!("\n{}\n", style::style("🧠 Agent reloaded").cyan());
-        }
+        //     println!("\n{}\n", style::style("🧠 Agent reloaded").cyan());
+        // }
 
         let line = rl.readline("You > ");
 
