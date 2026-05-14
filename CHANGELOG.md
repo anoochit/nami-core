@@ -17,7 +17,14 @@ All notable changes to this project will be documented in this file.
 
 - **WebUI Architectural Refactor**: Decomposed the monolithic `ThreadView.tsx` into a modular component tree to improve maintainability and scalability.
 - **Refined Streaming Polish**: Enhanced the Thai/English auto-spacing algorithm in `useChat.ts` and improved SSE (Server-Sent Events) chunk processing in `api.ts` for increased robustness against partial data.
-- **WebUI UX Improvements**: Redesigned the chat input send button with a perfect circular shape and pixel-perfect icon centering using CSS Grid.
+- WebUI UX Improvements: Redesigned the chat input send button with a perfect circular shape and pixel-perfect icon centering using CSS Grid.
+
+### Fixed
+
+- **TypeScript Compilation**: Resolved a `Type 'unknown' is not assignable to type 'ReactNode'` error in `ToolAccordion.tsx` by implementing explicit null/undefined checks.
+- **UI Alignment**: Corrected the visual centering of the Send icon within the circular action button.
+- **Project Initialization**: Fixed a compilation error in `init.rs` caused by unescaped curly braces in the `config.toml` template.
+- **CLI Code Quality**: Resolved compiler warnings by removing unused `mut` qualifiers in the `run_cli` function.
 
 ## [0.9.11] - 2026-05-13
 

@@ -32,6 +32,9 @@ A modular, extensible AI-powered `Nami` built on top of [adk-rust](https://githu
   * `/goal`: Run autonomous loops.
   * `/schedule`: Manage automated tasks with cron.
   * `/plan`: Initialize structured tasks.
+  * `/wiki`: Search the project wiki.
+  * `/memo`: Save information to memory.
+  * `/recall`: Recall information from memory.
 * **@ File Context References**: Reference files from the `workspace/` directly in the CLI using `@path/to/file` with built-in Tab-completion.
 * **Dynamic Persona & Soul**: Configure the bot's personality and user context via `workspace/AGENT.md` and `workspace/USER.md`. Automatically updated `workspace/MEMORIES.md` tracks personal user facts.
 
