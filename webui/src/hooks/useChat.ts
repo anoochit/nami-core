@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { api } from '../lib/api';
+import { processSlashCommand } from '../lib/commandLoader';
 
 export interface Message {
   id: string;
@@ -52,11 +53,13 @@ export const useChat = () => {
   const sendMessage = async () => {
     if (!input.trim()) return;
 
+    const processedInput = processSlashCommand(input);
+
     // Add to history
-    setPromptHistory(prev => [...prev, input]);
+    setPromptHistory(prev => [...prev, processedInput]);
     setHistoryIndex(-1);
 
-    const newUserMessage: Message = { id: Date.now().toString(), sender: 'user', text: input };
+    const newUserMessage: Message = { id: Date.now().toString(), sender: 'user', text: processedInput };
     
     let currentSessionId = activeThread.sessionId;
 
@@ -88,7 +91,7 @@ export const useChat = () => {
     try {
       await api.runAgent('nami', 'user1', currentSessionId!, {
         role: 'user',
-        parts: [{ text: input }]
+        parts: [{ text: processedInput }]
       }, (data) => {
           const parts = data?.content?.parts;
           if (!Array.isArray(parts)) return;
@@ -151,6 +154,7 @@ export const useChat = () => {
       setIsLoading(false);
     }
   };
+
 
   const createNewThread = async () => {
     const isHealthy = await api.checkHealth();

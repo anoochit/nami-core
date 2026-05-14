@@ -12,3 +12,9 @@ location = "global"
 
 # Optional settings for OpenAI-compatible providers
 # base_url = "https://api.openai.com/v1"
+
+[commands]
+# Example command definitions for the dynamic registry
+"/plan" = "plan_create(name='auto', objective='{args}')"
+"/wiki" = "wiki_search: {args}"
+"/memo" = "add_memory: {args}"

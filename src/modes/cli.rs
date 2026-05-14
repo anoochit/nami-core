@@ -17,6 +17,7 @@ use walkdir::WalkDir;
 
 use crate::agent::agent::{check_config_mtime, create_agent, get_config_mtime, get_skills_mtime};
 use crate::agent::get_compaction_config;
+use crate::modes::command_registry::CommandRegistry;
 use crate::tools::scheduler::{load_schedule, save_schedule};
 use crate::tools::state_manager::{TaskStatus, load_states};
 
@@ -428,7 +429,19 @@ async fn handle_slash_command(
     nami_skin: &MadSkin,
     provider: &mut String,
     model_name: &mut String,
+    registry: &CommandRegistry,
 ) -> anyhow::Result<bool> {
+    let parts: Vec<&str> = trimmed.splitn(2, ' ').collect();
+    let command_name = parts[0];
+    let args = parts.get(1).unwrap_or(&"");
+
+    // Dynamic registry lookup
+    if let Some(prompt) = registry.format_prompt(command_name, args) {
+        run_system_prompt(runner, user_id, session_id, &prompt, nami_skin).await?;
+        return Ok(false);
+    }
+
+    // Fallback to static commands
     match trimmed {
         "/?" => {
             render_help();
@@ -483,87 +496,13 @@ async fn handle_slash_command(
             run_system_prompt(runner, user_id, session_id, "get_system_status", nami_skin).await?;
         }
 
-        _ if trimmed.starts_with("/plan") => {
-            let args = trimmed.replace("/plan", "").trim().to_string();
-            let re = Regex::new(r#""([^"]*)"|(\S+)"#).unwrap();
-            let parts: Vec<String> = re.captures_iter(&args)
-                .map(|cap| cap.get(1).or(cap.get(2)).unwrap().as_str().to_string())
-                .collect();
-
-            let prompt = match parts.as_slice() {
-                [cmd, objective] if cmd == "create" => format!("plan_create(name='auto', objective='{}')", objective),
-                [cmd, name, objective] if cmd == "create" => format!("plan_create(name='{}', objective='{}')", name, objective),
-                [cmd, name] if cmd == "show" => format!("plan_show(name='{}')", name),
-                [cmd] if cmd == "list" => "plan_list()".to_string(),
-                _ => {
-                    println!("{}", style::style("Usage: /plan create [name] <objective> | /plan <list|show> [name]").yellow());
-                    return Ok(false);
-                }
-            };
-
-            run_system_prompt(runner, user_id, session_id, &prompt, nami_skin).await?;
-        }
-
-        _ if trimmed.starts_with("/schedule ") => {
-            let content = trimmed.replace("/schedule", "").trim().to_string();
-            let (goal, cron_expr) = match content.split_once('|') {
-                Some((g, s)) => (g.trim(), s.trim()),
-                None => (content.as_str(), "0 * * * * *"),
-            };
-
-            let prompt = format!(
-                "schedule_task: goal='{}', cron_expr='{}', id='{}'",
-                goal,
-                cron_expr,
-                Uuid::new_v4().to_string().split('-').next().unwrap_or("task")
-            );
-
-            run_system_prompt(runner, user_id, session_id, &prompt, nami_skin).await?;
-        }
-
-        _ if trimmed.starts_with("/parallel ") => {
-            let tasks = trimmed.replace("/parallel", "").trim().to_string();
-            let prompt = format!(
-                "Execute the following tasks in parallel using the most appropriate specialized agents: {}",
-                tasks
-            );
-
-            run_system_prompt(runner, user_id, session_id, &prompt, nami_skin).await?;
-        }
-
-        _ if trimmed.starts_with("/goal ") => {
-            let content = trimmed.replace("/goal", "").trim().to_string();
-            let (goal, stop_condition) = match content.split_once('|') {
-                Some((g, s)) => (g.trim(), s.trim()),
-                None => (content.as_str(), "Goal is achieved"),
-            };
-
-            let prompt = format!("ralph_wiggum_loop: goal='{}', stop_condition='{}'", goal, stop_condition);
-
-            run_system_prompt(runner, user_id, session_id, &prompt, nami_skin).await?;
-        }
-
-        _ if trimmed.starts_with("/wiki ") => {
-            let prompt = format!("wiki_search: {}", trimmed.replace("/wiki", "").trim());
-            run_system_prompt(runner, user_id, session_id, &prompt, nami_skin).await?;
-        }
-
-        _ if trimmed.starts_with("/memo ") => {
-            let prompt = format!("add_memory: {}", trimmed.replace("/memo", "").trim());
-            run_system_prompt(runner, user_id, session_id, &prompt, nami_skin).await?;
-        }
-
-        _ if trimmed.starts_with("/recall ") => {
-            let prompt = format!("recall_memory: {}", trimmed.replace("/recall", "").trim());
-            run_system_prompt(runner, user_id, session_id, &prompt, nami_skin).await?;
-        }
-
         _ => {
             println!("{} {}\n", style::style("Unknown command:").red(), trimmed);
         }
     }
     Ok(false)
 }
+
 
 pub(crate) async fn run_cli(
     mut agent: Arc<dyn Agent>,
@@ -671,6 +610,9 @@ pub(crate) async fn run_cli(
                 let trimmed = line.trim();
 
                 if trimmed.starts_with('/') {
+                    let registry = CommandRegistry::load_from_config("config.toml")
+                        .unwrap_or(CommandRegistry { commands: Default::default() });
+
                     if handle_slash_command(
                         trimmed,
                         &mut runner,
@@ -680,6 +622,7 @@ pub(crate) async fn run_cli(
                         &nami_skin,
                         &mut provider,
                         &mut model_name,
+                        &registry,
                     )
                     .await?
                     {

@@ -11,6 +11,9 @@ use walkdir::WalkDir;
 use crate::utils::{get_wiki_dir, sandbox, ignore::NamiIgnore};
 
 /// Returns the Axum Router for the API.
+use crate::modes::command_registry::CommandRegistry;
+// ... (rest of imports)
+
 pub fn api_router() -> Router {
     Router::new()
         .route("/api/workspace/files", get(list_folder_contents))
@@ -18,7 +21,16 @@ pub fn api_router() -> Router {
         .route("/api/workspace/read/{*path}", get(read_workspace_file))
         .route("/api/wiki/pages", get(list_wiki_pages))
         .route("/api/wiki/pages/{*title}", get(read_wiki_page))
+        .route("/api/commands", get(get_commands))
 }
+
+async fn get_commands() -> impl IntoResponse {
+    match CommandRegistry::load_from_config("config.toml") {
+        Ok(registry) => Json(json!(registry.commands)).into_response(),
+        Err(_) => (StatusCode::INTERNAL_SERVER_ERROR, "Failed to load commands").into_response(),
+    }
+}
+
 
 const IGNORED_DIRS: &[&str] = &[
     ".venv", ".cache", ".config", ".local", ".npm", ".rustup", ".git"
