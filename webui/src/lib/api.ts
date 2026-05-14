@@ -1,8 +1,6 @@
-const BASE_URL = "";
+import type { Session, AgentContent, AgentEvent } from '../types/chat';
 
-export interface Session {
-  session_id: string;
-}
+const BASE_URL = import.meta.env.VITE_API_BASE_URL || "";
 
 export const api = {
   checkHealth: async (): Promise<boolean> => {
@@ -25,21 +23,25 @@ export const api = {
         sessionId,
       }),
     });
+    
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
-      throw new Error(errorData.message || errorData.error || "Failed to create session");
+      throw new Error(errorData.message || errorData.error || `Session creation failed (${response.status})`);
     }
+    
     return { session_id: sessionId };
   },
 
-  // SSE handler for streaming responses
+  /**
+   * SSE handler for streaming agent execution responses
+   */
   runAgent: async (
     appName: string,
     userId: string,
     sessionId: string,
-    message: any,
-    onMessage: (data: any) => void,
-  ) => {
+    message: AgentContent,
+    onMessage: (data: AgentEvent) => void,
+  ): Promise<void> => {
     const response = await fetch(
       `${BASE_URL}/api/run/${appName}/${userId}/${sessionId}`,
       {
@@ -57,10 +59,10 @@ export const api = {
 
     if (!response.ok) {
       const errorText = await response.text();
-      throw new Error(errorText || `Request failed with status ${response.status}`);
+      throw new Error(errorText || `Agent request failed with status ${response.status}`);
     }
 
-    if (!response.body) throw new Error("No response body");
+    if (!response.body) throw new Error("No response body received from server");
 
     const reader = response.body.getReader();
     const decoder = new TextDecoder();
@@ -74,18 +76,21 @@ export const api = {
         buffer += decoder.decode(value, { stream: true });
         const lines = buffer.split("\n");
 
-        // Keep the last partial line in the buffer
+        // Keep the last potentially incomplete line in the buffer
         buffer = lines.pop() || "";
 
         for (const line of lines) {
-          if (line.trim().startsWith("data: ")) {
-            try {
-              const event = JSON.parse(line.trim().slice(6));
-              console.log("Event:", event);
-              onMessage(event);
-            } catch (e) {
-              console.error("Failed to parse SSE JSON:", e);
-            }
+          const trimmedLine = line.trim();
+          if (!trimmedLine || !trimmedLine.startsWith("data: ")) continue;
+
+          try {
+            const jsonStr = trimmedLine.slice(6);
+            if (jsonStr === "[DONE]") continue;
+            
+            const event = JSON.parse(jsonStr);
+            onMessage(event);
+          } catch (e) {
+            console.error("Failed to parse SSE JSON chunk:", e, "Line:", trimmedLine);
           }
         }
       }

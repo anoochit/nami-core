@@ -5,6 +5,20 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
+export const isThai = (char: string) => /[\u0E00-\u0E7F]/.test(char);
+
+export const shouldAddSpace = (prev: string, next: string) => {
+    if (!prev || !next) return false;
+    const prevChar = prev.slice(-1);
+    const nextChar = next[0];
+    
+    // Don't add space if either is a newline or whitespace
+    if (/\s/.test(prevChar) || /\s/.test(nextChar)) return false;
+    
+    // Add space if switching between Thai and non-Thai
+    return (isThai(prevChar) !== isThai(nextChar));
+};
+
 export function formatError(e: Error | string | unknown): string {
   const errStr = typeof e === 'string' 
     ? e 

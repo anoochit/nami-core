@@ -2,8 +2,8 @@ import { useState } from 'react';
 
 interface ToolAccordionProps {
   title: string;
-  args?: any;
-  result?: any;
+  args?: Record<string, unknown>;
+  result?: unknown;
 }
 
 export const ToolAccordion = ({ title, args, result }: ToolAccordionProps) => {

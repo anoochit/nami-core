@@ -1,11 +1,8 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { Bot, Send, PanelLeftOpen, PanelLeftClose, AlertCircle } from 'lucide-react';
-import ReactMarkdown from 'react-markdown';
-import remarkGfm from 'remark-gfm';
-import { cn, formatError } from '../lib/utils';
-import type { Thread } from '../hooks/useChat';
-import { ToolAccordion } from './ToolAccordion';
-import { CommandAutocomplete } from './CommandAutocomplete';
+import React from 'react';
+import type { Thread } from '../types/chat';
+import { ChatHeader } from './ChatHeader';
+import { MessageList } from './MessageList';
+import { ChatInput } from './ChatInput';
 
 interface ThreadViewProps {
   thread: Thread;
@@ -16,7 +13,7 @@ interface ThreadViewProps {
   onSendMessage: () => void;
   onNavigateHistory: (direction: 'up' | 'down') => void;
   isLoading: boolean;
-  error?: string;
+  error?: string | null;
 }
 
 export const ThreadView: React.FC<ThreadViewProps> = ({ 
@@ -30,128 +27,28 @@ export const ThreadView: React.FC<ThreadViewProps> = ({
   isLoading, 
   error 
 }) => {
-  const scrollRef = useRef<HTMLDivElement>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
-  const [autocompleteOpen, setAutocompleteOpen] = useState(false);
-  const isLastMessage = (id: string) => id === thread.messages[thread.messages.length - 1]?.id;
-
-  useEffect(() => {
-    if (scrollRef.current) {
-      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
-    }
-  }, [thread.messages]);
-
-  const handleCommandSelect = (cmd: string) => {
-    onInputChange(cmd + ' ');
-    setAutocompleteOpen(false);
-    inputRef.current?.focus();
-  };
-
   return (
-    <div className="flex-1 flex flex-col h-full">
-      <header className="h-14 border-b flex items-center px-4 justify-between">
-        <button onClick={onToggleSidebar} className="p-2 hover:bg-gray-100 rounded-md">
-          {sidebarOpen ? <PanelLeftClose size={20} /> : <PanelLeftOpen size={20} />}
-        </button>
-        <h2 className="font-semibold text-center">
-          {thread.title} {thread.sessionId && <div className="text-xs text-gray-500 font-normal">({thread.sessionId})</div>}
-        </h2>
-        <div className="w-8"/>
-      </header>
+    <div className="flex-1 flex flex-col h-full bg-white relative overflow-hidden">
+      <ChatHeader 
+        title={thread.title} 
+        sessionId={thread.sessionId} 
+        sidebarOpen={sidebarOpen} 
+        onToggleSidebar={onToggleSidebar} 
+      />
 
-      <div className="flex-1 overflow-y-auto p-4 space-y-4" ref={scrollRef}>
-        {thread.messages.map(m => (
-          <div key={m.id} className={cn("flex gap-3", m.sender === 'user' ? "justify-end" : "justify-start")}>
-            {m.sender === 'agent' && <div className="w-8 h-8 flex items-center justify-center bg-gray-800 text-white rounded-full shrink-0"><Bot size={16} /></div>}
-            <div className={cn("p-3 rounded-2xl prose prose-base text-base", m.sender === 'user' ? "bg-black text-white" : "bg-gray-100 text-gray-800")}>
-              
-              {m.toolCall && (
-                <ToolAccordion 
-                  title={`Tool: ${m.toolCall.name}`}
-                  args={m.toolCall.args}
-                  result={m.toolCall.result}
-                />
-              )}
+      <MessageList 
+        messages={thread.messages} 
+        isLoading={isLoading} 
+        error={error ?? undefined} 
+      />
 
-              {m.sender === 'agent' ? (
-                <div className="prose max-w-none prose-p:m-0">
-                  <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                    {m.text}
-                  </ReactMarkdown>
-                </div>
-              ) : (
-                <div className="whitespace-pre-wrap">{m.text}</div>
-              )}
-
-              {isLoading && isLastMessage(m.id) && m.sender === 'agent' && (
-                <div className="w-4 h-4 mt-2 border-2 border-gray-300 border-t-black rounded-full animate-spin"></div>
-              )}
-
-              {!isLoading && error && isLastMessage(m.id) && m.sender === 'agent' && (
-                <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-800">
-                  <div className="flex items-center gap-2 mb-1 font-bold">
-                    <AlertCircle size={16} />
-                    <span>System Error</span>
-                  </div>
-                  <div className="prose prose-sm prose-red max-w-none">
-                    <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                      {formatError(error)}
-                    </ReactMarkdown>
-                  </div>
-                </div>
-              )}
-              
-            </div>
-          </div>
-        ))}
-      </div>
-
-      <div className="p-4 border-t pt-8 pb-8 relative">
-        <CommandAutocomplete 
-          input={input} 
-          onSelect={handleCommandSelect}
-          isOpen={autocompleteOpen}
-          setIsOpen={setAutocompleteOpen}
-        />
-        <div className="flex gap-2 max-w-3xl mx-auto border rounded-full p-1 shadow-sm focus-within:ring-2 focus-within:ring-black">
-          <input 
-            ref={inputRef}
-            value={input} 
-            onChange={(e) => onInputChange(e.target.value)}
-            onKeyDown={(e) => {
-                if (e.key === 'Enter') {
-                    // Only let CMDK handle it if we are actually showing the menu 
-                    // AND it's likely the user is selecting a command name.
-                    // If they have typed a space, the menu should already be closed by CommandAutocomplete.
-                    if (autocompleteOpen && !input.includes(' ')) {
-                        // CMDK handles its own Enter for selection
-                    } else {
-                        onSendMessage();
-                        setAutocompleteOpen(false);
-                    }
-                }
-                if (e.key === 'Escape') {
-                    setAutocompleteOpen(false);
-                }
-                if (e.key === 'ArrowUp') { 
-                    if (!autocompleteOpen) {
-                        e.preventDefault(); 
-                        onNavigateHistory('up'); 
-                    }
-                }
-                if (e.key === 'ArrowDown') { 
-                    if (!autocompleteOpen) {
-                        e.preventDefault(); 
-                        onNavigateHistory('down'); 
-                    }
-                }
-            }}
-            className="flex-1 bg-transparent px-4 py-2 outline-none" 
-            placeholder="Message..."
-          />
-          <button onClick={onSendMessage} className="bg-black text-white p-3 rounded-full hover:bg-gray-800 transition-colors"><Send size={18} /></button>
-        </div>
-      </div>
+      <ChatInput 
+        value={input} 
+        onInputChange={onInputChange} 
+        onSendMessage={onSendMessage} 
+        onNavigateHistory={onNavigateHistory} 
+        isLoading={isLoading} 
+      />
     </div>
   );
 };

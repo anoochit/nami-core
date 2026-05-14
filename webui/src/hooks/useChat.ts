@@ -1,25 +1,8 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { api } from '../lib/api';
 import { processSlashCommand } from '../lib/commandLoader';
-
-export interface Message {
-  id: string;
-  sender: 'user' | 'agent';
-  text: string;
-  toolCall?: { 
-    name: string; 
-    args?: any; 
-    status: 'pending' | 'complete'; 
-    result?: any 
-  };
-}
-
-export interface Thread {
-  id: string;
-  title: string;
-  messages: Message[];
-  sessionId?: string;
-}
+import { shouldAddSpace } from '../lib/utils';
+import type { Message, Thread, AgentEvent } from '../types/chat';
 
 export const useChat = () => {
   const [threads, setThreads] = useState<Thread[]>([{ id: '1', title: 'New Conversation', messages: [] }]);
@@ -31,10 +14,11 @@ export const useChat = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const activeThread = threads.find(t => t.id === activeThreadId) || threads[0];
+
   useEffect(() => {
     const initActiveThreadSession = async () => {
-      const currentThread = threads.find(t => t.id === activeThreadId);
-      if (currentThread && !currentThread.sessionId) {
+      if (activeThread && !activeThread.sessionId) {
         try {
           const session = await api.createSession('nami', 'user1');
           setThreads(prev => prev.map(t => 
@@ -46,38 +30,41 @@ export const useChat = () => {
       }
     };
     initActiveThreadSession();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeThreadId]); 
+
+  const updateActiveThread = useCallback((updater: (thread: Thread) => Thread) => {
+    setThreads(prev => prev.map(t => t.id === activeThreadId ? updater(t) : t));
   }, [activeThreadId]);
 
-  const activeThread = threads.find(t => t.id === activeThreadId) || threads[0];
-
   const sendMessage = async () => {
-    if (!input.trim()) return;
+    if (!input.trim() || isLoading) return;
 
+    const originalInput = input;
     const processedInput = processSlashCommand(input);
 
-    // Add to history
-    setPromptHistory(prev => [...prev, input]);
+    setPromptHistory(prev => [...prev, originalInput]);
     setHistoryIndex(-1);
-
-    const newUserMessage: Message = { id: Date.now().toString(), sender: 'user', text: input };
-    
-    setThreads(prev => prev.map(t => 
-      t.id === activeThreadId ? { ...t, messages: [...t.messages, newUserMessage] } : t
-    ));
     setInput('');
+    setError(null);
 
-    // Check if it's a local command response (like help)
+    const newUserMessage: Message = { 
+        id: Date.now().toString(), 
+        sender: 'user', 
+        text: originalInput 
+    };
+    
+    updateActiveThread(t => ({ ...t, messages: [...t.messages, newUserMessage] }));
+
     if (processedInput.startsWith('###')) {
-        setThreads(prev => prev.map(t => 
-            t.id === activeThreadId ? { 
-                ...t, 
-                messages: [...t.messages, { 
-                    id: Date.now().toString() + '_local', 
-                    sender: 'agent', 
-                    text: processedInput 
-                }] 
-            } : t
-        ));
+        updateActiveThread(t => ({ 
+            ...t, 
+            messages: [...t.messages, { 
+                id: Date.now().toString() + '_local', 
+                sender: 'agent', 
+                text: processedInput 
+            }] 
+        }));
         return;
     }
 
@@ -87,70 +74,56 @@ export const useChat = () => {
       try {
         const session = await api.createSession('nami', 'user1');
         currentSessionId = session.session_id;
-        setThreads(prev => prev.map(t => 
-          t.id === activeThreadId ? { ...t, sessionId: currentSessionId } : t
-        ));
-      } catch (e) {
-        console.error("Failed to create session", e);
+        updateActiveThread(t => ({ ...t, sessionId: currentSessionId }));
+      } catch (e: unknown) {
+        const msg = e instanceof Error ? e.message : "Failed to create session";
+        setError(msg);
         return;
       }
     }
 
     const agentMsgId = Date.now().toString() + '_agent';
-    setThreads(prev => prev.map(t => 
-        t.id === activeThreadId ? { ...t, messages: [...t.messages, { id: agentMsgId, sender: 'agent', text: '' }] } : t
-    ));
+    updateActiveThread(t => ({ 
+        ...t, 
+        messages: [...t.messages, { id: agentMsgId, sender: 'agent', text: '' }] 
+    }));
 
     setIsLoading(true);
-    setError(null);
+    
     try {
       await api.runAgent('nami', 'user1', currentSessionId!, {
         role: 'user',
         parts: [{ text: processedInput }]
-      }, (data) => {
+      }, (data: AgentEvent) => { 
           const parts = data?.content?.parts;
           if (!Array.isArray(parts)) return;
 
-          setThreads(prev => prev.map(t => {
-              if (t.id !== activeThreadId) return t;
-              
+          updateActiveThread(t => {
               const messages = [...t.messages];
               const agentMsgIndex = messages.findIndex(m => m.id === agentMsgId);
               if (agentMsgIndex === -1) return t;
 
               const msg = { ...messages[agentMsgIndex] };
 
-              const shouldAddSpace = (prev: string, next: string) => {
-
-                  if (!prev || !next) return false;
-                  const prevChar = prev.slice(-1);
-                  const nextChar = next[0];
-                  const isThai = (char: string) => /[\u0E00-\u0E7F]/.test(char);
-                  // Add space if switching between Thai and non-Thai, or two separate words
-                  return (isThai(prevChar) !== isThai(nextChar));
-              };
-
-              parts.forEach((p: any) => {
-                  // 1. Text streaming
+              parts.forEach((p) => {
                   if (p.text) {
-                      let formattedText = p.text;
-                      // Pre-processor: ensure list markers have preceding newline if not at start
-                      if (formattedText.startsWith('-') && msg.text.length > 0 && !msg.text.endsWith('\n')) {
-                          formattedText = '\n' + formattedText;
+                      let chunk = p.text;
+                      if (chunk.startsWith('-') && msg.text.length > 0 && !msg.text.endsWith('\n')) {
+                          chunk = '\n' + chunk;
                       }
                       
-                      if (shouldAddSpace(msg.text, formattedText)) {
-                          msg.text += ' ' + formattedText;
+                      if (shouldAddSpace(msg.text, chunk)) {
+                          msg.text += ' ' + chunk;
                       } else {
-                          msg.text += formattedText;
+                          msg.text += chunk;
                       }
-                  } 
-                  // 2. Tool invocation (part contains name/args)
-                  else if (p.name) {
-                      msg.toolCall = { name: p.name, args: p.args, status: 'pending' };
-                  }
-                  // 3. Function response (part contains functionResponse)
-                  else if (p.functionResponse) {
+                  } else if (p.name) {
+                      msg.toolCall = { 
+                        name: p.name, 
+                        args: p.args, 
+                        status: 'pending' 
+                      };
+                  } else if (p.functionResponse) {
                       if (msg.toolCall) {
                           msg.toolCall.status = 'complete';
                           msg.toolCall.result = p.functionResponse.response;
@@ -160,16 +133,16 @@ export const useChat = () => {
 
               messages[agentMsgIndex] = msg;
               return { ...t, messages };
-          }));
+          });
       });
-    } catch (e: any) {
+    } catch (e: unknown) {
       console.error("Agent execution failed", e);
-      setError(e.message || "An unexpected error occurred");
+      const msg = e instanceof Error ? e.message : "An unexpected error occurred";
+      setError(msg);
     } finally {
       setIsLoading(false);
     }
   };
-
 
   const createNewThread = async () => {
     const isHealthy = await api.checkHealth();
@@ -187,11 +160,12 @@ export const useChat = () => {
         messages: [],
         sessionId: session.session_id 
       };
-      setThreads([newThread, ...threads]);
+      setThreads(prev => [newThread, ...prev]);
       setActiveThreadId(newThread.id);
-    } catch (e: any) {
+    } catch (e: unknown) {
       console.error("Failed to create session for new thread", e);
-      setError(e.message || "Failed to initialize new chat session.");
+      const msg = e instanceof Error ? e.message : "Failed to initialize new chat session.";
+      setError(msg);
     }
   };
 
@@ -202,20 +176,18 @@ export const useChat = () => {
     if (direction === 'up') {
         newIndex = historyIndex === -1 ? promptHistory.length - 1 : Math.max(0, historyIndex - 1);
     } else if (historyIndex !== -1) {
-        newIndex = Math.min(promptHistory.length - 1, historyIndex + 1);
-        if (newIndex === promptHistory.length - 1) { // reached latest, clear input
+        newIndex = historyIndex + 1;
+        if (newIndex >= promptHistory.length) {
             setInput('');
             setHistoryIndex(-1);
             return;
         }
     } else {
-        return; // already at latest
+        return;
     }
 
-    if (newIndex !== historyIndex) {
-        setHistoryIndex(newIndex);
-        setInput(promptHistory[newIndex]);
-    }
+    setHistoryIndex(newIndex);
+    setInput(promptHistory[newIndex]);
   };
 
   return {

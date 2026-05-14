@@ -1,13 +1,7 @@
 import React from "react";
 import { MessageSquare, Plus } from "lucide-react";
 import { cn } from "../lib/utils";
-
-interface Thread {
-  id: string;
-  title: string;
-  messages: any[];
-  sessionId?: string;
-}
+import type { Thread } from "../types/chat";
 
 interface ThreadListProps {
   threads: Thread[];
