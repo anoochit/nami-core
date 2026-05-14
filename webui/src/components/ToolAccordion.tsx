@@ -21,13 +21,13 @@ export const ToolAccordion = ({ title, args, result }: ToolAccordionProps) => {
       
       {isOpen && (
         <div className="p-3 text-sm font-mono bg-white border-t overflow-x-auto">
-          {args && (
+          {args !== undefined && args !== null && (
             <div className="mb-2">
               <strong className="text-xs text-gray-500 uppercase">Args:</strong>
               <pre className="mt-1 p-2 bg-gray-50 rounded text-xs text-gray-500">{JSON.stringify(args, null, 2)}</pre>
             </div>
           )}
-          {result && (
+          {result !== undefined && result !== null && (
             <div>
               <strong className="text-xs text-gray-500 uppercase">Result:</strong>
               <pre className="mt-1 p-2 bg-gray-50 rounded text-xs text-gray-500">{JSON.stringify(result, null, 2)}</pre>
