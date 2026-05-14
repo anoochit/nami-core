@@ -492,9 +492,9 @@ async fn handle_slash_command(
 
 
 pub(crate) async fn run_cli(
-    mut agent: Arc<dyn Agent>,
+    agent: Arc<dyn Agent>,
     sessions: Arc<dyn SessionService>,
-    mut model: Arc<dyn Llm>,
+    model: Arc<dyn Llm>,
     mut provider: String,
     mut model_name: String,
 ) -> anyhow::Result<()> {

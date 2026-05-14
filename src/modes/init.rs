@@ -156,6 +156,36 @@ api_key_env = "{api_key_env}"
 project_id = "{project_id_str}"
 location = "{location_str}"
 
+[commands]
+# Custom command definitions
+[commands."/plan"]
+template = "plan_create(name='auto', objective='{{args}}')"
+help = "Create an AI research plan"
+
+[commands."/wiki"]
+template = "wiki_search: {{args}}"
+help = "Search the project wiki"
+
+[commands."/memo"]
+template = "add_memory: {{args}}"
+help = "Save information to memory"
+
+[commands."/parallel"]
+template = "Execute the following tasks in parallel using the most appropriate specialized agents: {{args}}"
+help = "Run tasks in parallel"
+
+[commands."/goal"]
+template = "ralph_wiggum_loop: goal='{{goal}}', stop_condition='{{stop}}'"
+help = "Set a goal with a stop condition (goal | stop)"
+
+[commands."/schedule"]
+template = "schedule_task: goal='{{goal}}', cron_expr='{{cron}}', id='{{uuid}}'"
+help = "Schedule a repeating task (goal | cron)"
+
+[commands."/recall"]
+template = "recall_memory: {{args}}"
+help = "Recall information from memory"
+
 # --- Granular Service Configurations (Optional) ---
 # If a section is missing, it falls back to the default [model] settings.
 
