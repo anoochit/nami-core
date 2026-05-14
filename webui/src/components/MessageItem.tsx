@@ -89,7 +89,7 @@ export const MessageItem: React.FC<MessageItemProps> = ({
                     const result = message.toolCall?.result as any;
                     const path = result.filename || result.path;
                     if (path.startsWith('Wiki:')) {
-                      onPreviewWiki?.(path.replace('Wiki:', ''));
+                      onPreviewWiki?.('wiki/' + path.replace('Wiki:', ''));
                     } else {
                       onPreviewFile?.(path);
                     }
