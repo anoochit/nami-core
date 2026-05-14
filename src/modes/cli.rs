@@ -27,49 +27,36 @@ use adk_session::{CreateRequest, GetRequest, SessionService};
 
 struct NamiHelper;
 
-fn render_help() {
+fn render_help(registry: &CommandRegistry) {
+    println!("{}", style::style("Available Commands:").yellow().bold());
+    
+    // Render static commands
+    println!("{}  Show commands", style::style("/?").cyan().bold());
+    println!("{}  Quit", style::style("/exit").cyan().bold());
+    println!("{}  Clear screen", style::style("/clear").cyan().bold());
+    println!("{}  New session", style::style("/new").cyan().bold());
+    println!("{}  List active tasks", style::style("/tasks").cyan().bold());
+    println!("{}  Agent status", style::style("/status").cyan().bold());
+    println!("{}  CLI version", style::style("/version").cyan().bold());
+
+    // Render dynamic commands from registry
+    println!("\n{}", style::style("Custom Commands:").magenta().bold());
+    let mut commands: Vec<_> = registry.commands.iter().collect();
+    commands.sort_by(|a, b| a.0.cmp(b.0));
+    for (name, template) in commands {
+        println!("{}  Template: {}", style::style(name).cyan().bold(), template);
+    }
+
     println!(
         r#"
-{}  Show commands
-{}  Quit
-{}  Clear screen
-{}  New session
-{}  List active tasks
-{}  Initialize task
-{}  Manage schedule
-{}  Run parallel tasks
-{}  Run autonomous loop
-{}  Wiki search
-{}  Save memory
-{}  Recall memory
-{}  Agent status
-{}  CLI version
-
 Examples:
   /plan Build AI research system
-  /parallel "Fix bug in parser" "Write unit tests"
-  /goal "Find latest AI news" | "Summary is written to news.md"
-  /schedule "Backup workspace" | "0 0 * * * *"
   /wiki Rust async traits
   /memo User prefers concise output
-  /recall project design
-"#,
-        style::style("/?").cyan().bold(),
-        style::style("/exit").cyan().bold(),
-        style::style("/clear").cyan().bold(),
-        style::style("/new").cyan().bold(),
-        style::style("/tasks").cyan().bold(),
-        style::style("/plan").cyan().bold(),
-        style::style("/schedule").cyan().bold(),
-        style::style("/parallel").cyan().bold(),
-        style::style("/goal").cyan().bold(),
-        style::style("/wiki").cyan().bold(),
-        style::style("/memo").cyan().bold(),
-        style::style("/recall").cyan().bold(),
-        style::style("/status").cyan().bold(),
-        style::style("/version").cyan().bold()
+"#
     );
 }
+
 
 impl Completer for NamiHelper {
     type Candidate = Pair;
@@ -444,7 +431,7 @@ async fn handle_slash_command(
     // Fallback to static commands
     match trimmed {
         "/?" => {
-            render_help();
+            render_help(registry);
         }
 
         "/exit" | "/quit" => {
