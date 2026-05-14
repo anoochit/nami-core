@@ -2,7 +2,22 @@
 
 All notable changes to this project will be documented in this file.
 
-## [0.9.12] - 2026-05-14
+## [0.9.13] - 2026-05-14
+
+### Changed
+
+- **WebUI Architectural Refactor**: Decomposed the monolithic `ThreadView.tsx` into a modular component tree (`ChatHeader`, `MessageList`, `MessageItem`, `ChatInput`) to improve maintainability and scalability.
+- **Project Configuration**: Updated `Cargo.toml` and `Cargo.toml.example` to reflect the latest dependency requirements and build settings.
+- **CLI & Tools**: Refactored modes and tools to enhance performance and code quality, including the removal of `src/modes/agui.rs` and improvements to `src/tools/web_fetch/mod.rs`.
+
+### Fixed
+
+- **Project Initialization**: Fixed a compilation error in `init.rs` caused by unescaped curly braces in the `config.toml` template.
+- **CLI Code Quality**: Resolved compiler warnings in `src/main.rs` by removing unused `mut` qualifiers.
+- **UI Alignment**: Corrected visual centering of the Send icon within the circular action button.
+- **TypeScript Compilation**: Resolved type issues in WebUI components.
+
+
 
 ### Added
 
