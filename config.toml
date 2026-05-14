@@ -14,7 +14,11 @@ location = "global"
 # base_url = "https://api.openai.com/v1"
 
 [commands]
-# Example command definitions for the dynamic registry
+# Custom command definitions
 "/plan" = "plan_create(name='auto', objective='{args}')"
 "/wiki" = "wiki_search: {args}"
 "/memo" = "add_memory: {args}"
+"/parallel" = "Execute the following tasks in parallel using the most appropriate specialized agents: {args}"
+"/goal" = "ralph_wiggum_loop: goal='{args}', stop_condition='Goal is achieved'"
+"/schedule" = "schedule_task: goal='{args}', cron_expr='0 * * * * *', id='{uuid}'"
+"/recall" = "recall_memory: {args}"
