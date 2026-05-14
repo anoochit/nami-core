@@ -66,7 +66,7 @@ export default function App() {
           {activePreview && (
             <>
               <Separator className="w-1 bg-gray-100 hover:bg-blue-400 transition-colors cursor-col-resize" />
-              <Panel minSize="25%" defaultSize="40%">
+              <Panel minSize={25} defaultSize={40}>
                 <PreviewPane 
                   path={activePreview} 
                   isWiki={!!previewWikiPath}
