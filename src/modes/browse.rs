@@ -47,10 +47,9 @@ pub(crate) async fn run_browse(
     let addr = format!("0.0.0.0:{port}");
     let listener = tokio::net::TcpListener::bind(&addr).await?;
 
-    println!("\nADK Server starting on http://localhost:{port}");
-    println!("Open http://localhost:{port} in your browser to access the UI");
+    println!("\nADK Server starting on http://{}", addr);
+    println!("Open http://{} in your browser to access the UI", addr);
     println!("Press Ctrl+C to stop\n");
-
     axum::serve(listener, app).await?;
 
     Ok(())
