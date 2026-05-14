@@ -1,10 +1,11 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Bot, Send, PanelLeftOpen, PanelLeftClose, AlertCircle } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { cn, formatError } from '../lib/utils';
 import type { Thread } from '../hooks/useChat';
 import { ToolAccordion } from './ToolAccordion';
+import { CommandAutocomplete } from './CommandAutocomplete';
 
 interface ThreadViewProps {
   thread: Thread;
@@ -30,6 +31,8 @@ export const ThreadView: React.FC<ThreadViewProps> = ({
   error 
 }) => {
   const scrollRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [autocompleteOpen, setAutocompleteOpen] = useState(false);
   const isLastMessage = (id: string) => id === thread.messages[thread.messages.length - 1]?.id;
 
   useEffect(() => {
@@ -37,6 +40,12 @@ export const ThreadView: React.FC<ThreadViewProps> = ({
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
   }, [thread.messages]);
+
+  const handleCommandSelect = (cmd: string) => {
+    onInputChange(cmd + ' ');
+    setAutocompleteOpen(false);
+    inputRef.current?.focus();
+  };
 
   return (
     <div className="flex-1 flex flex-col h-full">
@@ -97,15 +106,45 @@ export const ThreadView: React.FC<ThreadViewProps> = ({
         ))}
       </div>
 
-      <div className="p-4 border-t pt-8 pb-8">
+      <div className="p-4 border-t pt-8 pb-8 relative">
+        <CommandAutocomplete 
+          input={input} 
+          onSelect={handleCommandSelect}
+          isOpen={autocompleteOpen}
+          setIsOpen={setAutocompleteOpen}
+        />
         <div className="flex gap-2 max-w-3xl mx-auto border rounded-full p-1 shadow-sm focus-within:ring-2 focus-within:ring-black">
           <input 
+            ref={inputRef}
             value={input} 
             onChange={(e) => onInputChange(e.target.value)}
             onKeyDown={(e) => {
-                if (e.key === 'Enter') onSendMessage();
-                if (e.key === 'ArrowUp') { e.preventDefault(); onNavigateHistory('up'); }
-                if (e.key === 'ArrowDown') { e.preventDefault(); onNavigateHistory('down'); }
+                if (e.key === 'Enter') {
+                    // Only let CMDK handle it if we are actually showing the menu 
+                    // AND it's likely the user is selecting a command name.
+                    // If they have typed a space, the menu should already be closed by CommandAutocomplete.
+                    if (autocompleteOpen && !input.includes(' ')) {
+                        // CMDK handles its own Enter for selection
+                    } else {
+                        onSendMessage();
+                        setAutocompleteOpen(false);
+                    }
+                }
+                if (e.key === 'Escape') {
+                    setAutocompleteOpen(false);
+                }
+                if (e.key === 'ArrowUp') { 
+                    if (!autocompleteOpen) {
+                        e.preventDefault(); 
+                        onNavigateHistory('up'); 
+                    }
+                }
+                if (e.key === 'ArrowDown') { 
+                    if (!autocompleteOpen) {
+                        e.preventDefault(); 
+                        onNavigateHistory('down'); 
+                    }
+                }
             }}
             className="flex-1 bg-transparent px-4 py-2 outline-none" 
             placeholder="Message..."

@@ -56,11 +56,31 @@ export const useChat = () => {
     const processedInput = processSlashCommand(input);
 
     // Add to history
-    setPromptHistory(prev => [...prev, processedInput]);
+    setPromptHistory(prev => [...prev, input]);
     setHistoryIndex(-1);
 
-    const newUserMessage: Message = { id: Date.now().toString(), sender: 'user', text: processedInput };
+    const newUserMessage: Message = { id: Date.now().toString(), sender: 'user', text: input };
     
+    setThreads(prev => prev.map(t => 
+      t.id === activeThreadId ? { ...t, messages: [...t.messages, newUserMessage] } : t
+    ));
+    setInput('');
+
+    // Check if it's a local command response (like help)
+    if (processedInput.startsWith('###')) {
+        setThreads(prev => prev.map(t => 
+            t.id === activeThreadId ? { 
+                ...t, 
+                messages: [...t.messages, { 
+                    id: Date.now().toString() + '_local', 
+                    sender: 'agent', 
+                    text: processedInput 
+                }] 
+            } : t
+        ));
+        return;
+    }
+
     let currentSessionId = activeThread.sessionId;
 
     if (!currentSessionId) {
@@ -75,11 +95,6 @@ export const useChat = () => {
         return;
       }
     }
-
-    setThreads(prev => prev.map(t => 
-      t.id === activeThreadId ? { ...t, messages: [...t.messages, newUserMessage] } : t
-    ));
-    setInput('');
 
     const agentMsgId = Date.now().toString() + '_agent';
     setThreads(prev => prev.map(t => 
@@ -183,7 +198,7 @@ export const useChat = () => {
   const navigateHistory = (direction: 'up' | 'down') => {
     if (promptHistory.length === 0) return;
 
-    let newIndex = historyIndex;
+    let newIndex: number;
     if (direction === 'up') {
         newIndex = historyIndex === -1 ? promptHistory.length - 1 : Math.max(0, historyIndex - 1);
     } else if (historyIndex !== -1) {
