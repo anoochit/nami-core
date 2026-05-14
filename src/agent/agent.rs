@@ -177,6 +177,7 @@ pub async fn create_agent(
     core_tools.extend(tools::filesystem::filesystem_tools());
     core_tools.extend(tools::image_generator::image_generator_tools(image_model));
     core_tools.extend(tools::memory::memory_tools());
+    core_tools.extend(tools::plan::plan_tools());
     core_tools.extend(tools::scheduler::scheduler_tools());
     core_tools.extend(tools::search::search_tools());
     core_tools.extend(tools::soul::soul_tools());

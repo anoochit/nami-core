@@ -4,9 +4,7 @@ version = 4
 
 [[package]]
 name = "adk-agent"
-version = "0.8.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a54ccccfcfcef70e452b6c42519ace30a1880b9080e38777c9ec075e88745869"
+version = "0.8.1"
 dependencies = [
  "adk-core",
  "adk-skill",
@@ -22,9 +20,7 @@ dependencies = [
 
 [[package]]
 name = "adk-anthropic"
-version = "0.8.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d497b42dfd1f2afd0770356535d4671bae7c20be519451983f88bccebf968de4"
+version = "0.8.1"
 dependencies = [
  "base64",
  "bytes",
@@ -40,9 +36,7 @@ dependencies = [
 
 [[package]]
 name = "adk-artifact"
-version = "0.8.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "84d24fa90756195ab5cd7ef4268af7440fda39ad2d2fea9df34dca9f1d843c8c"
+version = "0.8.1"
 dependencies = [
  "adk-core",
  "async-trait",
@@ -52,9 +46,7 @@ dependencies = [
 
 [[package]]
 name = "adk-cli"
-version = "0.8.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "66dfaf13707b18e221a6af4eff20d848834e07718c61aa011ff2e8e4675af2f9"
+version = "0.8.1"
 dependencies = [
  "adk-agent",
  "adk-artifact",
@@ -84,9 +76,7 @@ dependencies = [
 
 [[package]]
 name = "adk-core"
-version = "0.8.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "24474f8960f34c97708b23037b02e9cfae2eb5b5ba9d1eb97e3bde15a5560823"
+version = "0.8.1"
 dependencies = [
  "async-trait",
  "chrono",
@@ -100,9 +90,7 @@ dependencies = [
 
 [[package]]
 name = "adk-deploy"
-version = "0.8.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "af22926c321a2dc65b1275705f35f0d97e6bcda248ab501dcf4e754040f08976"
+version = "0.8.1"
 dependencies = [
  "anyhow",
  "chrono",
@@ -123,9 +111,7 @@ dependencies = [
 
 [[package]]
 name = "adk-gemini"
-version = "0.8.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7d6751553d8b31c058488233203c1337a774fcf7e6fbdb8ebb30b08301f7f229"
+version = "0.8.1"
 dependencies = [
  "async-stream",
  "async-trait",
@@ -153,9 +139,7 @@ dependencies = [
 
 [[package]]
 name = "adk-memory"
-version = "0.8.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "94c1d94208f55477fbfcc4986e637b9601b3903d0e8c7361d1e7f774dd453a45"
+version = "0.8.1"
 dependencies = [
  "adk-core",
  "async-trait",
@@ -168,9 +152,7 @@ dependencies = [
 
 [[package]]
 name = "adk-model"
-version = "0.8.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "87b424ae40a5472b4badcbd640ee77abbe431ffee245662a8e960e0c62c75075"
+version = "0.8.1"
 dependencies = [
  "adk-anthropic",
  "adk-core",
@@ -194,9 +176,7 @@ dependencies = [
 
 [[package]]
 name = "adk-plugin"
-version = "0.8.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d4cf4e45e9a002b24e4f2aec49fdb3b4715c9cfc6a76fe99fbf0e733715b9022"
+version = "0.8.1"
 dependencies = [
  "adk-core",
  "serde_json",
@@ -206,9 +186,7 @@ dependencies = [
 
 [[package]]
 name = "adk-runner"
-version = "0.8.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "158c01e54c481e23c9dec77ba59f3604c62fc827e54606e4761eebe797ddbfc6"
+version = "0.8.1"
 dependencies = [
  "adk-artifact",
  "adk-core",
@@ -228,9 +206,7 @@ dependencies = [
 
 [[package]]
 name = "adk-rust"
-version = "0.8.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "659df7266146d7ea439f6ce67c50fe3f4474a00751b9bec55766ee66bca3d260"
+version = "0.8.1"
 dependencies = [
  "adk-agent",
  "adk-cli",
@@ -250,9 +226,7 @@ dependencies = [
 
 [[package]]
 name = "adk-rust-macros"
-version = "0.8.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6459239991392dac265473c1fc566066818e80b031c73e58b8ab2300e9c2aefa"
+version = "0.8.1"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -261,9 +235,7 @@ dependencies = [
 
 [[package]]
 name = "adk-server"
-version = "0.8.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4cbde42bb215cbb2eded1ddf71a38624e8288a7781721b3598f74f7401bc3ba3"
+version = "0.8.1"
 dependencies = [
  "adk-agent",
  "adk-artifact",
@@ -295,9 +267,7 @@ dependencies = [
 
 [[package]]
 name = "adk-session"
-version = "0.8.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "45f9fe5f90a84a3610a4de3bfdf539f3dcd4076d5ae97977bb1bdf1c5e64779d"
+version = "0.8.1"
 dependencies = [
  "adk-core",
  "async-trait",
@@ -311,9 +281,7 @@ dependencies = [
 
 [[package]]
 name = "adk-skill"
-version = "0.8.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "792b1580be445d1230490c9aa7ff3a285137d62ff3529ea58c2228ada2b3f206"
+version = "0.8.1"
 dependencies = [
  "adk-core",
  "adk-plugin",
@@ -327,9 +295,7 @@ dependencies = [
 
 [[package]]
 name = "adk-telemetry"
-version = "0.8.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "378f17e69d662c428e8241a4672bdb8c36c138b2c5c4ca1c3541fccb75018a14"
+version = "0.8.1"
 dependencies = [
  "opentelemetry",
  "opentelemetry-otlp",
@@ -342,9 +308,7 @@ dependencies = [
 
 [[package]]
 name = "adk-tool"
-version = "0.8.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "19c2196c918336f06358d50eb52002974677e1b5a636bea626594ce04974353a"
+version = "0.8.1"
 dependencies = [
  "adk-core",
  "adk-rust-macros",
@@ -467,7 +431,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0f50776554130342de4836ba542aa85a4ddb361690d7e8df13774d7284c3d5c2"
 dependencies = [
  "include_dir",
- "itertools",
+ "itertools 0.10.5",
  "proc-macro-error2",
  "proc-macro2",
  "quote",
@@ -685,9 +649,9 @@ checksum = "c08606f8c3cbf4ce6ec8e28fb0014a2c086708fe954eaa885384a6165172e7e8"
 
 [[package]]
 name = "aws-lc-rs"
-version = "1.16.3"
+version = "1.17.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0ec6fb3fe69024a75fa7e1bfb48aa6cf59706a101658ea01bfd33b2b248a038f"
+checksum = "5ec2f1fc3ec205783a5da9a7e6c1509cc69dedf09a1949e412c1e18469326d00"
 dependencies = [
  "aws-lc-sys",
  "zeroize",
@@ -695,9 +659,9 @@ dependencies = [
 
 [[package]]
 name = "aws-lc-sys"
-version = "0.40.0"
+version = "0.41.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f50037ee5e1e41e7b8f9d161680a725bd1626cb6f8c7e901f91f942850852fe7"
+checksum = "1a2f9779ce85b93ab6170dd940ad0169b5766ff848247aff13bb788b832fe3f4"
 dependencies = [
  "cc",
  "cmake",
@@ -848,6 +812,15 @@ dependencies = [
  "futures-io",
  "futures-lite",
  "piper",
+]
+
+[[package]]
+name = "bs58"
+version = "0.5.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "bf88ba1141d185c399bee5288d850d63b8369520c1eafc32a0430b5b6c287bf4"
+dependencies = [
+ "tinyvec",
 ]
 
 [[package]]
@@ -1742,13 +1715,12 @@ checksum = "9f1f227452a390804cdb637b74a86990f2a7d7ba4b7d5693aac9b4dd6defd8d6"
 
 [[package]]
 name = "filetime"
-version = "0.2.27"
+version = "0.2.29"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f98844151eee8917efc50bd9e8318cb963ae8b297431495d3f758616ea5c57db"
+checksum = "5c287a33c7f0a620c38e641e7f60827713987b3c0f26e8ddc9462cc69cf75759"
 dependencies = [
  "cfg-if",
  "libc",
- "libredox",
 ]
 
 [[package]]
@@ -2022,9 +1994,9 @@ dependencies = [
 
 [[package]]
 name = "google-cloud-aiplatform-v1"
-version = "1.9.0"
+version = "1.11.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "af392dd3f316edca5dd8ca54d8004c76553e4287c8787f8d23564d22a776db58"
+checksum = "a41a475929b4e4b31297ab55068359202abaca26fe81dc561c201f17aa876878"
 dependencies = [
  "async-trait",
  "bytes",
@@ -2046,9 +2018,9 @@ dependencies = [
 
 [[package]]
 name = "google-cloud-api"
-version = "1.5.0"
+version = "1.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1f5db8944d332e7e3b73277606abea11fc0b020109aa2ddeb7b7fc6d656492d2"
+checksum = "3c61af87418a72938df35c626f9de0c47942c279d41f10c5485315ddbaef4f95"
 dependencies = [
  "bytes",
  "google-cloud-wkt",
@@ -2059,9 +2031,9 @@ dependencies = [
 
 [[package]]
 name = "google-cloud-auth"
-version = "1.9.0"
+version = "1.10.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "54a26c047222f874ea87177368ad07c65a9f66534ad3a3f9401f1322c802ccac"
+checksum = "edd4f8c914f230834828771125168eaa39bc6602e32cb0316ceeff2add10d449"
 dependencies = [
  "async-trait",
  "base64",
@@ -2086,9 +2058,9 @@ dependencies = [
 
 [[package]]
 name = "google-cloud-gax"
-version = "1.9.1"
+version = "1.10.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7dc387965cc2efc28d73896d6707125815c16792c23c33a0c67794f3d6e31cc8"
+checksum = "83d597e9e4758fc778a60d8c28a8677629675ae40d8652ec000ae5f53f5ae7ec"
 dependencies = [
  "base64",
  "bytes",
@@ -2106,9 +2078,9 @@ dependencies = [
 
 [[package]]
 name = "google-cloud-gax-internal"
-version = "0.7.12"
+version = "0.7.13"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9529b797c68dc5c9d37effe7faa5d96d683a00e728287a9934bf6d3a86b58706"
+checksum = "6e3e4d09e162fb71314e2c91879bdd495c1f8a1f69e71ccbae5767b8b6c833d6"
 dependencies = [
  "bytes",
  "futures",
@@ -2137,9 +2109,9 @@ dependencies = [
 
 [[package]]
 name = "google-cloud-iam-v1"
-version = "1.8.0"
+version = "1.9.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "103d11cc828e7f33759c4dc6618a98415786fabba268147028e607c4fe1199aa"
+checksum = "eab83affdded409153d2e616174054a780705016c288e43221a0d6a22dd78671"
 dependencies = [
  "async-trait",
  "bytes",
@@ -2155,9 +2127,9 @@ dependencies = [
 
 [[package]]
 name = "google-cloud-location"
-version = "1.8.0"
+version = "1.9.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "af1ca672fa851a3bec54829f10ff86bec33250ed606e3729e57c260431e5c530"
+checksum = "2dd181e470051464f49e47f00010e08f586ee2def8ade486352978b1312d4b58"
 dependencies = [
  "async-trait",
  "bytes",
@@ -2172,9 +2144,9 @@ dependencies = [
 
 [[package]]
 name = "google-cloud-longrunning"
-version = "1.9.0"
+version = "1.10.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fa340b46d452fcd5e701b21dab6ed187454b6f1e4300e0bdb928fceefac847fa"
+checksum = "df86ec067f13d858caf1a7fd9ed9315132aa0b0da2c1f0ba9b4357f2422d4bf9"
 dependencies = [
  "async-trait",
  "bytes",
@@ -2190,9 +2162,9 @@ dependencies = [
 
 [[package]]
 name = "google-cloud-lro"
-version = "1.5.0"
+version = "1.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3bfd3fa41649a3cd53675a94988b7d3789f2d8f2eb1b24af237450fe08ae9643"
+checksum = "a4b3f2591e45a469e8ada961e92a62448b2b0522d8809554ad365cb964cb94d9"
 dependencies = [
  "google-cloud-gax",
  "google-cloud-longrunning",
@@ -2204,9 +2176,9 @@ dependencies = [
 
 [[package]]
 name = "google-cloud-rpc"
-version = "1.4.0"
+version = "1.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7e3b123ea17ff20539fbdf145e6213e0464cc0a30b0d078a68bf90405ef17fb7"
+checksum = "10b177796075b7bfc02bf2e405db665ee850a924fa44cedfc5282b473c5ab203"
 dependencies = [
  "bytes",
  "google-cloud-wkt",
@@ -2217,9 +2189,9 @@ dependencies = [
 
 [[package]]
 name = "google-cloud-type"
-version = "1.4.0"
+version = "1.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "bbcae00eb50388f5127e65cf2d45679fc4ec0e3596975bb6ec41aec6319a51c9"
+checksum = "d3658f2192252ba301a9d0a26e298bd56b55f0edb32de499a2f41ff244c09cf8"
 dependencies = [
  "bytes",
  "google-cloud-wkt",
@@ -2230,9 +2202,9 @@ dependencies = [
 
 [[package]]
 name = "google-cloud-wkt"
-version = "1.3.0"
+version = "1.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0b30ccefdb9276269bb0336afe207c5e0ba1a544a5eb0034763af051f2b9eb63"
+checksum = "d5daa3084991800bcc5333d7e77bb19259a02b34ee35f35c27b49d602732306e"
 dependencies = [
  "base64",
  "bytes",
@@ -2282,9 +2254,9 @@ dependencies = [
 
 [[package]]
 name = "hashbrown"
-version = "0.17.0"
+version = "0.17.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4f467dd6dccf739c208452f8014c75c18bb8301b050ad1cfb27153803edb0f51"
+checksum = "ed5909b6e89a2db4456e54cd5f673791d7eca6732202bbf2a9cc504fe2f9b84a"
 
 [[package]]
 name = "hashlink"
@@ -2408,9 +2380,9 @@ checksum = "135b12329e5e3ce057a9f972339ea52bc954fe1e9358ef27f95e89716fbc5424"
 
 [[package]]
 name = "hybrid-array"
-version = "0.4.11"
+version = "0.4.12"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "08d46837a0ed51fe95bd3b05de33cd64a1ee88fc797477ca48446872504507c5"
+checksum = "9155a582abd142abc056962c29e3ce5ff2ad5469f4246b537ed42c5deba857da"
 dependencies = [
  "typenum",
 ]
@@ -2684,7 +2656,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d466e9454f08e4a911e14806c24e16fba1b4c121d1ea474396f396069cf949d9"
 dependencies = [
  "equivalent",
- "hashbrown 0.17.0",
+ "hashbrown 0.17.1",
  "serde",
  "serde_core",
 ]
@@ -2753,6 +2725,15 @@ name = "itertools"
 version = "0.10.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b0fd2260e829bddf4cb6ea802289de2f86d6a7a690192fbe91b3f46e0f2c8473"
+dependencies = [
+ "either",
+]
+
+[[package]]
+name = "itertools"
+version = "0.14.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2b192c782037fadd9cfa75548310488aabdbf3d2da73885b31bd0abd03351285"
 dependencies = [
  "either",
 ]
@@ -3086,6 +3067,7 @@ dependencies = [
 name = "nami"
 version = "0.9.11"
 dependencies = [
+ "adk-core",
  "adk-memory",
  "adk-runner",
  "adk-rust",
@@ -3180,9 +3162,9 @@ dependencies = [
 
 [[package]]
 name = "nix"
-version = "0.31.2"
+version = "0.31.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5d6d0705320c1e6ba1d912b5e37cf18071b6c2e9b7fa8215a1e8a7651966f5d3"
+checksum = "cf20d2fde8ff38632c426f1165ed7436270b44f199fc55284c38276f9db47c3d"
 dependencies = [
  "bitflags 2.11.1",
  "cfg-if",
@@ -3720,7 +3702,7 @@ checksum = "2e842efad9119158434d193c6682e2ebee4b44d6ad801d7b349623b3f57cdf55"
 dependencies = [
  "futures",
  "indexmap 2.14.0",
- "nix 0.31.2",
+ "nix 0.31.3",
  "tokio",
  "tracing",
  "windows 0.62.2",
@@ -3743,7 +3725,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "27c6023962132f4b30eb4c172c91ce92d933da334c59c23cddee82358ddafb0b"
 dependencies = [
  "anyhow",
- "itertools",
+ "itertools 0.14.0",
  "proc-macro2",
  "quote",
  "syn",
@@ -4380,7 +4362,7 @@ dependencies = [
  "libc",
  "log",
  "memchr",
- "nix 0.31.2",
+ "nix 0.31.3",
  "radix_trie",
  "unicode-segmentation",
  "unicode-width 0.2.2",
@@ -4636,11 +4618,12 @@ dependencies = [
 
 [[package]]
 name = "serde_with"
-version = "3.19.0"
+version = "3.20.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f05839ce67618e14a09b286535c0d9c94e85ef25469b0e13cb4f844e5593eb19"
+checksum = "e72c1c2cb7b223fafb600a619537a871c2818583d619401b785e7c0b746ccde2"
 dependencies = [
  "base64",
+ "bs58",
  "chrono",
  "hex",
  "indexmap 1.9.3",
@@ -4655,9 +4638,9 @@ dependencies = [
 
 [[package]]
 name = "serde_with_macros"
-version = "3.19.0"
+version = "3.20.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "cf2ebbe86054f9b45bc3881e865683ccfaccce97b9b4cb53f3039d67f355a334"
+checksum = "b90c488738ecb4fb0262f41f43bc40efc5868d9fb744319ddf5f5317f417bfac"
 dependencies = [
  "darling 0.23.0",
  "proc-macro2",
@@ -6842,9 +6825,9 @@ dependencies = [
 
 [[package]]
 name = "zerofrom"
-version = "0.1.7"
+version = "0.1.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "69faa1f2a1ea75661980b013019ed6687ed0e83d069bc1114e2cc74c6c04c4df"
+checksum = "0ec05a11813ea801ff6d75110ad09cd0824ddba17dfe17128ea0d5f68e6c5272"
 dependencies = [
  "zerofrom-derive",
 ]

@@ -7,6 +7,7 @@ pub mod filesystem;
 pub mod image_generator;
 pub mod memory;
 pub mod parallel_tasks;
+pub mod plan;
 pub mod ralph_wiggum_loop;
 pub mod scheduler;
 pub mod search;

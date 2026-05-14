@@ -49,6 +49,11 @@ enum Commands {
         /// Optional port for the LINE webhook server.
         port: Option<u16>
     },
+    /// Run the AG-UI protocol mode.
+    Agui {
+        /// Optional port for the AG-UI server.
+        port: Option<u16>
+    },
 }
 
 #[tokio::main]
@@ -172,6 +177,10 @@ async fn main() -> anyhow::Result<()> {
                 model,
             ));
             modes::line::run_line(runner, port.unwrap_or(8080)).await?;
+        }
+        Commands::Agui { port } => {
+            log::info!("Running in AG-UI protocol mode");
+            modes::agui::run_agui(agent, memory_adapter, port.unwrap_or(8080)).await?;
         }
         Commands::Init => unreachable!(),
     }

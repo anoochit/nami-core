@@ -4,12 +4,13 @@ version = "0.9.11"
 edition = "2024"
 
 [dependencies]
-adk-memory = { version = "0.8.0", features = ["sqlite-memory"] }
-adk-runner = "0.8.0"
-adk-rust = { version = "0.8.0", features = ["anthropic", "ollama", "openai", "openrouter", "sessions", "cli", "gemini", "gemini-vertex"] }
-adk-session = { version = "0.8.0", features = ["sqlite"] }
-adk-telemetry = { version = "0.8.0", features = ["otlp"] }
-adk-tool = { version = "0.8.0", features = ["http-transport"] }
+adk-core = { path = "ref/adk-core" }
+adk-memory = { path = "ref/adk-memory", features = ["sqlite-memory"] }
+adk-runner = { path = "ref/adk-runner" }
+adk-rust = { path = "ref/adk-rust", features = ["anthropic", "ollama", "openai", "openrouter", "sessions", "cli", "gemini", "gemini-vertex"] }
+adk-session = { path = "ref/adk-session", features = ["sqlite"] }
+adk-telemetry = { path = "ref/adk-telemetry", features = ["otlp"] }
+adk-tool = { path = "ref/adk-tool", features = ["http-transport"] }
 sqlx = { version = "0.8.0", features = ["runtime-tokio", "sqlite"] }
 tokio-stream = "0.1"
 anyhow = "1"

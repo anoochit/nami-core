@@ -419,6 +419,152 @@ fn print_status_line(stdout: &mut io::Stdout, text: &str) -> io::Result<()> {
     Ok(())
 }
 
+async fn handle_slash_command(
+    trimmed: &str,
+    runner: &mut Runner,
+    sessions: &Arc<dyn SessionService>,
+    user_id: &str,
+    session_id: &mut String,
+    nami_skin: &MadSkin,
+    provider: &mut String,
+    model_name: &mut String,
+) -> anyhow::Result<bool> {
+    match trimmed {
+        "/?" => {
+            render_help();
+        }
+
+        "/exit" | "/quit" => {
+            return Ok(true);
+        }
+
+        "/clear" => {
+            execute!(
+                io::stdout(),
+                terminal::Clear(terminal::ClearType::All),
+                cursor::MoveTo(0, 0)
+            )?;
+
+            render_banner(provider, model_name, session_id);
+        }
+
+        "/new" => {
+            let session_id_new = Uuid::new_v4().to_string();
+            ensure_session(sessions, "cli", user_id, &session_id_new).await?;
+
+            execute!(
+                io::stdout(),
+                terminal::Clear(terminal::ClearType::All),
+                cursor::MoveTo(0, 0)
+            )?;
+
+            render_banner(provider, model_name, &session_id_new);
+
+            println!(
+                "{}\n",
+                style::style("✨ New session started").green()
+            );
+            *session_id = session_id_new;
+        }
+
+        "/version" => {
+            println!(
+                "{} {}\n",
+                style::style("Nami CLI").magenta().bold(),
+                env!("CARGO_PKG_VERSION")
+            );
+        }
+
+        "/tasks" => {
+            run_system_prompt(runner, user_id, session_id, "list_active_tasks", nami_skin).await?;
+        }
+
+        "/status" => {
+            run_system_prompt(runner, user_id, session_id, "get_system_status", nami_skin).await?;
+        }
+
+        _ if trimmed.starts_with("/plan") => {
+            let args = trimmed.replace("/plan", "").trim().to_string();
+            let re = Regex::new(r#""([^"]*)"|(\S+)"#).unwrap();
+            let parts: Vec<String> = re.captures_iter(&args)
+                .map(|cap| cap.get(1).or(cap.get(2)).unwrap().as_str().to_string())
+                .collect();
+
+            let prompt = match parts.as_slice() {
+                [cmd, objective] if cmd == "create" => format!("plan_create(name='auto', objective='{}')", objective),
+                [cmd, name, objective] if cmd == "create" => format!("plan_create(name='{}', objective='{}')", name, objective),
+                [cmd, name] if cmd == "show" => format!("plan_show(name='{}')", name),
+                [cmd] if cmd == "list" => "plan_list()".to_string(),
+                _ => {
+                    println!("{}", style::style("Usage: /plan create [name] <objective> | /plan <list|show> [name]").yellow());
+                    return Ok(false);
+                }
+            };
+
+            run_system_prompt(runner, user_id, session_id, &prompt, nami_skin).await?;
+        }
+
+        _ if trimmed.starts_with("/schedule ") => {
+            let content = trimmed.replace("/schedule", "").trim().to_string();
+            let (goal, cron_expr) = match content.split_once('|') {
+                Some((g, s)) => (g.trim(), s.trim()),
+                None => (content.as_str(), "0 * * * * *"),
+            };
+
+            let prompt = format!(
+                "schedule_task: goal='{}', cron_expr='{}', id='{}'",
+                goal,
+                cron_expr,
+                Uuid::new_v4().to_string().split('-').next().unwrap_or("task")
+            );
+
+            run_system_prompt(runner, user_id, session_id, &prompt, nami_skin).await?;
+        }
+
+        _ if trimmed.starts_with("/parallel ") => {
+            let tasks = trimmed.replace("/parallel", "").trim().to_string();
+            let prompt = format!(
+                "Execute the following tasks in parallel using the most appropriate specialized agents: {}",
+                tasks
+            );
+
+            run_system_prompt(runner, user_id, session_id, &prompt, nami_skin).await?;
+        }
+
+        _ if trimmed.starts_with("/goal ") => {
+            let content = trimmed.replace("/goal", "").trim().to_string();
+            let (goal, stop_condition) = match content.split_once('|') {
+                Some((g, s)) => (g.trim(), s.trim()),
+                None => (content.as_str(), "Goal is achieved"),
+            };
+
+            let prompt = format!("ralph_wiggum_loop: goal='{}', stop_condition='{}'", goal, stop_condition);
+
+            run_system_prompt(runner, user_id, session_id, &prompt, nami_skin).await?;
+        }
+
+        _ if trimmed.starts_with("/wiki ") => {
+            let prompt = format!("wiki_search: {}", trimmed.replace("/wiki", "").trim());
+            run_system_prompt(runner, user_id, session_id, &prompt, nami_skin).await?;
+        }
+
+        _ if trimmed.starts_with("/memo ") => {
+            let prompt = format!("add_memory: {}", trimmed.replace("/memo", "").trim());
+            run_system_prompt(runner, user_id, session_id, &prompt, nami_skin).await?;
+        }
+
+        _ if trimmed.starts_with("/recall ") => {
+            let prompt = format!("recall_memory: {}", trimmed.replace("/recall", "").trim());
+            run_system_prompt(runner, user_id, session_id, &prompt, nami_skin).await?;
+        }
+
+        _ => {
+            println!("{} {}\n", style::style("Unknown command:").red(), trimmed);
+        }
+    }
+    Ok(false)
+}
+
 pub(crate) async fn run_cli(
     mut agent: Arc<dyn Agent>,
     sessions: Arc<dyn SessionService>,
@@ -515,7 +661,7 @@ pub(crate) async fn run_cli(
                 .compaction_config(get_compaction_config(model.clone()))
                 .build()?;
 
-            println!("\n{}\n", style::style("🧠 Agent reloaded").cyan().bold());
+            println!("\n{}\n", style::style("🧠 Agent reloaded").cyan());
         }
 
         let line = rl.readline("You > ");
@@ -525,189 +671,20 @@ pub(crate) async fn run_cli(
                 let trimmed = line.trim();
 
                 if trimmed.starts_with('/') {
-                    match trimmed {
-                        "/?" => {
-                            render_help();
-                            continue;
-                        }
-
-                        "/exit" | "/quit" => {
-                            break;
-                        }
-
-                        "/clear" => {
-                            execute!(
-                                io::stdout(),
-                                terminal::Clear(terminal::ClearType::All),
-                                cursor::MoveTo(0, 0)
-                            )?;
-
-                            render_banner(&provider, &model_name, &session_id);
-
-                            continue;
-                        }
-
-                        "/new" => {
-                            session_id = Uuid::new_v4().to_string();
-
-                            ensure_session(&sessions, app_name, user_id, &session_id).await?;
-
-                            execute!(
-                                io::stdout(),
-                                terminal::Clear(terminal::ClearType::All),
-                                cursor::MoveTo(0, 0)
-                            )?;
-
-                            render_banner(&provider, &model_name, &session_id);
-
-                            println!(
-                                "{}\n",
-                                style::style("✨ New session started").green().bold()
-                            );
-
-                            continue;
-                        }
-
-                        "/version" => {
-                            println!(
-                                "{} {}\n",
-                                style::style("Nami CLI").magenta().bold(),
-                                env!("CARGO_PKG_VERSION")
-                            );
-
-                            continue;
-                        }
-
-                        "/tasks" => {
-                            run_system_prompt(
-                                &mut runner,
-                                user_id,
-                                &session_id,
-                                "list_active_tasks",
-                                &nami_skin,
-                            )
-                            .await?;
-
-                            continue;
-                        }
-
-                        "/status" => {
-                            run_system_prompt(
-                                &mut runner,
-                                user_id,
-                                &session_id,
-                                "get_system_status",
-                                &nami_skin,
-                            )
-                            .await?;
-
-                            continue;
-                        }
-
-                        _ => {}
+                    if handle_slash_command(
+                        trimmed,
+                        &mut runner,
+                        &sessions,
+                        user_id,
+                        &mut session_id,
+                        &nami_skin,
+                        &mut provider,
+                        &mut model_name,
+                    )
+                    .await?
+                    {
+                        break;
                     }
-
-                    if trimmed.starts_with("/plan ") {
-                        let prompt =
-                            format!("Initialize task: {}", trimmed.replace("/plan", "").trim());
-
-                        run_system_prompt(&mut runner, user_id, &session_id, &prompt, &nami_skin)
-                            .await?;
-
-                        continue;
-                    }
-
-                    if trimmed.starts_with("/schedule ") {
-                        let content = trimmed.replace("/schedule", "").trim().to_string();
-                        let (goal, cron_expr) = match content.split_once('|') {
-                            Some((g, s)) => (g.trim(), s.trim()),
-                            None => (content.as_str(), "0 * * * * *"),
-                        };
-
-                        let prompt = format!(
-                            "schedule_task: goal='{}', cron_expr='{}', id='{}'",
-                            goal,
-                            cron_expr,
-                            Uuid::new_v4()
-                                .to_string()
-                                .split('-')
-                                .next()
-                                .unwrap_or("task")
-                        );
-
-                        run_system_prompt(&mut runner, user_id, &session_id, &prompt, &nami_skin)
-                            .await?;
-
-                        continue;
-                    }
-
-                    if trimmed.starts_with("/parallel ") {
-                        let tasks = trimmed.replace("/parallel", "").trim().to_string();
-                        let prompt = format!(
-                            "Execute the following tasks in parallel using the most appropriate specialized agents (coder, researcher, writer, ralph, or generalist): {}",
-                            tasks
-                        );
-
-                        run_system_prompt(&mut runner, user_id, &session_id, &prompt, &nami_skin)
-                            .await?;
-
-                        continue;
-                    }
-
-                    if trimmed.starts_with("/goal ") {
-                        let content = trimmed.replace("/goal", "").trim().to_string();
-                        let (goal, stop_condition) = match content.split_once('|') {
-                            Some((g, s)) => (g.trim(), s.trim()),
-                            None => (content.as_str(), "Goal is achieved"),
-                        };
-
-                        let prompt = format!(
-                            "ralph_wiggum_loop: goal='{}', stop_condition='{}'",
-                            goal, stop_condition
-                        );
-
-                        run_system_prompt(&mut runner, user_id, &session_id, &prompt, &nami_skin)
-                            .await?;
-
-                        continue;
-                    }
-
-                    if trimmed.starts_with("/wiki ") {
-                        let prompt =
-                            format!("wiki_search: {}", trimmed.replace("/wiki", "").trim());
-
-                        run_system_prompt(&mut runner, user_id, &session_id, &prompt, &nami_skin)
-                            .await?;
-
-                        continue;
-                    }
-
-                    if trimmed.starts_with("/memo ") {
-                        let prompt =
-                            format!("add_memory: {}", trimmed.replace("/memo", "").trim());
-
-                        run_system_prompt(&mut runner, user_id, &session_id, &prompt, &nami_skin)
-                            .await?;
-
-                        continue;
-                    }
-
-                    if trimmed.starts_with("/recall ") {
-                        let prompt =
-                            format!("recall_memory: {}", trimmed.replace("/recall", "").trim());
-
-                        run_system_prompt(&mut runner, user_id, &session_id, &prompt, &nami_skin)
-                            .await?;
-
-                        continue;
-                    }
-
-                    println!(
-                        "{} {}\n",
-                        style::style("Unknown command:").red().bold(),
-                        trimmed
-                    );
-
                     continue;
                 }
 
