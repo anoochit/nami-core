@@ -5,8 +5,14 @@ use anyhow::{Context, Result};
 use toml;
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct Command {
+    pub template: String,
+    pub help: String,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct CommandRegistry {
-    pub commands: HashMap<String, String>,
+    pub commands: HashMap<String, Command>,
 }
 
 impl CommandRegistry {
@@ -22,22 +28,22 @@ impl CommandRegistry {
 
         let mut commands = HashMap::new();
         for (key, value) in commands_table {
-            if let Some(template) = value.as_str() {
-                commands.insert(key.clone(), template.to_string());
+            if let Ok(cmd) = value.clone().try_into::<Command>() {
+                commands.insert(key.clone(), cmd);
             }
         }
 
         Ok(CommandRegistry { commands })
     }
 
-    pub fn get_command(&self, name: &str) -> Option<&String> {
+    pub fn get_command(&self, name: &str) -> Option<&Command> {
         self.commands.get(name)
     }
 
     pub fn format_prompt(&self, name: &str, args: &str) -> Option<String> {
-        self.get_command(name).map(|template| {
+        self.get_command(name).map(|cmd| {
             let parts: Vec<&str> = args.split('|').map(|s| s.trim()).collect();
-            let mut formatted = template.clone();
+            let mut formatted = cmd.template.clone();
             
             // Support specific placeholders
             if let Some(goal) = parts.get(0) {

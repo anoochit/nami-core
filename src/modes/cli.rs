@@ -43,8 +43,8 @@ fn render_help(registry: &CommandRegistry) {
     println!("\n{}", style::style("Custom Commands:").magenta().bold());
     let mut commands: Vec<_> = registry.commands.iter().collect();
     commands.sort_by(|a, b| a.0.cmp(b.0));
-    for (name, template) in commands {
-        println!("{}  Template: {}", style::style(name).cyan().bold(), template);
+    for (name, cmd) in commands {
+        println!("{}  {}", style::style(name).cyan().bold(), cmd.help);
     }
 
     println!(
