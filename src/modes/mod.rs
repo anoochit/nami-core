@@ -13,3 +13,4 @@ pub mod serve;
 pub mod ui_utils;
 pub mod line;
 pub mod agui;
+pub mod startup;

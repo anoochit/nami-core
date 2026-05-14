@@ -2418,6 +2418,7 @@ dependencies = [
  "http",
  "hyper",
  "hyper-util",
+ "log",
  "rustls",
  "rustls-native-certs",
  "tokio",
@@ -2914,6 +2915,28 @@ dependencies = [
 ]
 
 [[package]]
+name = "line-bot-sdk-rust"
+version = "3.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d2d674c706b9653a4ae5b80404e4e440c4df503d928f21e7d89b01b87c2b5ccd"
+dependencies = [
+ "axum",
+ "base64",
+ "hmac 0.12.1",
+ "http-body-util",
+ "hyper",
+ "hyper-rustls",
+ "hyper-util",
+ "serde",
+ "serde_json",
+ "serde_repr",
+ "sha2 0.10.9",
+ "tokio",
+ "url",
+ "uuid",
+]
+
+[[package]]
 name = "linked-hash-map"
 version = "0.5.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3065,7 +3088,7 @@ dependencies = [
 
 [[package]]
 name = "nami"
-version = "0.9.11"
+version = "0.9.12"
 dependencies = [
  "adk-core",
  "adk-memory",
@@ -3087,12 +3110,14 @@ dependencies = [
  "globset",
  "hmac 0.12.1",
  "inquire",
+ "line-bot-sdk-rust",
  "log",
  "mime_guess",
  "pretty_env_logger",
  "regex",
  "reqwest 0.13.3",
  "rust-embed",
+ "rustls",
  "rustyline",
  "schemars 1.2.1",
  "serde",

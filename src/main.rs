@@ -6,11 +6,10 @@ mod utils;
 
 use std::sync::Arc;
 
-use adk_memory::SqliteMemoryService;
-use adk_session::SqliteSessionService;
-use adk_telemetry::{init_with_otlp, shutdown_telemetry};
+use adk_telemetry::shutdown_telemetry;
 use clap::{Parser, Subcommand};
 use runner::AgentRunner;
+use modes::startup::setup_dependencies;
 
 /// The command-line interface for the application.
 #[derive(Parser)]
@@ -58,15 +57,11 @@ enum Commands {
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
+    rustls::crypto::ring::default_provider()
+        .install_default()
+        .expect("Failed to install rustls crypto provider");
+
     dotenvy::dotenv().ok();
-
-    // with Otel collector
-    let otel_endpoint = std::env::var("OTEL_COLLECTOR").unwrap_or_default();
-
-    if !otel_endpoint.is_empty() {
-        log::info!("Init telemetry...");
-        init_with_otlp("agent", &otel_endpoint).expect("Failed to initialize telemetry");
-    }
 
     // parse cli
     let cli = Cli::parse();
@@ -105,19 +100,7 @@ async fn main() -> anyhow::Result<()> {
     let (agent, model, provider, model_name) = agent::build_agent().await?;
     log::info!("Agent built successfully.");
 
-    // session
-    let sessions = SqliteSessionService::new("sessions.db?mode=rwc").await?;
-    sessions.migrate().await?;
-    let sessions = Arc::new(sessions);
-
-    // memory
-    let memory = SqliteMemoryService::new("sqlite:memory.db?mode=rwc").await?;
-    memory.migrate().await?;
-    let memory = Arc::new(memory);
-    let _ = crate::tools::memory::MEMORY_SVC.set(memory.clone());
-    let memory_adapter: Arc<dyn adk_rust::Memory> = Arc::new(
-        adk_memory::MemoryServiceAdapter::new(memory.clone(), "nami", "default_user"),
-    );
+    let deps = setup_dependencies().await?;
 
     // Reflection Service
     if config.reflection.as_ref().map(|r| r.enabled).unwrap_or(false) {
@@ -131,8 +114,8 @@ async fn main() -> anyhow::Result<()> {
         let reflection_svc = Arc::new(agent::reflection::ReflectionService::new(
             reflection_model,
             reflection_model_name,
-            sessions.clone(),
-            memory.clone(),
+            deps.sessions.clone(),
+            deps.memory.clone(),
         ));
         tokio::spawn(async move {
             reflection_svc.start().await;
@@ -144,16 +127,16 @@ async fn main() -> anyhow::Result<()> {
             log::info!("Running in bot mode");
             let runner = Arc::new(AgentRunner::new(
                 agent,
-                sessions.clone(),
-                memory_adapter,
+                deps.sessions.clone(),
+                deps.memory_adapter.clone(),
                 "telegram",
                 model,
             ));
-            modes::bot::run_bot(runner, sessions.clone()).await?;
+            modes::bot::run_bot(runner, deps.sessions.clone()).await?;
         }
         Commands::Cli => {
             log::info!("Running in CLI mode");
-            modes::cli::run_cli(agent, sessions, model, provider, model_name).await?;
+            modes::cli::run_cli(agent, deps.sessions, model, provider, model_name).await?;
         }
         Commands::Run { prompt } => {
             log::info!("Running in direct run mode");
@@ -161,18 +144,18 @@ async fn main() -> anyhow::Result<()> {
         }
         Commands::Serve { port } => {
             log::info!("Running in serve mode");
-            modes::serve::run_serve(agent, model, memory_adapter, port.unwrap_or(8080)).await?;
+            modes::serve::run_serve(agent, model, deps.memory_adapter, port.unwrap_or(8080)).await?;
         }
         Commands::Browse { port } => {
             log::info!("Running in browse mode");
-            modes::browse::run_browse(agent, model, memory_adapter, port.unwrap_or(8080)).await?;
+            modes::browse::run_browse(agent, model, deps.memory_adapter, port.unwrap_or(8080)).await?;
         }
         Commands::Line { port } => {
             log::info!("Running in LINE bot mode");
             let runner = Arc::new(AgentRunner::new(
                 agent,
-                sessions.clone(),
-                memory_adapter,
+                deps.sessions.clone(),
+                deps.memory_adapter,
                 "line",
                 model,
             ));
@@ -180,13 +163,13 @@ async fn main() -> anyhow::Result<()> {
         }
         Commands::Agui { port } => {
             log::info!("Running in AG-UI protocol mode");
-            modes::agui::run_agui(agent, memory_adapter, port.unwrap_or(8080)).await?;
+            modes::agui::run_agui(agent, deps.memory_adapter, port.unwrap_or(8080)).await?;
         }
         Commands::Init => unreachable!(),
     }
 
     // shutdown telemetry
-    if !otel_endpoint.is_empty() {
+    if !std::env::var("OTEL_COLLECTOR").unwrap_or_default().is_empty() {
         shutdown_telemetry();
     }
     Ok(())
