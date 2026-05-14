@@ -14,6 +14,7 @@ interface ThreadViewProps {
   onNavigateHistory: (direction: 'up' | 'down') => void;
   onPreviewFile?: (path: string) => void;
   onPreviewWiki?: (title: string) => void;
+  onClear: () => void;
   isLoading: boolean;
   error?: string | null;
 }
@@ -28,6 +29,7 @@ export const ThreadView: React.FC<ThreadViewProps> = ({
   onNavigateHistory,
   onPreviewFile,
   onPreviewWiki,
+  onClear,
   isLoading, 
   error 
 }) => {
@@ -38,6 +40,8 @@ export const ThreadView: React.FC<ThreadViewProps> = ({
         sessionId={thread.sessionId} 
         sidebarOpen={sidebarOpen} 
         onToggleSidebar={onToggleSidebar} 
+        onClear={onClear}
+        onPreview={() => console.log('Preview clicked')}
       />
 
       <MessageList 

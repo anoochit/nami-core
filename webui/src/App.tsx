@@ -24,7 +24,8 @@ export default function App() {
     setPreviewWikiPath,
     sendMessage,
     createNewThread,
-    navigateHistory
+    navigateHistory,
+    clearMessages
   } = useChat();
 
   const activePreview = previewPath || previewWikiPath;
@@ -58,6 +59,7 @@ export default function App() {
               onNavigateHistory={navigateHistory}
               onPreviewFile={setPreviewPath}
               onPreviewWiki={setPreviewWikiPath}
+              onClear={clearMessages}
               isLoading={isLoading}
               error={error ?? undefined}
             />

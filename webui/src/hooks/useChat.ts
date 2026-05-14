@@ -192,6 +192,10 @@ export const useChat = () => {
     setInput(promptHistory[newIndex]);
   };
 
+  const clearMessages = () => {
+    updateActiveThread(t => ({ ...t, messages: [] }));
+  };
+
   return {
     threads,
     activeThread,
@@ -209,6 +213,7 @@ export const useChat = () => {
     setPreviewWikiPath,
     sendMessage,
     createNewThread,
-    navigateHistory
+    navigateHistory,
+    clearMessages
   };
 };
