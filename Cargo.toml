@@ -11,7 +11,6 @@ adk-rust = { version = "0.8.1", features = ["anthropic", "ollama", "openai", "op
 adk-session = { version = "0.8.1", features = ["sqlite"] }
 adk-telemetry = { version = "0.8.1", features = ["otlp"] }
 adk-tool = {version = "0.8.1", features = ["http-transport"] }
-adk-ui = { version = "0.8.0", path = "ref/adk-ui" }
 sqlx = { version = "0.8.0", features = ["runtime-tokio", "sqlite"] }
 tokio-stream = "0.1"
 anyhow = "1"

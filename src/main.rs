@@ -61,7 +61,7 @@ async fn main() -> anyhow::Result<()> {
     // parse cli
     let cli = Cli::parse();
 
-    if !matches!(cli.command, Commands::Serve { .. } | Commands::Browse { .. } | Commands::Init) {
+    if !matches!(cli.command, Commands::Serve { .. } | Commands::Browse { .. } | Commands::Init | Commands::Cli) {
         if std::env::var("RUST_LOG").is_err() {
             unsafe { std::env::set_var("RUST_LOG", "info") };
         }
