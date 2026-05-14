@@ -177,7 +177,11 @@ async fn add_wiki_page(args: AddWikiArgs) -> std::result::Result<Value, AdkError
             .await
             .map_err(|e| AdkError::tool(format!("Failed to append to wiki page: {}", e)))?;
         Ok(
-            json!({"status": "success", "message": format!("Appended to wiki page '{}'", args.title)}),
+            json!({
+                "status": "success", 
+                "message": format!("Appended to wiki page '{}'", args.title),
+                "path": filename
+            }),
         )
     } else {
         let mut final_content = args.content.trim().to_string();
@@ -209,7 +213,11 @@ async fn add_wiki_page(args: AddWikiArgs) -> std::result::Result<Value, AdkError
         fs::write(&path, &final_content)
             .await
             .map_err(|e| AdkError::tool(format!("Failed to write wiki page: {}", e)))?;
-        Ok(json!({"status": "success", "message": format!("Saved wiki page '{}'", args.title)}))
+        Ok(json!({
+            "status": "success", 
+            "message": format!("Saved wiki page '{}'", args.title),
+            "path": path
+        }))
     }
 }
 
@@ -423,7 +431,7 @@ async fn create_daily_note(args: CreateDailyNoteArgs) -> std::result::Result<Val
     add_wiki_page(add_args).await?;
 
     Ok(
-        json!({"status": "success", "message": format!("Created daily note for '{}'", title), "title": title}),
+        json!({"status": "success", "message": format!("Created daily note for '{}'", title)}),
     )
 }
 

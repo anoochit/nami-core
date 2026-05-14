@@ -98,4 +98,13 @@ export const api = {
       reader.releaseLock();
     }
   },
+
+  readWorkspaceFile: async (path: string): Promise<{ content: string }> => {
+    const response = await fetch(`${BASE_URL}/api/workspace/read/${path}`);
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.message || errorData.error || `Failed to read file (${response.status})`);
+    }
+    return response.json();
+  },
 };

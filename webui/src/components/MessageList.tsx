@@ -6,12 +6,16 @@ interface MessageListProps {
   messages: Message[];
   isLoading: boolean;
   error?: string;
+  onPreviewFile?: (path: string) => void;
+  onPreviewWiki?: (title: string) => void;
 }
 
 export const MessageList: React.FC<MessageListProps> = ({ 
   messages, 
   isLoading, 
-  error 
+  error,
+  onPreviewFile,
+  onPreviewWiki
 }) => {
   const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -38,6 +42,8 @@ export const MessageList: React.FC<MessageListProps> = ({
           isLoading={isLoading}
           isLast={index === messages.length - 1}
           error={error}
+          onPreviewFile={onPreviewFile}
+          onPreviewWiki={onPreviewWiki}
         />
       ))}
       <div className="h-4" /> {/* Bottom spacing */}

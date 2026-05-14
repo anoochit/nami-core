@@ -11,6 +11,8 @@ export const useChat = () => {
   const [promptHistory, setPromptHistory] = useState<string[]>([]);
   const [historyIndex, setHistoryIndex] = useState(-1);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [previewPath, setPreviewPath] = useState<string | null>(null);
+  const [previewWikiPath, setPreviewWikiPath] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -196,11 +198,15 @@ export const useChat = () => {
     activeThreadId,
     input,
     sidebarOpen,
+    previewPath,
+    previewWikiPath,
     isLoading,
     error,
     setActiveThreadId,
     setInput,
     setSidebarOpen,
+    setPreviewPath,
+    setPreviewWikiPath,
     sendMessage,
     createNewThread,
     navigateHistory

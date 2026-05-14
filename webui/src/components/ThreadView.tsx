@@ -12,6 +12,8 @@ interface ThreadViewProps {
   onInputChange: (val: string) => void;
   onSendMessage: () => void;
   onNavigateHistory: (direction: 'up' | 'down') => void;
+  onPreviewFile?: (path: string) => void;
+  onPreviewWiki?: (title: string) => void;
   isLoading: boolean;
   error?: string | null;
 }
@@ -24,6 +26,8 @@ export const ThreadView: React.FC<ThreadViewProps> = ({
   onInputChange, 
   onSendMessage, 
   onNavigateHistory,
+  onPreviewFile,
+  onPreviewWiki,
   isLoading, 
   error 
 }) => {
@@ -39,7 +43,9 @@ export const ThreadView: React.FC<ThreadViewProps> = ({
       <MessageList 
         messages={thread.messages} 
         isLoading={isLoading} 
-        error={error ?? undefined} 
+        error={error ?? undefined}
+        onPreviewFile={onPreviewFile}
+        onPreviewWiki={onPreviewWiki}
       />
 
       <ChatInput 
