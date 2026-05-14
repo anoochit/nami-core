@@ -1,10 +1,10 @@
-import React from 'react';
-import { Bot, AlertCircle, FileText } from 'lucide-react';
-import ReactMarkdown from 'react-markdown';
-import remarkGfm from 'remark-gfm';
-import { cn, formatError } from '../lib/utils';
-import { ToolAccordion } from './ToolAccordion';
-import type { Message } from '../types/chat';
+import React from "react";
+import { Bot, AlertCircle, FileText } from "lucide-react";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
+import { cn, formatError } from "../lib/utils";
+import { ToolAccordion } from "./ToolAccordion";
+import type { Message } from "../types/chat";
 
 interface MessageItemProps {
   message: Message;
@@ -15,36 +15,31 @@ interface MessageItemProps {
   onPreviewWiki?: (path: string) => void;
 }
 
-export const MessageItem: React.FC<MessageItemProps> = ({ 
-  message, 
-  isLoading, 
-  isLast, 
+export const MessageItem: React.FC<MessageItemProps> = ({
+  message,
+  isLoading,
+  isLast,
   error,
   onPreviewFile,
-  onPreviewWiki,
 }) => {
-  const isAgent = message.sender === 'agent';
+  const isAgent = message.sender === "agent";
 
   // Helper to detect if a string is likely a filename or wiki page
-  const isFileName = (text: string) => /^[a-zA-Z0-9._\-\/]+\.[a-zA-Z0-9]+$/.test(text);
-  const isWikiPage = (text: string) => text.startsWith('Wiki:');
+  const isFileName = (text: string) =>
+    /^[a-zA-Z0-9._\-\/]+\.[a-zA-Z0-9]+$/.test(text);
 
   const MarkdownComponents = {
     code: ({ node, inline, className, children, ...props }: any) => {
-      const content = String(children).replace(/\n$/, '');
-      
-      if (inline && (onPreviewFile || onPreviewWiki) && (isFileName(content) || isWikiPage(content))) {
+      const content = String(children).replace(/\n$/, "");
+
+      if (inline && onPreviewFile && isFileName(content)) {
         return (
           <div className="group/file my-2 p-2 border rounded bg-gray-50 hover:bg-gray-100 flex items-center justify-between transition-colors">
             <span className="font-mono text-sm">{content}</span>
-            <button 
+            <button
               className="text-xs px-2 py-1 bg-white border rounded hover:bg-gray-50 transition-colors"
               onClick={() => {
-                if (isWikiPage(content)) {
-                  onPreviewWiki?.(content.replace('Wiki:', ''));
-                } else {
-                  onPreviewFile?.(content);
-                }
+                onPreviewFile?.(content);
               }}
             >
               Preview
@@ -53,59 +48,69 @@ export const MessageItem: React.FC<MessageItemProps> = ({
         );
       }
 
-      return <code className={className} {...props}>{children}</code>;
-    }
+      return (
+        <code className={className} {...props}>
+          {children}
+        </code>
+      );
+    },
   };
 
   return (
-    <div className={cn("flex gap-3 animate-in fade-in duration-300", isAgent ? "justify-start" : "justify-end")}>
+    <div
+      className={cn(
+        "flex gap-3 animate-in fade-in duration-300",
+        isAgent ? "justify-start" : "justify-end",
+      )}
+    >
       {isAgent && (
         <div className="w-8 h-8 flex items-center justify-center bg-gray-800 text-white rounded-full shrink-0 shadow-sm">
           <Bot size={16} />
         </div>
       )}
-      
-      <div className={cn(
-        "p-3 rounded-2xl max-w-[85%] sm:max-w-[75%]",
-        isAgent 
-          ? "bg-gray-100 text-gray-800 rounded-tl-sm" 
-          : "bg-black text-white rounded-tr-sm shadow-sm"
-      )}>
+
+      <div
+        className={cn(
+          "p-3 rounded-2xl max-w-[85%] sm:max-w-[75%]",
+          isAgent
+            ? "bg-gray-100 text-gray-800 rounded-tl-sm"
+            : "bg-black text-white rounded-tr-sm shadow-sm",
+        )}
+      >
         {message.toolCall && (
           <div className="mb-2">
-            <ToolAccordion 
+            <ToolAccordion
               title={`Tool: ${message.toolCall.name}`}
               args={message.toolCall.args}
               result={message.toolCall.result}
             />
-            {message.toolCall.status === 'complete' && 
-             typeof message.toolCall.result === 'object' && 
-             message.toolCall.result !== null && 
-             ('filename' in message.toolCall.result || 'path' in message.toolCall.result) && (
-              <div className="mt-2 flex gap-2">
-                <button 
-                  className="text-xs px-2 py-1 bg-white border rounded hover:bg-gray-50 transition-colors flex items-center gap-1 shadow-sm"
-                  onClick={() => {
-                    const result = message.toolCall?.result as any;
-                    const path = result.filename || result.path;
-                    if (path.startsWith('Wiki:')) {
-                      onPreviewWiki?.('wiki/' + path.replace('Wiki:', ''));
-                    } else {
+            {message.toolCall.status === "complete" &&
+              typeof message.toolCall.result === "object" &&
+              message.toolCall.result !== null &&
+              ("filename" in message.toolCall.result ||
+                "path" in message.toolCall.result) && (
+                <div className="mt-2 flex gap-2">
+                  <button
+                    className="text-xs px-2 py-1 bg-white border rounded hover:bg-gray-50 transition-colors flex items-center gap-1 shadow-sm"
+                    onClick={() => {
+                      const result = message.toolCall?.result as any;
+                      const path = result.filename || result.path;
                       onPreviewFile?.(path);
-                    }
-                  }}
-                >
-                  <FileText size={12} />
-                  Preview {(message.toolCall!.result as any).filename || (message.toolCall!.result as any).path}
-                </button>
-              </div>
-            )}
+                    }}
+                  >
+                    <FileText size={12} />
+                    Preview{" "}
+                    {(message.toolCall!.result as any).filename ||
+                      (message.toolCall!.result as any).path}
+                  </button>
+                </div>
+              )}
           </div>
         )}
 
         {isAgent ? (
           <div className="prose prose-sm sm:prose-base max-w-none prose-p:m-0 prose-pre:bg-gray-800 prose-pre:text-gray-100">
-            <ReactMarkdown 
+            <ReactMarkdown
               remarkPlugins={[remarkGfm]}
               components={MarkdownComponents}
             >
@@ -127,7 +132,7 @@ export const MessageItem: React.FC<MessageItemProps> = ({
         )}
 
         {isLoading && isLast && isAgent && message.text && (
-            <div className="w-3 h-3 mt-2 border-2 border-gray-300 border-t-black rounded-full animate-spin"></div>
+          <div className="w-3 h-3 mt-2 border-2 border-gray-300 border-t-black rounded-full animate-spin"></div>
         )}
 
         {!isLoading && error && isLast && isAgent && (
@@ -137,7 +142,7 @@ export const MessageItem: React.FC<MessageItemProps> = ({
               <span>System Error</span>
             </div>
             <div className="prose prose-xs prose-red max-w-none">
-              <ReactMarkdown 
+              <ReactMarkdown
                 remarkPlugins={[remarkGfm]}
                 components={MarkdownComponents}
               >

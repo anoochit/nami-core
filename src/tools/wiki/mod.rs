@@ -180,7 +180,7 @@ async fn add_wiki_page(args: AddWikiArgs) -> std::result::Result<Value, AdkError
             json!({
                 "status": "success", 
                 "message": format!("Appended to wiki page '{}'", args.title),
-                "path": filename
+                "path": format!("wiki/{}",filename)
             }),
         )
     } else {
@@ -216,7 +216,7 @@ async fn add_wiki_page(args: AddWikiArgs) -> std::result::Result<Value, AdkError
         Ok(json!({
             "status": "success", 
             "message": format!("Saved wiki page '{}'", args.title),
-            "path": path
+            "path": format!("wiki/{}",filename)
         }))
     }
 }
