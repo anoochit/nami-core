@@ -46,11 +46,21 @@ export const PreviewPane: React.FC<PreviewPaneProps> = ({ path, onClose, isWiki 
 
   if (!path) return null;
 
-  const isMarkdown = path.endsWith('.md');
-  const isCode = !isMarkdown && (path.endsWith('.rs') || path.endsWith('.ts') || path.endsWith('.tsx') || path.endsWith('.js') || path.endsWith('.json') || path.endsWith('.toml') || path.endsWith('.yml') || path.endsWith('.yaml') || path.endsWith('.txt'));
+  const ext = path.split('.').pop()?.toLowerCase() || '';
+
+  const codeExtensions = ['rs', 'ts', 'tsx', 'js', 'jsx', 'json', 'toml', 'yml', 'yaml', 'txt', 'css', 'html', 'htm', 'py', 'java', 'cpp', 'h', 'cs', 'xml', 'csv', 'sh', 'ps1', 'bat', 'sql'];
+  const imageExtensions = ['png', 'jpg', 'jpeg', 'gif', 'svg', 'webp'];
+  const videoExtensions = ['mp4', 'webm'];
+  const audioExtensions = ['mp3', 'wav', 'ogg', 'm4a'];
+
+  const isMarkdown = ext === 'md';
+  const isCode = codeExtensions.includes(ext);
+  const isImage = imageExtensions.includes(ext);
+  const isVideo = videoExtensions.includes(ext);
+  const isAudio = audioExtensions.includes(ext);
 
   const formattedContent = isCode 
-    ? `\`\`\`${path.split('.').pop()}\n${content}\n\`\`\``
+    ? `\`\`\`${ext}\n${content}\n\`\`\``
     : content;
 
   return (
@@ -84,9 +94,17 @@ export const PreviewPane: React.FC<PreviewPaneProps> = ({ path, onClose, isWiki 
           </div>
         ) : content !== null ? (
           <div className="prose prose-sm max-w-none prose-pre:bg-gray-900 prose-pre:text-gray-100">
-            <ReactMarkdown remarkPlugins={[remarkGfm]}>
-              {formattedContent || ''}
-            </ReactMarkdown>
+            {isImage ? (
+              <img src={`/api/workspace/read/${path}`} alt={path} className="max-w-full" />
+            ) : isVideo ? (
+              <video controls src={`/api/workspace/read/${path}`} className="max-w-full" />
+            ) : isAudio ? (
+              <audio controls src={`/api/workspace/read/${path}`} className="w-full" />
+            ) : (
+              <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                {formattedContent || ''}
+              </ReactMarkdown>
+            )}
           </div>
         ) : (
           <div className="h-full flex items-center justify-center text-gray-400 italic">
