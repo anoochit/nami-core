@@ -9,6 +9,7 @@ memory.db
 !/workspace/wiki/Templates/
 !/workspace/AGENT.md
 !/workspace/USER.md
+!/workspace/README.md
 !/workspace/STATE_PROTOCOL.md
 workspace/MEMORIES.md
 /ref

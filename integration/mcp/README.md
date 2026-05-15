@@ -30,6 +30,18 @@ Use this for remote servers that communicate via Server-Sent Events over HTTP.
 {
   "mcpServers": {
     "my-remote-server": {
+      "url": "http://localhost:3000/sse"
+    }
+  }
+}
+```
+
+Or
+
+```json
+{
+  "mcpServers": {
+    "my-remote-server": {
       "url": "http://localhost:3000/mcp"
     }
   }
