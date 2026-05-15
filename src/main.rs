@@ -100,6 +100,16 @@ async fn main() -> anyhow::Result<()> {
 
     let deps = setup_dependencies().await?;
 
+    // Spawn scheduler background loop
+    let bg_agent = agent.clone();
+    let bg_sessions = deps.sessions.clone();
+    let bg_model = model.clone();
+    tokio::spawn(async move {
+        if let Err(e) = crate::modes::scheduler::run_scheduler_loop(bg_agent, bg_sessions, bg_model).await {
+            log::error!("Scheduler background error: {:?}", e);
+        }
+    });
+
     // Reflection Service
     if config.reflection.as_ref().map(|r| r.enabled).unwrap_or(false) {
         let reflection_model_cfg = config.reflection.as_ref().and_then(|r| r.to_model_config());
