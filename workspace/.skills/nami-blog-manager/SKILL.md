@@ -108,17 +108,11 @@ Optional fields may be preserved if already present.
 
 1. Generate slug from title.
 2. Generate unique filename.
-3. Save file to:
-
-```txt
-blog/posts/
-```
-
-4. Add valid YAML frontmatter.
-5. Write clean Markdown content.
-6. Automatically run:
-   - Validate Posts
-   - Rebuild Index
+3. Save file to `blog/posts/`.
+4. Add valid YAML frontmatter and Markdown content.
+5. Trigger:
+   - Validate (Post Only)
+   - Rebuild Index (Incremental)
 
 ---
 
@@ -129,63 +123,31 @@ blog/posts/
 1. Locate target post.
 2. Preserve untouched sections.
 3. Update requested content only.
-4. Validate frontmatter.
-5. Rebuild index automatically.
+4. Validate frontmatter (Post Only).
+5. Trigger Rebuild Index (Incremental).
 
 ---
 
 ## 3. Validate Posts
 
-### Checks
+### Modes
 
-For every file in:
-
-```txt
-blog/posts/*.md
-```
-
-Validate:
-
-- valid YAML frontmatter
-- required fields exist
-- valid date format
-- unique filename
-- readable Markdown structure
+- **Full Mode**: Scan all files (Default).
+- **Targeted Mode**: Validate modified/new file only (Optimization).
 
 ### Recovery
 
-If possible:
-
-- auto-repair metadata
-- normalize formatting
-
-Otherwise:
-
-- skip invalid file
-- report issue clearly
-- never block valid posts
+- Auto-repair metadata.
+- Report issues for unrecoverable errors.
 
 ---
 
 ## 4. Rebuild Index
 
-### Goal
+### Optimization
 
-Refresh latest-post listings in:
-
-```txt
-blog/index.md
-```
-
-### Flow
-
-1. Scan all posts.
-2. Extract:
-   - title
-   - date
-   - slug
-3. Sort newest → oldest.
-4. Replace latest-post section.
+- **Incremental Update**: Refresh only the entry for the modified post.
+- **Full Rebuild**: Required for bulk structural changes.
 
 ### Output Format
 
@@ -268,12 +230,14 @@ Blog: Fix typo - Agent Memory
 ```txt
 Create / Update Post
         ↓
-Validate Posts
+Validate (Modified Only)
         ↓
-Rebuild Index
+Update Index (Incremental)
         ↓
 Deploy
 ```
+
+*Note: Use `--no-rebuild` flag to bypass validation/index update during bulk operations.*
 
 ---
 
