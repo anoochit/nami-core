@@ -1,5 +1,5 @@
 import React from 'react';
-import { PanelLeftOpen, PanelLeftClose, Trash2, Inbox } from 'lucide-react';
+import { PanelLeftOpen, PanelLeftClose, Trash2, FileText } from 'lucide-react';
 
 interface ChatHeaderProps {
   title: string;
@@ -56,7 +56,7 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
             className="p-2 hover:bg-gray-100 rounded-md transition-colors text-gray-600 hover:text-blue-600"
             aria-label="Preview"
           >
-            <Inbox size={20} />
+            <FileText size={20} />
           </button>
         )}
       </div>
