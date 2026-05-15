@@ -28,6 +28,19 @@ export const MessageItem: React.FC<MessageItemProps> = ({
   const isFileName = (text: string) =>
     /^[a-zA-Z0-9._\-\/]+\.[a-zA-Z0-9]+$/.test(text);
 
+  const FilePreviewButton = ({ path, className }: { path: string; className?: string }) => (
+    <button
+      className={cn(
+        "text-xs px-2 py-1 bg-white border rounded hover:bg-gray-50 transition-colors flex items-center gap-1 shadow-sm",
+        className
+      )}
+      onClick={() => onPreviewFile?.(path)}
+    >
+      <FileText size={12} />
+      Preview {path}
+    </button>
+  );
+
   const MarkdownComponents = {
     code: ({ node, inline, className, children, ...props }: any) => {
       const content = String(children).replace(/\n$/, "");
@@ -36,14 +49,7 @@ export const MessageItem: React.FC<MessageItemProps> = ({
         return (
           <div className="group/file my-2 p-2 border rounded bg-gray-50 hover:bg-gray-100 flex items-center justify-between transition-colors">
             <span className="font-mono text-sm">{content}</span>
-            <button
-              className="text-xs px-2 py-1 bg-white border rounded hover:bg-gray-50 transition-colors"
-              onClick={() => {
-                onPreviewFile?.(content);
-              }}
-            >
-              Preview
-            </button>
+            <FilePreviewButton path={content} />
           </div>
         );
       }
@@ -90,19 +96,12 @@ export const MessageItem: React.FC<MessageItemProps> = ({
               ("filename" in message.toolCall.result ||
                 "path" in message.toolCall.result) && (
                 <div className="mt-2 flex gap-2">
-                  <button
-                    className="text-xs px-2 py-1 bg-white border rounded hover:bg-gray-50 transition-colors flex items-center gap-1 shadow-sm"
-                    onClick={() => {
-                      const result = message.toolCall?.result as any;
-                      const path = result.filename || result.path;
-                      onPreviewFile?.(path);
-                    }}
-                  >
-                    <FileText size={12} />
-                    Preview{" "}
-                    {(message.toolCall!.result as any).filename ||
-                      (message.toolCall!.result as any).path}
-                  </button>
+                  <FilePreviewButton
+                    path={
+                      (message.toolCall.result as any).filename ||
+                      (message.toolCall.result as any).path
+                    }
+                  />
                 </div>
               )}
           </div>
