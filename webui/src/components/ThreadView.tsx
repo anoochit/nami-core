@@ -33,6 +33,18 @@ export const ThreadView: React.FC<ThreadViewProps> = ({
   isLoading, 
   error 
 }) => {
+  const handlePreview = () => {
+    const lastMessageWithFile = [...thread.messages]
+      .reverse()
+      .find(m => m.toolCall?.status === 'complete' && 
+                 ((m.toolCall.result as any)?.path || (m.toolCall.result as any)?.filename));
+    
+    if (lastMessageWithFile) {
+        const path = (lastMessageWithFile.toolCall!.result as any).path || (lastMessageWithFile.toolCall!.result as any).filename;
+        onPreviewFile?.(path);
+    }
+  };
+
   return (
     <div className="flex-1 flex flex-col h-full bg-white relative overflow-hidden">
       <ChatHeader 
@@ -41,7 +53,7 @@ export const ThreadView: React.FC<ThreadViewProps> = ({
         sidebarOpen={sidebarOpen} 
         onToggleSidebar={onToggleSidebar} 
         onClear={onClear}
-        onPreview={() => console.log('Preview clicked')}
+        onPreview={handlePreview}
       />
 
       <MessageList 
