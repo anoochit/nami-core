@@ -18,7 +18,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
   isLoading
 }) => {
   const [autocompleteOpen, setAutocompleteOpen] = useState(false);
-  const inputRef = useRef<HTMLInputElement>(null);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
 
   const handleCommandSelect = (cmd: string) => {
     onInputChange(cmd + ' ');
@@ -26,11 +26,12 @@ export const ChatInput: React.FC<ChatInputProps> = ({
     inputRef.current?.focus();
   };
 
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Enter') {
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
       if (autocompleteOpen && !value.includes(' ')) {
         // CMDK handles its own Enter for selection
       } else {
+        e.preventDefault();
         onSendMessage();
         setAutocompleteOpen(false);
       }
@@ -67,7 +68,8 @@ export const ChatInput: React.FC<ChatInputProps> = ({
             value={value} 
             onChange={(e) => onInputChange(e.target.value)}
             onKeyDown={handleKeyDown}
-            className="flex-1 bg-transparent px-4 py-2.5 outline-none text-sm sm:text-base placeholder:text-gray-400" 
+            rows={1}
+            className="flex-1 bg-transparent px-4 py-2.5 outline-none text-sm sm:text-base placeholder:text-gray-400 resize-none overflow-hidden" 
             placeholder="Message ..."
             disabled={isLoading && !value}
           />
