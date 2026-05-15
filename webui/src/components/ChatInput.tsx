@@ -67,7 +67,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
             value={value} 
             onChange={(e) => onInputChange(e.target.value)}
             onKeyDown={handleKeyDown}
-            rows={1}
+            rows={2}
             className="flex-1 bg-transparent px-4 py-2.5 outline-none text-sm sm:text-base placeholder:text-gray-400 resize-none overflow-hidden" 
             placeholder="Message ..."
             disabled={isLoading && !value}
