@@ -4,6 +4,19 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { api } from '../lib/api';
 
+const parseFrontmatter = (content: string) => {
+    const match = content.match(/^---\r?\n([\s\S]+?)\r?\n---\r?\n([\s\S]*)$/);
+    if (!match) return { data: {} as Record<string, string>, content };
+    
+    const [_, yaml, markdown] = match;
+    const data: Record<string, string> = {};
+    yaml.split('\n').forEach(line => {
+        const [key, ...value] = line.split(':');
+        if (key && value) data[key.trim()] = value.join(':').trim();
+    });
+    return { data, content: markdown };
+};
+
 interface PreviewPaneProps {
   path: string | null;
   onClose: () => void;
@@ -48,20 +61,40 @@ export const PreviewPane: React.FC<PreviewPaneProps> = ({ path, onClose, isWiki 
 
   const ext = path.split('.').pop()?.toLowerCase() || '';
 
-  const codeExtensions = ['rs', 'ts', 'tsx', 'js', 'jsx', 'json', 'toml', 'yml', 'yaml', 'txt', 'css', 'html', 'htm', 'py', 'java', 'cpp', 'h', 'cs', 'xml', 'csv', 'sh', 'ps1', 'bat', 'sql'];
+  const codeExtensions = ['rs', 'ts', 'tsx', 'js', 'jsx', 'json', 'toml', 'yml', 'yaml', 'txt', 'css', 'py', 'java', 'cpp', 'h', 'cs', 'xml', 'csv', 'sh', 'ps1', 'bat', 'sql'];
   const imageExtensions = ['png', 'jpg', 'jpeg', 'gif', 'svg', 'webp'];
   const videoExtensions = ['mp4', 'webm'];
   const audioExtensions = ['mp3', 'wav', 'ogg', 'm4a'];
+  const htmlExtensions = ['html', 'htm'];
 
   const isMarkdown = ext === 'md';
   const isCode = codeExtensions.includes(ext);
   const isImage = imageExtensions.includes(ext);
   const isVideo = videoExtensions.includes(ext);
   const isAudio = audioExtensions.includes(ext);
+  const isHtml = htmlExtensions.includes(ext);
 
+  const parsed = isMarkdown && content ? parseFrontmatter(content) : { data: {} as Record<string, string>, content: content || '' };
+  
   const formattedContent = isCode 
     ? `\`\`\`${ext}\n${content}\n\`\`\``
-    : content;
+    : parsed.content;
+
+  const renderFrontmatter = () => {
+    if (Object.keys(parsed.data).length === 0) return null;
+    return (
+        <table className="min-w-full text-sm border-collapse mb-4">
+            <tbody>
+                {Object.entries(parsed.data).map(([key, value]) => (
+                    <tr key={key}>
+                        <td className="bg-gray-100 border p-2 font-medium text-gray-700">{key}</td>
+                        <td className="border p-2">{String(value)}</td>
+                    </tr>
+                ))}
+            </tbody>
+        </table>
+    );
+  };
 
   return (
     <div className="flex flex-col h-full bg-white border-l shadow-2xl z-10">
@@ -93,17 +126,22 @@ export const PreviewPane: React.FC<PreviewPaneProps> = ({ path, onClose, isWiki 
             </div>
           </div>
         ) : content !== null ? (
-          <div className="prose prose-sm max-w-none prose-pre:bg-gray-900 prose-pre:text-gray-100">
+          <div className="prose prose-sm max-w-none prose-pre:bg-gray-900 prose-pre:text-gray-100 h-full">
             {isImage ? (
               <img src={`/api/workspace/read/${path}`} alt={path} className="max-w-full" />
             ) : isVideo ? (
               <video controls src={`/api/workspace/read/${path}`} className="max-w-full" />
             ) : isAudio ? (
               <audio controls src={`/api/workspace/read/${path}`} className="w-full" />
+            ) : isHtml ? (
+              <iframe srcDoc={content || ''} title="HTML Preview" className="w-full h-full border-none" />
             ) : (
-              <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                {formattedContent || ''}
-              </ReactMarkdown>
+                <>
+                    {isMarkdown && renderFrontmatter()}
+                    <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                        {formattedContent || ''}
+                    </ReactMarkdown>
+                </>
             )}
           </div>
         ) : (
