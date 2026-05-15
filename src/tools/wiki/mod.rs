@@ -226,7 +226,7 @@ async fn add_wiki_page(args: AddWikiArgs) -> std::result::Result<Value, AdkError
 async fn get_wiki_page(args: WikiPageArgs) -> std::result::Result<Value, AdkError> {
     let wiki_dir = get_wiki_dir().await?;
     let filename = format!("{}.md", sanitize_title(&args.title));
-    let path = wiki_dir.join(filename);
+    let path = wiki_dir.join(&filename);
 
     if !path.exists() {
         return Err(AdkError::tool(format!(
@@ -239,7 +239,7 @@ async fn get_wiki_page(args: WikiPageArgs) -> std::result::Result<Value, AdkErro
         .await
         .map_err(|e| AdkError::tool(format!("Failed to read wiki page: {}", e)))?;
 
-    Ok(json!({ "title": args.title, "content": content }))
+    Ok(json!({ "title": args.title, "content": content, "path": format!("wiki/{}", filename) }))
 }
 
 #[derive(Deserialize, JsonSchema)]
@@ -254,7 +254,15 @@ async fn list_wiki_pages(_args: ListWikiPagesArgs) -> std::result::Result<Value,
     for entry in WalkDir::new(&wiki_dir).into_iter().filter_map(|e| e.ok()) {
         let path = entry.path();
         if path.is_file() && path.extension().and_then(|s| s.to_str()) == Some("md") {
-            pages.push(get_relative_title(&wiki_dir, path));
+            let relative_path = path
+                .strip_prefix(&wiki_dir)
+                .unwrap_or(path)
+                .to_string_lossy()
+                .replace("\\", "/");
+            pages.push(json!({
+                "title": get_relative_title(&wiki_dir, path),
+                "path": relative_path
+            }));
         }
     }
 
@@ -311,7 +319,15 @@ async fn search_wiki(args: SearchWikiArgs) -> std::result::Result<Value, AdkErro
             }
 
             if found {
-                matches.push(get_relative_title(&wiki_dir, path));
+                let relative_path = path
+                    .strip_prefix(&wiki_dir)
+                    .unwrap_or(path)
+                    .to_string_lossy()
+                    .replace("\\", "/");
+                matches.push(json!({
+                    "title": get_relative_title(&wiki_dir, path),
+                    "path": relative_path
+                }));
             }
         }
     }
@@ -335,9 +351,16 @@ async fn search_wiki_by_tag(args: SearchWikiByTagArgs) -> std::result::Result<Va
         if path.is_file() && path.extension().and_then(|s| s.to_str()) == Some("md") {
             let content = fs::read_to_string(&path).await.unwrap_or_default();
 
-            // Look for tags in frontmatter or in content
             if content.to_lowercase().contains(&tag_pattern) {
-                matches.push(get_relative_title(&wiki_dir, path));
+                let relative_path = path
+                    .strip_prefix(&wiki_dir)
+                    .unwrap_or(path)
+                    .to_string_lossy()
+                    .replace("\\", "/");
+                matches.push(json!({
+                    "title": get_relative_title(&wiki_dir, path),
+                    "path": relative_path
+                }));
                 continue;
             }
 
@@ -353,7 +376,15 @@ async fn search_wiki_by_tag(args: SearchWikiByTagArgs) -> std::result::Result<Va
                             .to_lowercase()
                             .contains(&format!("- {}", args.tag.to_lowercase()))
                     {
-                        matches.push(get_relative_title(&wiki_dir, path));
+                        let relative_path = path
+                            .strip_prefix(&wiki_dir)
+                            .unwrap_or(path)
+                            .to_string_lossy()
+                            .replace("\\", "/");
+                        matches.push(json!({
+                            "title": get_relative_title(&wiki_dir, path),
+                            "path": relative_path
+                        }));
                     }
                 }
             }
@@ -366,6 +397,7 @@ async fn search_wiki_by_tag(args: SearchWikiByTagArgs) -> std::result::Result<Va
         Ok(json!({ "tag": args.tag, "matches": matches }))
     }
 }
+
 
 /// Scans all wiki pages recursively for [[wikilink]] references and builds a knowledge graph.
 #[tool]
