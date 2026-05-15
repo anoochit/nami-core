@@ -17,7 +17,6 @@ use walkdir::WalkDir;
 // use crate::agent::agent::{check_config_mtime, create_agent, get_config_mtime, get_skills_mtime};
 use crate::agent::get_compaction_config;
 use crate::modes::command_registry::CommandRegistry;
-use crate::modes::scheduler::run_scheduler_loop;
 
 use adk_rust::Agent;
 use adk_rust::prelude::*;
@@ -518,15 +517,6 @@ pub(crate) async fn run_cli(
         .compaction_config(get_compaction_config(model.clone()))
         .build()?;
 
-    // Spawn scheduler background loop
-    let bg_agent = agent.clone();
-    let bg_sessions = sessions.clone();
-    let bg_model = model.clone();
-    tokio::spawn(async move {
-        if let Err(e) = run_scheduler_loop(bg_agent, bg_sessions, bg_model).await {
-            log::error!("Scheduler error: {:?}", e);
-        }
-    });
 
     let config = Config::builder()
         .completion_type(rustyline::CompletionType::List)
