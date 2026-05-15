@@ -22,12 +22,7 @@ To create a skill manually, follow these steps:
 ### 2. Using `skill-creator`
 For a guided experience, you can use the built-in `skill-creator` tool:
 
-1. **Activate the Skill:**
-   ```bash
-   # Use the Nami CLI to invoke the skill-creator
-   nami activate-skill skill-creator
-   ```
-2. **Follow Prompts:** The `skill-creator` will ask for the name, description, and key capabilities of your new skill, then automatically generate the required directory structure and the `SKILL.md` file for you.
+1. **Prompts:** Create skill provide the name, description, and key capabilities of your new skill, then The `skill-creator` will automatically generate the required directory structure and the `SKILL.md` file for you.
 
 ## Using Skills
 
