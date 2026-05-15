@@ -101,12 +101,13 @@ async fn main() -> anyhow::Result<()> {
     let deps = setup_dependencies().await?;
 
     // Spawn scheduler background loop
-    tokio::task::spawn_blocking(|| {
-        tokio::runtime::Handle::current().block_on(async move {
-            if let Err(e) = crate::modes::scheduler::run_scheduler_loop().await {
-                log::error!("Scheduler background error: {:?}", e);
-            }
-        });
+    let agent_scheduler = agent.clone();
+    let sessions_scheduler = deps.sessions.clone();
+    let model_scheduler = model.clone();
+    tokio::spawn(async move {
+        if let Err(e) = crate::modes::scheduler::run_scheduler_loop_with_deps(agent_scheduler, model_scheduler, sessions_scheduler).await {
+            log::error!("Scheduler background error: {:?}", e);
+        }
     });
 
     // Reflection Service

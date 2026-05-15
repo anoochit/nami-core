@@ -1,4 +1,5 @@
 use crate::agent::get_compaction_config;
+use adk_rust::{Agent, Llm};
 use adk_rust::prelude::*;
 use adk_rust::runner::Runner;
 use adk_session::{CreateRequest, GetRequest, SessionService};
@@ -8,12 +9,11 @@ use chrono::Utc;
 use futures::StreamExt;
 use std::sync::Arc;
 
-pub async fn run_scheduler_loop() -> anyhow::Result<()> {
-    // Initialize dependencies locally
-    let (agent, model, _, _) = crate::agent::build_agent().await?;
-    let deps = crate::modes::startup::setup_dependencies().await?;
-    let sessions: Arc<dyn SessionService> = deps.sessions;
-
+pub async fn run_scheduler_loop_with_deps(
+    agent: Arc<dyn Agent>,
+    model: Arc<dyn Llm>,
+    sessions: Arc<dyn SessionService>,
+) -> anyhow::Result<()> {
     let app_name = "scheduler";
     let user_id = "system";
     let session_id = "background_tasks";
