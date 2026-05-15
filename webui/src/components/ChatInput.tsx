@@ -1,5 +1,4 @@
 import React, { useState, useRef } from 'react';
-import { Send } from 'lucide-react';
 import { CommandAutocomplete } from './CommandAutocomplete';
 
 interface ChatInputProps {
