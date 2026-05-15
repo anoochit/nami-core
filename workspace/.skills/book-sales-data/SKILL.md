@@ -1,5 +1,5 @@
 ---
-name: book-and-sales-data-api
+name: book-sales-data
 description: API for accessing normalized book and transaction data from the database. Use when you need to fetch lists of books, detailed sales transactions, or summary reports. Triggered by requests for book inventory, sales data, or performance summaries.
 ---
 
