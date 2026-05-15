@@ -34,7 +34,7 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
         <div className="flex items-center gap-2">
             {sessionId && (
             <div className="text-[10px] text-gray-400 font-normal uppercase tracking-wider">
-                ID: {sessionId.slice(0, 8)}...
+                ID: {sessionId}
             </div>
             )}
            

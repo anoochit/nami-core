@@ -44,7 +44,7 @@ export const CommandAutocomplete: React.FC<CommandAutocompleteProps> = ({
 
   return (
     <div className="absolute bottom-full left-0 w-full mb-2 z-50">
-      <div className="max-w-3xl mx-auto bg-background rounded-lg shadow-lg border border-input overflow-hidden">
+      <div className="max-w-3xl mx-auto bg-white rounded-lg shadow-lg border border-input overflow-hidden">
         <Command>
           <CommandList className="max-h-60 overflow-y-auto">
             <CommandGroup heading="Slash Commands">
