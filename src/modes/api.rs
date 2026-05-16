@@ -171,6 +171,16 @@ async fn list_folder_contents_internal(path: String) -> impl IntoResponse {
         }));
     }
 
+    entries.sort_by(|a, b| {
+        let type_a = a["type"].as_str().unwrap();
+        let type_b = b["type"].as_str().unwrap();
+        if type_a != type_b {
+            type_b.cmp(type_a) // folder (1) comes before file (0)
+        } else {
+            a["name"].as_str().unwrap().cmp(b["name"].as_str().unwrap())
+        }
+    });
+
     Json(json!({ "entries": entries })).into_response()
 }
 

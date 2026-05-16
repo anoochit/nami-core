@@ -8,6 +8,7 @@ import { useChat } from './hooks/useChat';
 import { ServerStatusIndicator } from './components/ServerStatusIndicator';
 import { Group, Panel, Separator } from 'react-resizable-panels';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './components/ui/tabs';
+import { ChartArea, File, FolderClosed, ListTree, MessageCircleIcon, MessageSquare } from 'lucide-react';
 
 export default function App() {
   const {
@@ -45,8 +46,8 @@ export default function App() {
         </div>
         <Tabs defaultValue="chat" className="flex-1 flex flex-col overflow-hidden">
           <TabsList className="w-full">
-            <TabsTrigger value="chat" className="flex-1">Chat</TabsTrigger>
-            <TabsTrigger value="files" className="flex-1">Files</TabsTrigger>
+            <TabsTrigger value="chat" className="flex-1"><MessageSquare/>Chat</TabsTrigger>
+            <TabsTrigger value="files" className="flex-1"><FolderClosed/>Files</TabsTrigger>
           </TabsList>
           <TabsContent value="chat" className="flex-1 overflow-hidden">
             <ThreadList 

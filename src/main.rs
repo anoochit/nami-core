@@ -6,7 +6,7 @@ mod utils;
 
 use std::sync::Arc;
 
-use adk_telemetry::{init_with_otlp, shutdown_telemetry};
+// use adk_telemetry::{init_with_otlp, shutdown_telemetry};
 use clap::{Parser, Subcommand};
 use runner::AgentRunner;
 use modes::startup::setup_dependencies;
@@ -68,17 +68,15 @@ async fn main() -> anyhow::Result<()> {
     // if use_telemetry {
     //     log::info!("Init telemetry...");
     //     init_with_otlp("agent", &otel_endpoint).expect("Failed to initialize telemetry");
-    // } else if !matches!(cli.command, Commands::Serve { .. } | Commands::Browse { .. } | Commands::Init | Commands::Cli) {
+    // } else {
+    //     // Single, unconditional fallback — no branching on command
     //     if std::env::var("RUST_LOG").is_err() {
     //         unsafe { std::env::set_var("RUST_LOG", "info") };
     //     }
-    //     pretty_env_logger::init();
+    //     tracing_subscriber::fmt()
+    //         .with_env_filter(tracing_subscriber::EnvFilter::from_default_env())
+    //         .init();
     // }
-
-    if let Commands::Init = cli.command {
-        modes::init::initialize_project().await?;
-        return Ok(());
-    }
 
     log::info!("Application starting...");
 
