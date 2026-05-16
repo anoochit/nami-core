@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.9.16] - 2026-05-16
+
+### Changed
+
+- **Logging**: Migrated from `pretty_env_logger` to `tracing-subscriber` for improved logging in `src/main.rs`.
+- **Backend**: Implemented folder content sorting in `src/modes/api.rs`, ensuring directories appear before files.
+- **Frontend**: Updated WebUI icons in `webui/src/App.tsx` using `lucide-react`.
+
+### Fixed
+
+- **Compilation**: Resolved `unresolved import` and missing function errors in `src/main.rs` by correctly importing and calling `run_init`.
+
 ## [0.9.15] - 2026-05-16
 
 ### Added
@@ -12,6 +24,7 @@ All notable changes to this project will be documented in this file.
 ### Changed
 
 - **Codebase Sync**: Synchronized all local changes with the remote `origin/main` repository.
+
 
 ## [0.9.14] - 2026-05-15
 
