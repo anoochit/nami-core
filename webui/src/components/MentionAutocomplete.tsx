@@ -49,12 +49,12 @@ export const MentionAutocomplete: React.FC<MentionAutocompleteProps> = ({
 
   const filteredFiles = useMemo(() => {
     if (searchTerm === null) return [];
-    return files.filter(f => f.toLowerCase().includes(searchTerm)).slice(0, 10);
+    return files.filter(f => f.toLowerCase().includes(searchTerm)).slice(0, 50);
   }, [files, searchTerm]);
 
   const filteredWiki = useMemo(() => {
     if (searchTerm === null) return [];
-    return wikiPages.filter(p => p.toLowerCase().includes(searchTerm)).slice(0, 10);
+    return wikiPages.filter(p => p.toLowerCase().includes(searchTerm)).slice(0, 50);
   }, [wikiPages, searchTerm]);
 
   useEffect(() => {
