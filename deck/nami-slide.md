@@ -25,7 +25,15 @@ Built on **adk-rust**, **teloxide**, and **axum**.
 
 ---
 
-# ✨ User Experience
+# ✨ Recent Updates (v0.9.15)
+
+- **WebUI Modularity**: Refactored `ThreadView.tsx` into a robust component tree (`ChatHeader`, `MessageList`, `MessageItem`, `ChatInput`).
+- **File Preview Functionality**: Added instant file preview support for artifacts directly within the WebUI.
+- **Improved Tooling**: Enhanced `artifact` integration with a new "Preview" button in the `ChatHeader`.
+- **Codebase Sync**: Continuous synchronization with remote updates for maximum reliability.
+
+---
+
 
 - **Modern TUI**: Rich interactive CLI with ASCII banners and animated indicators.
 - **Embedded Web UI**: React-based dashboard via `nami browse`.
