@@ -9,7 +9,10 @@ use std::sync::Arc;
 // use adk_telemetry::{init_with_otlp, shutdown_telemetry};
 use clap::{Parser, Subcommand};
 use runner::AgentRunner;
-use modes::startup::setup_dependencies;
+
+use crate::modes::init::run_init;
+use crate::modes::startup::setup_dependencies;
+
 
 /// The command-line interface for the application.
 #[derive(Parser)]
@@ -174,7 +177,10 @@ async fn main() -> anyhow::Result<()> {
             ));
             modes::line::run_line(runner, port.unwrap_or(8080)).await?;
         }
-        Commands::Init => unreachable!(),
+        Commands::Init => {
+            log::info!("Running initialize mode");
+            run_init().await?;
+        },
     }
 
     // shutdown telemetry

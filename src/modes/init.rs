@@ -4,7 +4,14 @@ use std::fs::File;
 use std::io::Write;
 use termimad::{MadSkin, mad_print_inline};
 
-pub async fn initialize_project() -> anyhow::Result<()> {
+fn write_file(name: &str, content: &str) -> std::io::Result<()> {
+    let mut file = File::create(name)?;
+    file.write_all(content.as_bytes())?;
+    Ok(())
+}
+
+
+pub async fn run_init() -> anyhow::Result<()> {
     let skin = MadSkin::default();
 
     skin.print_text("# AI Agent Initializer\n");
@@ -278,8 +285,3 @@ description: Reference guide for Nami CLI commands, flags, and usage patterns.
     Ok(())
 }
 
-fn write_file(name: &str, content: &str) -> std::io::Result<()> {
-    let mut file = File::create(name)?;
-    file.write_all(content.as_bytes())?;
-    Ok(())
-}
