@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.9.15] - 2026-05-16
+
+### Added
+
+- **Preview Functionality**: Completed implementation of the file preview functionality in the WebUI.
+- **Artifact Integration**: Added a "Preview" button in the `ChatHeader` that automatically opens the latest file artifact.
+
+### Changed
+
+- **Codebase Sync**: Synchronized all local changes with the remote `origin/main` repository.
+
 ## [0.9.14] - 2026-05-15
 
 ### Added
