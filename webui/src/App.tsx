@@ -25,7 +25,10 @@ export default function App() {
     sendMessage,
     createNewThread,
     navigateHistory,
-    clearMessages
+    clearMessages,
+    attachments,
+    addAttachments,
+    removeAttachment
   } = useChat();
 
   const activePreview = previewPath || previewWikiPath;
@@ -62,6 +65,9 @@ export default function App() {
               onClear={clearMessages}
               isLoading={isLoading}
               error={error ?? undefined}
+              attachments={attachments}
+              onAddAttachments={addAttachments}
+              onRemoveAttachment={removeAttachment}
             />
           </Panel>
           

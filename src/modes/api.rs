@@ -1,28 +1,74 @@
 use axum::{
-    extract::Path,
+    extract::{Path, Multipart},
     http::StatusCode,
     response::IntoResponse,
-    routing::get,
+    routing::{get, post},
     Json, Router,
 };
 use serde_json::json;
 use tokio::fs;
 use walkdir::WalkDir;
-use crate::utils::{get_wiki_dir, sandbox, ignore::NamiIgnore};
+use crate::utils::{get_wiki_dir, get_workspace_dir, sandbox, ignore::NamiIgnore};
 
 /// Returns the Axum Router for the API.
 use crate::modes::command_registry::CommandRegistry;
-// ... (rest of imports)
 
 pub fn api_router() -> Router {
     Router::new()
-        .route("/api/workspace/files", get(list_folder_contents))
-        .route("/api/workspace/files/{*path}", get(list_folder_contents))
+        .route("/api/workspace/files", get(list_root_folder_contents))
+        .route("/api/workspace/files/{*path}", get(list_sub_folder_contents))
         .route("/api/workspace/read/{*path}", get(read_workspace_file))
+        .route("/api/workspace/read-binary/{*path}", get(read_workspace_binary))
+        .route("/api/workspace/upload", post(upload_file))
         .route("/api/wiki/pages", get(list_wiki_pages))
         .route("/api/wiki/pages/{*title}", get(read_wiki_page))
         .route("/api/commands", get(get_commands))
 }
+
+async fn upload_file(mut multipart: Multipart) -> impl IntoResponse {
+    let mut uploaded_paths = Vec::new();
+
+    while let Ok(Some(field)) = multipart.next_field().await {
+        let file_name = field.file_name().unwrap_or_default().to_string();
+        if file_name.is_empty() {
+            continue;
+        }
+
+        let data = match field.bytes().await {
+            Ok(d) => d,
+            Err(e) => return (StatusCode::BAD_REQUEST, format!("Failed to read field: {}", e)).into_response(),
+        };
+
+        // Ensure uploads directory exists
+        let root = match get_workspace_dir().await {
+            Ok(r) => r,
+            Err(e) => return (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()).into_response(),
+        };
+        let upload_dir = root.join("uploads");
+        if !upload_dir.exists() {
+            if let Err(e) = fs::create_dir_all(&upload_dir).await {
+                return (StatusCode::INTERNAL_SERVER_ERROR, format!("Failed to create uploads dir: {}", e)).into_response();
+            }
+        }
+
+        // Clean filename to prevent path traversal
+        let safe_name = std::path::Path::new(&file_name)
+            .file_name()
+            .and_then(|n| n.to_str())
+            .unwrap_or("unnamed");
+        
+        let file_path = upload_dir.join(safe_name);
+
+        if let Err(e) = fs::write(&file_path, data).await {
+            return (StatusCode::INTERNAL_SERVER_ERROR, format!("Failed to save file: {}", e)).into_response();
+        }
+
+        uploaded_paths.push(format!("uploads/{}", safe_name));
+    }
+
+    Json(json!({ "paths": uploaded_paths })).into_response()
+}
+
 
 async fn get_commands() -> impl IntoResponse {
     match CommandRegistry::load_from_config("config.toml") {
@@ -36,12 +82,17 @@ const IGNORED_DIRS: &[&str] = &[
     ".venv", ".cache", ".config", ".local", ".npm", ".rustup", ".git"
 ];
 
+/// Lists contents of a workspace root.
+async fn list_root_folder_contents() -> impl IntoResponse {
+    list_folder_contents_internal("".to_string()).await
+}
+
 /// Lists contents of a workspace directory.
-/// 
-/// If `path` is provided, lists contents of the specified relative path.
-/// If `path` is not provided, lists the workspace root contents.
-async fn list_folder_contents(path: Option<Path<String>>) -> impl IntoResponse {
-    let path = path.map(|p| p.0).unwrap_or_default();
+async fn list_sub_folder_contents(Path(path): Path<String>) -> impl IntoResponse {
+    list_folder_contents_internal(path).await
+}
+
+async fn list_folder_contents_internal(path: String) -> impl IntoResponse {
     let folder_path = match sandbox(&path).await {
         Ok(p) => p,
         Err(e) => return (StatusCode::FORBIDDEN, e.to_string()).into_response(),
@@ -87,6 +138,30 @@ async fn list_folder_contents(path: Option<Path<String>>) -> impl IntoResponse {
     }
 
     Json(json!({ "entries": entries })).into_response()
+}
+
+/// Reads the content of a file as binary data.
+async fn read_workspace_binary(Path(path): Path<String>) -> impl IntoResponse {
+    let full_path = match sandbox(&path).await {
+        Ok(p) => p,
+        Err(e) => return (StatusCode::FORBIDDEN, e.to_string()).into_response(),
+    };
+
+    if !full_path.exists() {
+        return (StatusCode::NOT_FOUND, "File not found").into_response();
+    }
+
+    let content = match fs::read(&full_path).await {
+        Ok(c) => c,
+        Err(e) => return (StatusCode::INTERNAL_SERVER_ERROR, format!("Read failed: {}", e)).into_response(),
+    };
+
+    let content_type = mime_guess::from_path(&full_path).first_or_octet_stream();
+
+    (
+        [(axum::http::header::CONTENT_TYPE, content_type.as_ref())],
+        content,
+    ).into_response()
 }
 
 /// Reads the content of a file within the workspace.

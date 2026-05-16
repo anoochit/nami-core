@@ -107,4 +107,44 @@ export const api = {
     }
     return response.json();
   },
+
+  uploadFile: async (file: File): Promise<string[]> => {
+    const formData = new FormData();
+    formData.append("file", file);
+
+    const response = await fetch(`${BASE_URL}/api/workspace/upload`, {
+      method: "POST",
+      body: formData,
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.message || errorData.error || `Upload failed (${response.status})`);
+    }
+
+    const data = await response.json();
+    return data.paths;
+  },
+
+  listWorkspaceFiles: async (path: string = ""): Promise<{ entries: Array<{ name: string, type: string }> }> => {
+    // Remove leading/trailing slashes for consistent path handling
+    const cleanPath = path.replace(/^\/+|\/+$/g, '');
+    const url = cleanPath ? `${BASE_URL}/api/workspace/files/${cleanPath}` : `${BASE_URL}/api/workspace/files`;
+    
+    const response = await fetch(url);
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.message || errorData.error || `Failed to list files (${response.status})`);
+    }
+    return response.json();
+  },
+
+  listWikiPages: async (): Promise<{ pages: string[] }> => {
+    const response = await fetch(`${BASE_URL}/api/wiki/pages`);
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.message || errorData.error || `Failed to list wiki pages (${response.status})`);
+    }
+    return response.json();
+  },
 };

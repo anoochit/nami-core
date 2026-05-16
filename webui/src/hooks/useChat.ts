@@ -2,12 +2,13 @@ import { useState, useEffect, useCallback } from 'react';
 import { api } from '../lib/api';
 import { processSlashCommand } from '../lib/commandLoader';
 import { shouldAddSpace } from '../lib/utils';
-import type { Message, Thread, AgentEvent } from '../types/chat';
+import type { Message, Thread, AgentEvent, Attachment } from '../types/chat';
 
 export const useChat = () => {
   const [threads, setThreads] = useState<Thread[]>([{ id: '1', title: 'New Conversation', messages: [] }]);
   const [activeThreadId, setActiveThreadId] = useState<string>('1');
   const [input, setInput] = useState('');
+  const [attachments, setAttachments] = useState<Attachment[]>([]);
   const [promptHistory, setPromptHistory] = useState<string[]>([]);
   const [historyIndex, setHistoryIndex] = useState(-1);
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -39,21 +40,54 @@ export const useChat = () => {
     setThreads(prev => prev.map(t => t.id === activeThreadId ? updater(t) : t));
   }, [activeThreadId]);
 
+  const addAttachments = async (files: FileList | File[]) => {
+    const newAttachments: Attachment[] = Array.from(files).map(file => ({
+      id: Math.random().toString(36).substring(7),
+      name: file.name,
+      status: 'uploading'
+    }));
+
+    setAttachments(prev => [...prev, ...newAttachments]);
+
+    // Handle uploads
+    Array.from(files).forEach(async (file, index) => {
+      const attId = newAttachments[index].id;
+      try {
+        const paths = await api.uploadFile(file);
+        setAttachments(prev => prev.map(a => 
+          a.id === attId ? { ...a, status: 'success', path: paths[0] } : a
+        ));
+      } catch (e: unknown) {
+        const errorMsg = e instanceof Error ? e.message : String(e);
+        setAttachments(prev => prev.map(a => 
+          a.id === attId ? { ...a, status: 'error', error: errorMsg } : a
+        ));
+      }
+    });
+  };
+
+  const removeAttachment = (id: string) => {
+    setAttachments(prev => prev.filter(a => a.id !== id));
+  };
+
   const sendMessage = async () => {
-    if (!input.trim() || isLoading) return;
+    if ((!input.trim() && attachments.length === 0) || isLoading) return;
 
     const originalInput = input;
+    const currentAttachments = [...attachments];
     const processedInput = processSlashCommand(input);
 
     setPromptHistory(prev => [...prev, originalInput]);
     setHistoryIndex(-1);
     setInput('');
+    setAttachments([]);
     setError(null);
 
     const newUserMessage: Message = { 
         id: Date.now().toString(), 
         sender: 'user', 
-        text: originalInput 
+        text: originalInput,
+        attachments: currentAttachments
     };
     
     updateActiveThread(t => ({ ...t, messages: [...t.messages, newUserMessage] }));
@@ -92,10 +126,22 @@ export const useChat = () => {
 
     setIsLoading(true);
     
+    // Add attachment info to the prompt if any
+    let finalPrompt = processedInput;
+    if (currentAttachments.length > 0) {
+        const attachmentNotes = currentAttachments
+            .filter(a => a.status === 'success')
+            .map(a => `[File attached: ${a.name} at ${a.path}]`)
+            .join('\n');
+        if (attachmentNotes) {
+            finalPrompt = `${attachmentNotes}\n\n${finalPrompt}`;
+        }
+    }
+
     try {
       await api.runAgent('nami', 'user1', currentSessionId!, {
         role: 'user',
-        parts: [{ text: processedInput }]
+        parts: [{ text: finalPrompt }]
       }, (data: AgentEvent) => { 
           const parts = data?.content?.parts;
           if (!Array.isArray(parts)) return;
@@ -214,6 +260,9 @@ export const useChat = () => {
     sendMessage,
     createNewThread,
     navigateHistory,
-    clearMessages
+    clearMessages,
+    attachments,
+    addAttachments,
+    removeAttachment
   };
 };

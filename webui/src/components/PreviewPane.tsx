@@ -43,6 +43,10 @@ export const PreviewPane: React.FC<PreviewPaneProps> = ({ path, onClose, isWiki 
            if (!response.ok) throw new Error('Failed to load wiki page');
            const data = await response.json();
            setContent(data.content);
+        } else if (isImage || isVideo || isAudio) {
+           // For binary files, we don't 'fetch' content state here, 
+           // we just set the URL in the img/video/audio elements below.
+           setContent(""); 
         } else {
            const data = await api.readWorkspaceFile(path);
            setContent(data.content);
@@ -128,11 +132,11 @@ export const PreviewPane: React.FC<PreviewPaneProps> = ({ path, onClose, isWiki 
         ) : content !== null ? (
           <div className="prose prose-sm max-w-none prose-pre:bg-gray-900 prose-pre:text-gray-100 h-full">
             {isImage ? (
-              <img src={`/api/workspace/read/${path}`} alt={path} className="max-w-full" />
+              <img src={`/api/workspace/read-binary/${path}`} alt={path} className="max-w-full" />
             ) : isVideo ? (
-              <video controls src={`/api/workspace/read/${path}`} className="max-w-full" />
+              <video controls src={`/api/workspace/read-binary/${path}`} className="max-w-full" />
             ) : isAudio ? (
-              <audio controls src={`/api/workspace/read/${path}`} className="w-full" />
+              <audio controls src={`/api/workspace/read-binary/${path}`} className="w-full" />
             ) : isHtml ? (
               <iframe srcDoc={content || ''} title="HTML Preview" className="w-full h-full border-none" />
             ) : (
@@ -144,6 +148,7 @@ export const PreviewPane: React.FC<PreviewPaneProps> = ({ path, onClose, isWiki 
                 </>
             )}
           </div>
+
         ) : (
           <div className="h-full flex items-center justify-center text-gray-400 italic">
             Select a file to preview

@@ -1,7 +1,17 @@
+export interface Attachment {
+  id: string;
+  name: string;
+  url?: string;
+  status: 'uploading' | 'success' | 'error';
+  path?: string;
+  error?: string;
+}
+
 export interface Message {
   id: string;
   sender: 'user' | 'agent';
   text: string;
+  attachments?: Attachment[];
   toolCall?: { 
     name: string; 
     args?: Record<string, unknown>; 
