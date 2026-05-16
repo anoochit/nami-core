@@ -30,7 +30,8 @@ export const FileExplorer: React.FC<FileExplorerProps> = ({ onOpenFile }) => {
     setCurrentPath(prev => prev ? `${prev}/${folderName}` : folderName);
   };
 
-  const handleBack = () => {
+  const handleBack = (e: React.MouseEvent) => {
+    e.stopPropagation();
     setCurrentPath(prev => {
         const parts = prev.split('/');
         parts.pop();
@@ -43,7 +44,7 @@ export const FileExplorer: React.FC<FileExplorerProps> = ({ onOpenFile }) => {
   return (
     <div className="flex flex-col h-full overflow-y-auto">
         {currentPath && (
-            <div onClick={handleBack} className="flex items-center gap-2 p-2 cursor-pointer hover:bg-gray-100 rounded text-sm text-gray-600 border-b">
+            <div onClick={(e) => handleBack(e)} className="flex items-center gap-2 p-2 cursor-pointer hover:bg-gray-100 rounded text-sm text-gray-600 border-b">
                 <ArrowLeft size={16} />
                 <span>..</span>
             </div>
