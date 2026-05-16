@@ -447,7 +447,7 @@ async fn handle_slash_command(
 
         "/new" => {
             let session_id_new = Uuid::new_v4().to_string();
-            ensure_session(sessions, "cli", user_id, &session_id_new).await?;
+            ensure_session(sessions, "nami", user_id, &session_id_new).await?;
 
             execute!(
                 io::stdout(),
@@ -501,7 +501,7 @@ pub(crate) async fn run_cli(
         cursor::MoveTo(0, 0)
     )?;
 
-    let app_name = "cli";
+    let app_name = "nami";
     let user_id = "default_user";
 
     let mut session_id = Uuid::new_v4().to_string();

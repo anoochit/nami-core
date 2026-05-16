@@ -147,4 +147,13 @@ export const api = {
     }
     return response.json();
   },
+
+  listSessions: async (): Promise<Array<{session_id: string, app_name: string, user_id: string, created_at: string, updated_at: string}>> => {
+    const response = await fetch(`${BASE_URL}/api/sessions`);
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.message || errorData.error || `Failed to list sessions (${response.status})`);
+    }
+    return response.json();
+  },
 };

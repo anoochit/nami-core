@@ -17,6 +17,27 @@ export const useChat = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  useEffect(() => {
+    const fetchSessions = async () => {
+      try {
+        const sessions = await api.listSessions();
+        const loadedThreads: Thread[] = sessions.map(s => ({
+          id: s.session_id,
+          title: `Chat from ${new Date(s.updated_at).toLocaleDateString()}`,
+          sessionId: s.session_id,
+          messages: []
+        }));
+        if (loadedThreads.length > 0) {
+          setThreads(loadedThreads);
+          setActiveThreadId(loadedThreads[0].id);
+        }
+      } catch (e) {
+        console.error("Failed to load sessions", e);
+      }
+    };
+    fetchSessions();
+  }, []);
+
   const activeThread = threads.find(t => t.id === activeThreadId) || threads[0];
 
   useEffect(() => {

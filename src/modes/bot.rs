@@ -25,7 +25,7 @@ pub async fn run_bot(
     // Register commands for autocomplete
     bot.set_my_commands(Command::bot_commands()).await?;
 
-    log::info!("Starting namiClaw...");
+    log::info!("Starting nami...");
 
     let handler = dptree::entry()
         .branch(
