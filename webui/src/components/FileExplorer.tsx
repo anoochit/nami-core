@@ -30,13 +30,11 @@ export const FileExplorer: React.FC<FileExplorerProps> = ({ onOpenFile }) => {
     setCurrentPath(prev => prev ? `${prev}/${folderName}` : folderName);
   };
 
-  const handleBack = (e: React.MouseEvent) => {
+  const handleBack = async (e: React.MouseEvent) => {
     e.stopPropagation();
-    setCurrentPath(prev => {
-        const parts = prev.split('/');
-        parts.pop();
-        return parts.join('/');
-    });
+    const sanitizedPath = currentPath.endsWith('/') ? currentPath.slice(0, -1) : currentPath;
+    const newPath = sanitizedPath.split('/').slice(0, -1).join('/');
+    setCurrentPath(newPath);
   };
 
   if (loading) return <div className="p-4 flex justify-center"><Loader2 className="animate-spin text-gray-500" /></div>;
@@ -44,7 +42,7 @@ export const FileExplorer: React.FC<FileExplorerProps> = ({ onOpenFile }) => {
   return (
     <div className="flex flex-col h-full overflow-y-auto">
         {currentPath && (
-            <div onClick={(e) => handleBack(e)} className="flex items-center gap-2 p-2 cursor-pointer hover:bg-gray-100 rounded text-sm text-gray-600 border-b">
+            <div onClick={handleBack} className="flex items-center gap-2 p-2 cursor-pointer hover:bg-gray-100 rounded text-sm text-gray-600 border-b">
                 <ArrowLeft size={16} />
                 <span>..</span>
             </div>
