@@ -62,18 +62,18 @@ async fn main() -> anyhow::Result<()> {
     let cli = Cli::parse();
 
     // Logging & Telemetry setup
-    let otel_endpoint = std::env::var("OTEL_COLLECTOR").unwrap_or_default();
-    let use_telemetry = !otel_endpoint.is_empty();
+    // let otel_endpoint = std::env::var("OTEL_COLLECTOR").unwrap_or_default();
+    // let use_telemetry = !otel_endpoint.is_empty();
 
-    if use_telemetry {
-        log::info!("Init telemetry...");
-        init_with_otlp("agent", &otel_endpoint).expect("Failed to initialize telemetry");
-    } else if !matches!(cli.command, Commands::Serve { .. } | Commands::Browse { .. } | Commands::Init | Commands::Cli) {
-        if std::env::var("RUST_LOG").is_err() {
-            unsafe { std::env::set_var("RUST_LOG", "info") };
-        }
-        pretty_env_logger::init();
-    }
+    // if use_telemetry {
+    //     log::info!("Init telemetry...");
+    //     init_with_otlp("agent", &otel_endpoint).expect("Failed to initialize telemetry");
+    // } else if !matches!(cli.command, Commands::Serve { .. } | Commands::Browse { .. } | Commands::Init | Commands::Cli) {
+    //     if std::env::var("RUST_LOG").is_err() {
+    //         unsafe { std::env::set_var("RUST_LOG", "info") };
+    //     }
+    //     pretty_env_logger::init();
+    // }
 
     if let Commands::Init = cli.command {
         modes::init::initialize_project().await?;
@@ -180,8 +180,8 @@ async fn main() -> anyhow::Result<()> {
     }
 
     // shutdown telemetry
-    if use_telemetry {
-        shutdown_telemetry();
-    }
+    // if use_telemetry {
+    //     shutdown_telemetry();
+    // }
     Ok(())
 }
