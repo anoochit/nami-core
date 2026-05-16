@@ -501,7 +501,7 @@ pub(crate) async fn run_cli(
         cursor::MoveTo(0, 0)
     )?;
 
-    let app_name = "nami";
+    let app_name = "cli";
     let user_id = "default_user";
 
     let mut session_id = Uuid::new_v4().to_string();

@@ -42,6 +42,7 @@ async fn list_sessions() -> impl IntoResponse {
         Ok(rows) => {
             let sessions: Vec<_> = rows
                 .iter()
+                .filter(|row| row.get::<String, _>("session_id") != "background_tasks")
                 .map(|row| {
                     json!({
                         "session_id": row.get::<String, _>("session_id"),
