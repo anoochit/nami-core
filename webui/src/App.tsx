@@ -31,7 +31,8 @@ export default function App() {
     clearMessages,
     attachments,
     addAttachments,
-    removeAttachment
+    removeAttachment,
+    messageQueue
   } = useChat();
 
   const activePreview = previewPath || previewWikiPath;
@@ -81,6 +82,7 @@ export default function App() {
               attachments={attachments}
               onAddAttachments={addAttachments}
               onRemoveAttachment={removeAttachment}
+              queueCount={messageQueue.length}
             />
           </Panel>
           

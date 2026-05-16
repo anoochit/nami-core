@@ -14,6 +14,7 @@ interface ChatInputProps {
   attachments: Attachment[];
   onAddAttachments: (files: FileList | File[]) => void;
   onRemoveAttachment: (id: string) => void;
+  queueCount?: number;
 }
 
 export const ChatInput: React.FC<ChatInputProps> = ({ 
@@ -24,7 +25,8 @@ export const ChatInput: React.FC<ChatInputProps> = ({
   isLoading,
   attachments,
   onAddAttachments,
-  onRemoveAttachment
+  onRemoveAttachment,
+  queueCount = 0
 }) => {
   const [autocompleteOpen, setAutocompleteOpen] = useState(false);
   const [mentionOpen, setMentionOpen] = useState(false);
@@ -123,17 +125,21 @@ export const ChatInput: React.FC<ChatInputProps> = ({
             onKeyDown={handleKeyDown}
             rows={1}
             className="flex-1 bg-transparent px-2 py-2 outline-none text-sm sm:text-base placeholder:text-gray-400 resize-none overflow-hidden max-h-[120px]" 
-            placeholder="Message ..."
-            disabled={isLoading && !value}
+            placeholder={isLoading ? "Queueing enabled..." : "Message ..."}
           />
           
           <button 
             onClick={onSendMessage} 
-            disabled={isLoading || (!value.trim() && attachments.length === 0)}
-            className="flex items-center justify-center size-10 bg-black text-white rounded-full hover:bg-gray-800 disabled:bg-gray-200 disabled:text-gray-400 transition-all shadow-md active:scale-95 shrink-0"
+            disabled={!value.trim() && attachments.length === 0}
+            className="flex items-center justify-center size-10 bg-black text-white rounded-full hover:bg-gray-800 disabled:bg-gray-200 disabled:text-gray-400 transition-all shadow-md active:scale-95 shrink-0 relative"
             aria-label="Send message"
           >
             <Send size={18} />
+            {queueCount > 0 && (
+              <span className="absolute -top-1 -right-1 bg-blue-500 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full ring-2 ring-white animate-in zoom-in duration-300">
+                {queueCount}
+              </span>
+            )}
           </button>
         </div>
         <p className="text-[10px] text-center text-gray-400 mt-2">

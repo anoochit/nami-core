@@ -21,6 +21,7 @@ interface ThreadViewProps {
   attachments: Attachment[];
   onAddAttachments: (files: FileList | File[]) => void;
   onRemoveAttachment: (id: string) => void;
+  queueCount?: number;
 }
 
 export const ThreadView: React.FC<ThreadViewProps> = ({ 
@@ -38,7 +39,8 @@ export const ThreadView: React.FC<ThreadViewProps> = ({
   error,
   attachments,
   onAddAttachments,
-  onRemoveAttachment
+  onRemoveAttachment,
+  queueCount = 0
 }) => {
   const [isDragging, setIsDragging] = useState(false);
 
@@ -117,8 +119,8 @@ export const ThreadView: React.FC<ThreadViewProps> = ({
         attachments={attachments}
         onAddAttachments={onAddAttachments}
         onRemoveAttachment={onRemoveAttachment}
+        queueCount={queueCount}
       />
     </div>
   );
 };
-

@@ -164,7 +164,7 @@ async fn main() -> anyhow::Result<()> {
         }
         Commands::Browse { port } => {
             log::info!("Running in browse mode");
-            modes::browse::run_browse(agent, model,deps.sessions.clone(), deps.memory_adapter, port.unwrap_or(8080)).await?;
+            modes::browse::run_browse(agent, model, deps.memory_adapter, port.unwrap_or(8080)).await?;
         }
         Commands::Line { port } => {
             log::info!("Running in LINE bot mode");

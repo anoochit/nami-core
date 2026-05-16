@@ -1,14 +1,21 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { api } from '../lib/api';
 import { processSlashCommand } from '../lib/commandLoader';
 import { shouldAddSpace } from '../lib/utils';
 import type { Message, Thread, AgentEvent, Attachment } from '../types/chat';
+
+interface QueuedMessage {
+  text: string;
+  attachments: Attachment[];
+  threadId: string;
+}
 
 export const useChat = () => {
   const [threads, setThreads] = useState<Thread[]>([{ id: '1', title: 'New Conversation', messages: [] }]);
   const [activeThreadId, setActiveThreadId] = useState<string>('1');
   const [input, setInput] = useState('');
   const [attachments, setAttachments] = useState<Attachment[]>([]);
+  const [messageQueue, setMessageQueue] = useState<QueuedMessage[]>([]);
   const [promptHistory, setPromptHistory] = useState<string[]>([]);
   const [historyIndex, setHistoryIndex] = useState(-1);
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -16,6 +23,11 @@ export const useChat = () => {
   const [previewWikiPath, setPreviewWikiPath] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const threadsRef = useRef(threads);
+  useEffect(() => {
+    threadsRef.current = threads;
+  }, [threads]);
 
   useEffect(() => {
     const fetchSessions = async () => {
@@ -57,9 +69,13 @@ export const useChat = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeThreadId]); 
 
+  const updateThreadById = useCallback((id: string, updater: (thread: Thread) => Thread) => {
+    setThreads(prev => prev.map(t => t.id === id ? updater(t) : t));
+  }, []);
+
   const updateActiveThread = useCallback((updater: (thread: Thread) => Thread) => {
-    setThreads(prev => prev.map(t => t.id === activeThreadId ? updater(t) : t));
-  }, [activeThreadId]);
+    updateThreadById(activeThreadId, updater);
+  }, [activeThreadId, updateThreadById]);
 
   const addAttachments = async (files: FileList | File[]) => {
     const newAttachments: Attachment[] = Array.from(files).map(file => ({
@@ -91,30 +107,12 @@ export const useChat = () => {
     setAttachments(prev => prev.filter(a => a.id !== id));
   };
 
-  const sendMessage = async () => {
-    if ((!input.trim() && attachments.length === 0) || isLoading) return;
-
-    const originalInput = input;
-    const currentAttachments = [...attachments];
-    const processedInput = processSlashCommand(input);
-
-    setPromptHistory(prev => [...prev, originalInput]);
-    setHistoryIndex(-1);
-    setInput('');
-    setAttachments([]);
-    setError(null);
-
-    const newUserMessage: Message = { 
-        id: Date.now().toString(), 
-        sender: 'user', 
-        text: originalInput,
-        attachments: currentAttachments
-    };
-    
-    updateActiveThread(t => ({ ...t, messages: [...t.messages, newUserMessage] }));
+  const executeMessage = useCallback(async (queuedMsg: QueuedMessage) => {
+    const { text: originalInput, attachments: currentAttachments, threadId } = queuedMsg;
+    const processedInput = processSlashCommand(originalInput);
 
     if (processedInput.startsWith('###')) {
-        updateActiveThread(t => ({ 
+        updateThreadById(threadId, t => ({ 
             ...t, 
             messages: [...t.messages, { 
                 id: Date.now().toString() + '_local', 
@@ -125,13 +123,16 @@ export const useChat = () => {
         return;
     }
 
-    let currentSessionId = activeThread.sessionId;
+    const thread = threadsRef.current.find(t => t.id === threadId);
+    if (!thread) return;
+
+    let currentSessionId = thread.sessionId;
 
     if (!currentSessionId) {
       try {
         const session = await api.createSession('nami', 'user1');
         currentSessionId = session.session_id;
-        updateActiveThread(t => ({ ...t, sessionId: currentSessionId }));
+        updateThreadById(threadId, t => ({ ...t, sessionId: currentSessionId }));
       } catch (e: unknown) {
         const msg = e instanceof Error ? e.message : "Failed to create session";
         setError(msg);
@@ -140,14 +141,13 @@ export const useChat = () => {
     }
 
     const agentMsgId = Date.now().toString() + '_agent';
-    updateActiveThread(t => ({ 
+    updateThreadById(threadId, t => ({ 
         ...t, 
         messages: [...t.messages, { id: agentMsgId, sender: 'agent', text: '' }] 
     }));
 
     setIsLoading(true);
     
-    // Add attachment info to the prompt if any
     let finalPrompt = processedInput;
     if (currentAttachments.length > 0) {
         const attachmentNotes = currentAttachments
@@ -167,7 +167,7 @@ export const useChat = () => {
           const parts = data?.content?.parts;
           if (!Array.isArray(parts)) return;
 
-          updateActiveThread(t => {
+          updateThreadById(threadId, t => {
               const messages = [...t.messages];
               const agentMsgIndex = messages.findIndex(m => m.id === agentMsgId);
               if (agentMsgIndex === -1) return t;
@@ -211,7 +211,44 @@ export const useChat = () => {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [updateThreadById]);
+
+  useEffect(() => {
+    if (!isLoading && messageQueue.length > 0) {
+      const nextMessage = messageQueue[0];
+      setMessageQueue(prev => prev.slice(1));
+      executeMessage(nextMessage);
+    }
+  }, [isLoading, messageQueue, executeMessage]);
+
+  const sendMessage = useCallback(async () => {
+    if (!input.trim() && attachments.length === 0) return;
+
+    const originalInput = input;
+    const currentAttachments = [...attachments];
+    const targetThreadId = activeThreadId;
+
+    setPromptHistory(prev => [...prev, originalInput]);
+    setHistoryIndex(-1);
+    setInput('');
+    setAttachments([]);
+    setError(null);
+
+    const newUserMessage: Message = { 
+        id: Date.now().toString(), 
+        sender: 'user', 
+        text: originalInput,
+        attachments: currentAttachments
+    };
+    
+    updateThreadById(targetThreadId, t => ({ ...t, messages: [...t.messages, newUserMessage] }));
+
+    setMessageQueue(prev => [...prev, {
+      text: originalInput,
+      attachments: currentAttachments,
+      threadId: targetThreadId
+    }]);
+  }, [input, attachments, activeThreadId, updateThreadById]);
 
   const createNewThread = async () => {
     const isHealthy = await api.checkHealth();
@@ -284,6 +321,7 @@ export const useChat = () => {
     clearMessages,
     attachments,
     addAttachments,
-    removeAttachment
+    removeAttachment,
+    messageQueue
   };
 };

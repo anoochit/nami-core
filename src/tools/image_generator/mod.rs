@@ -40,7 +40,7 @@ impl Tool for ImageGenerator {
             let api_key = std::env::var("GOOGLE_API_KEY")
                 .map_err(|_| AdkError::tool("GOOGLE_API_KEY environment variable not set"))?;
             
-            Arc::new(GeminiModel::new(&api_key, "gemini-2.5-flash-image-preview")
+            Arc::new(GeminiModel::new(&api_key, "gemini-2.5-flash-image")
                 .map_err(|e| AdkError::tool(format!("Failed to create Gemini client: {}", e)))?)
         };
 
