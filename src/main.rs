@@ -6,7 +6,7 @@ mod utils;
 
 use std::sync::Arc;
 
-use adk_telemetry::shutdown_telemetry;
+use adk_telemetry::{init_with_otlp, shutdown_telemetry};
 use clap::{Parser, Subcommand};
 use runner::AgentRunner;
 use modes::startup::setup_dependencies;
@@ -61,7 +61,14 @@ async fn main() -> anyhow::Result<()> {
     // parse cli
     let cli = Cli::parse();
 
-    if !matches!(cli.command, Commands::Serve { .. } | Commands::Browse { .. } | Commands::Init | Commands::Cli) {
+    // Logging & Telemetry setup
+    let otel_endpoint = std::env::var("OTEL_COLLECTOR").unwrap_or_default();
+    let use_telemetry = !otel_endpoint.is_empty();
+
+    if use_telemetry {
+        log::info!("Init telemetry...");
+        init_with_otlp("agent", &otel_endpoint).expect("Failed to initialize telemetry");
+    } else if !matches!(cli.command, Commands::Serve { .. } | Commands::Browse { .. } | Commands::Init | Commands::Cli) {
         if std::env::var("RUST_LOG").is_err() {
             unsafe { std::env::set_var("RUST_LOG", "info") };
         }
@@ -173,7 +180,7 @@ async fn main() -> anyhow::Result<()> {
     }
 
     // shutdown telemetry
-    if !std::env::var("OTEL_COLLECTOR").unwrap_or_default().is_empty() {
+    if use_telemetry {
         shutdown_telemetry();
     }
     Ok(())

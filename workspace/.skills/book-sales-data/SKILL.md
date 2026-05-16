@@ -12,28 +12,6 @@ The Book and Sales Data API provides access to a database of books and their sal
 - Access detailed sales transaction records.
 - Generate aggregated summary reports.
 
-## Core Capabilities
-
-### 1. Root
-Access the root endpoint.
-- **Get root**: `GET /`
-
-### 2. Book Management
-Retrieve a list of all books or fetch details for a specific book.
-- **Get all books**: `GET /books`
-- **Get book details**: `GET /books/{book_id}`
-
-### 3. Sales Transactions
-Fetch detailed records of sales, including joined book information for easy reporting.
-- **Get all sales**: `GET /sales`
-
-### 4. Summary Reports
-Generate aggregated performance data.
-- **Summary by Book & Author**: `GET /summary/book_author`
-- **Summary by Author**: `GET /summary/author`
-- **Summary of Total Revenue by Book**: `GET /summary/book_revenue_total`
-- **Monthly Growth Summary**: `GET /summary/growth`
-
 ## Reference
 
 See [references/openapi.json](references/openapi.json) for the full OpenAPI specification.

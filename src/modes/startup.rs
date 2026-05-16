@@ -1,7 +1,6 @@
 use std::sync::Arc;
 use adk_memory::{SqliteMemoryService, MemoryServiceAdapter};
 use adk_session::SqliteSessionService;
-use adk_telemetry::init_with_otlp;
 use anyhow::Result;
 
 pub struct Dependencies {
@@ -11,12 +10,6 @@ pub struct Dependencies {
 }
 
 pub async fn setup_dependencies() -> Result<Dependencies> {
-    // Telemetry
-    let otel_endpoint = std::env::var("OTEL_COLLECTOR").unwrap_or_default();
-    if !otel_endpoint.is_empty() {
-        log::info!("Init telemetry...");
-        init_with_otlp("agent", &otel_endpoint).expect("Failed to initialize telemetry");
-    }
 
     // Sessions
     let sessions = SqliteSessionService::new("sessions.db?mode=rwc").await?;
