@@ -1,5 +1,6 @@
 use crate::agent::get_compaction_config;
 use adk_rust::{Agent, Launcher, Llm};
+use adk_session::SessionService;
 use axum::{
     body::Body,
     extract::Request,
@@ -18,6 +19,7 @@ struct Asset;
 pub(crate) async fn run_browse(
     agent: Arc<dyn Agent>,
     model: Arc<dyn Llm>,
+    session:  Arc<dyn SessionService>,
     memory: Arc<dyn adk_rust::Memory>,
     port: u16,
 ) -> anyhow::Result<()> {
@@ -30,7 +32,9 @@ pub(crate) async fn run_browse(
     // build_app() returns a router with hardcoded / -> /ui redirect and /ui routes.
     // We intercept these requests using middleware BEFORE they reach the routing table.
     let app = Launcher::new(agent)
+        .app_name("webui")
         .with_compaction(get_compaction_config(model))
+        .with_session_service(session)
         .with_memory_service(memory)
         .with_a2a_base_url(base_url)
         .build_app()?

@@ -2,6 +2,7 @@ use crate::agent::get_compaction_config;
 use adk_rust::Agent;
 use adk_rust::Launcher;
 use adk_rust::Llm;
+use adk_session::SessionService;
 use std::sync::Arc;
 use tower_http::cors::CorsLayer;
 use axum::{routing::get, response::Redirect, Router};
@@ -9,6 +10,7 @@ use axum::{routing::get, response::Redirect, Router};
 pub(crate) async fn run_serve(
     agent: Arc<dyn Agent>,
     model: Arc<dyn Llm>,
+    session:  Arc<dyn SessionService>,
     memory: Arc<dyn adk_rust::Memory>,
     port: u16,
 ) -> anyhow::Result<()> {
@@ -16,7 +18,9 @@ pub(crate) async fn run_serve(
         std::env::var("A2A_BASE_URL").unwrap_or_else(|_| format!("http://localhost:{}", port));
 
     let app = Launcher::new(agent)
+        .app_name("serve")
         .with_compaction(get_compaction_config(model))
+        .with_session_service(session)
         .with_memory_service(memory)
         .with_a2a_base_url(base_url)
         .build_app()?
