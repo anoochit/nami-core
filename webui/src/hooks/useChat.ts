@@ -11,7 +11,7 @@ interface QueuedMessage {
 }
 
 export const useChat = () => {
-  const [threads, setThreads] = useState<Thread[]>([{ id: '1', title: 'New Conversation', messages: [] }]);
+  const [threads, setThreads] = useState<Thread[]>([{ id: '1', title: 'Conversation', messages: [] }]);
   const [activeThreadId, setActiveThreadId] = useState<string>('1');
   const [input, setInput] = useState('');
   const [attachments, setAttachments] = useState<Attachment[]>([]);
@@ -241,7 +241,7 @@ const updateActiveThread = useCallback((updater: (thread: Thread) => Thread) => 
       const session = await api.createSession('nami', 'user1');
       const newThread: Thread = { 
         id: Date.now().toString(), 
-        title: 'New Conversation', 
+        title: 'Conversation', 
         messages: [],
         sessionId: session.session_id 
       };
