@@ -16,6 +16,7 @@ interface ThreadViewProps {
   onPreviewFile?: (path: string) => void;
   onPreviewWiki?: (title: string) => void;
   onClear: () => void;
+  onNewThread: () => void;
   isLoading: boolean;
   error?: string | null;
   attachments: Attachment[];
@@ -35,6 +36,7 @@ export const ThreadView: React.FC<ThreadViewProps> = ({
   onPreviewFile,
   onPreviewWiki,
   onClear,
+  onNewThread,
   isLoading, 
   error,
   attachments,
@@ -99,6 +101,7 @@ export const ThreadView: React.FC<ThreadViewProps> = ({
         sidebarOpen={sidebarOpen} 
         onToggleSidebar={onToggleSidebar} 
         onClear={onClear}
+        onNewThread={onNewThread}
         onPreview={handlePreview}
       />
 

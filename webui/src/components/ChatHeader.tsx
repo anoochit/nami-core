@@ -1,5 +1,5 @@
 import React from 'react';
-import { PanelLeftOpen, PanelLeftClose, Trash2, FileText } from 'lucide-react';
+import { PanelLeftOpen, PanelLeftClose, Trash2, FileText, Plus } from 'lucide-react';
 
 interface ChatHeaderProps {
   title: string;
@@ -8,6 +8,7 @@ interface ChatHeaderProps {
   onToggleSidebar: () => void;
   onClear?: () => void;
   onPreview?: () => void;
+  onNewThread?: () => void;
 }
 
 export const ChatHeader: React.FC<ChatHeaderProps> = ({ 
@@ -16,7 +17,8 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
   sidebarOpen, 
   onToggleSidebar,
   onClear,
-  onPreview
+  onPreview,
+  onNewThread
 }) => {
   return (
     <header className="h-14 border-b flex items-center px-4 justify-between bg-white sticky top-0 z-10">
@@ -41,6 +43,15 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
         </div>
       </div>
       <div className="flex items-center gap-1">
+        {onNewThread && (
+          <button 
+            onClick={onNewThread} 
+            className="p-2 hover:bg-gray-100 rounded-md transition-colors text-gray-600 hover:text-black"
+            aria-label="New chat"
+          >
+            <Plus size={20} />
+          </button>
+        )}
         {onClear && (
           <button 
             onClick={onClear} 

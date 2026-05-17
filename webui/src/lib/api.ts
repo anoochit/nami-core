@@ -36,7 +36,7 @@ export const api = {
   checkHealth: async (): Promise<boolean> => {
     try {
       const response = await fetch(`${BASE_URL}/api/health`, {
-        headers: getHeaders()
+        headers: getHeaders(),
       });
       return response.ok;
     } catch {
@@ -55,12 +55,16 @@ export const api = {
         sessionId,
       }),
     });
-    
+
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
-      throw new Error(errorData.message || errorData.error || `Session creation failed (${response.status})`);
+      throw new Error(
+        errorData.message ||
+          errorData.error ||
+          `Session creation failed (${response.status})`,
+      );
     }
-    
+
     return { session_id: sessionId };
   },
 
@@ -91,10 +95,13 @@ export const api = {
 
     if (!response.ok) {
       const errorText = await response.text();
-      throw new Error(errorText || `Agent request failed with status ${response.status}`);
+      throw new Error(
+        errorText || `Agent request failed with status ${response.status}`,
+      );
     }
 
-    if (!response.body) throw new Error("No response body received from server");
+    if (!response.body)
+      throw new Error("No response body received from server");
 
     const reader = response.body.getReader();
     const decoder = new TextDecoder();
@@ -118,11 +125,16 @@ export const api = {
           try {
             const jsonStr = trimmedLine.slice(6);
             if (jsonStr === "[DONE]") continue;
-            
+
             const event = JSON.parse(jsonStr);
             onMessage(event);
           } catch (e) {
-            console.error("Failed to parse SSE JSON chunk:", e, "Line:", trimmedLine);
+            console.error(
+              "Failed to parse SSE JSON chunk:",
+              e,
+              "Line:",
+              trimmedLine,
+            );
           }
         }
       }
@@ -133,11 +145,15 @@ export const api = {
 
   readWorkspaceFile: async (path: string): Promise<{ content: string }> => {
     const response = await fetch(`${BASE_URL}/api/workspace/read/${path}`, {
-        headers: getHeaders()
+      headers: getHeaders(),
     });
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
-      throw new Error(errorData.message || errorData.error || `Failed to read file (${response.status})`);
+      throw new Error(
+        errorData.message ||
+          errorData.error ||
+          `Failed to read file (${response.status})`,
+      );
     }
     return response.json();
   },
@@ -154,58 +170,63 @@ export const api = {
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
-      throw new Error(errorData.message || errorData.error || `Upload failed (${response.status})`);
+      throw new Error(
+        errorData.message ||
+          errorData.error ||
+          `Upload failed (${response.status})`,
+      );
     }
 
     const data = await response.json();
     return data.paths;
   },
 
-  listWorkspaceFiles: async (path: string = ""): Promise<{ entries: Array<{ name: string, type: string }> }> => {
+  listWorkspaceFiles: async (
+    path: string = "",
+  ): Promise<{ entries: Array<{ name: string; type: string }> }> => {
     // Remove leading/trailing slashes for consistent path handling
-    const cleanPath = path.replace(/^\/+|\/+$/g, '');
-    const url = cleanPath ? `${BASE_URL}/api/workspace/files/${cleanPath}` : `${BASE_URL}/api/workspace/files`;
-    
+    const cleanPath = path.replace(/^\/+|\/+$/g, "");
+    const url = cleanPath
+      ? `${BASE_URL}/api/workspace/files/${cleanPath}`
+      : `${BASE_URL}/api/workspace/files`;
+
     const response = await fetch(url, {
-        headers: getHeaders()
+      headers: getHeaders(),
     });
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
-      throw new Error(errorData.message || errorData.error || `Failed to list files (${response.status})`);
+      throw new Error(
+        errorData.message ||
+          errorData.error ||
+          `Failed to list files (${response.status})`,
+      );
     }
     return response.json();
   },
 
   listWikiPages: async (): Promise<{ pages: string[] }> => {
     const response = await fetch(`${BASE_URL}/api/wiki/pages`, {
-        headers: getHeaders()
+      headers: getHeaders(),
     });
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
-      throw new Error(errorData.message || errorData.error || `Failed to list wiki pages (${response.status})`);
+      throw new Error(
+        errorData.message ||
+          errorData.error ||
+          `Failed to list wiki pages (${response.status})`,
+      );
     }
     return response.json();
   },
 
-  listSessions: async (): Promise<Array<{session_id: string, app_name: string, user_id: string, created_at: string, updated_at: string}>> => {
-    const response = await fetch(`${BASE_URL}/api/sessions`, {
-        headers: getHeaders()
-    });
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      throw new Error(errorData.message || errorData.error || `Failed to list sessions (${response.status})`);
-    }
-    return response.json();
-  },
-
-  getSession: async (sessionId: string): Promise<{ messages: Message[] }> => {
-    const response = await fetch(`${BASE_URL}/api/sessions/${sessionId}`, {
-        headers: getHeaders()
-    });
-    if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.message || errorData.error || `Failed to get session (${response.status})`);
-    }
-    return response.json();
-  },
+  // listSessions: async (): Promise<Array<{session_id: string, app_name: string, user_id: string, created_at: string, updated_at: string}>> => {
+  //   const response = await fetch(`${BASE_URL}/api/sessions`, {
+  //       headers: getHeaders()
+  //   });
+  //   if (!response.ok) {
+  //     const errorData = await response.json().catch(() => ({}));
+  //     throw new Error(errorData.message || errorData.error || `Failed to list sessions (${response.status})`);
+  //   }
+  //   return response.json();
+  // },
 };

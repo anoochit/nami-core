@@ -29,67 +29,28 @@ export const useChat = () => {
     threadsRef.current = threads;
   }, [threads]);
 
-  /*
-  useEffect(() => {
-    const fetchSessions = async () => {
-      try {
-        const sessions = await api.listSessions();
-        const loadedThreads: Thread[] = sessions.map(s => ({
-          id: s.session_id,
-          title: `Chat from ${new Date(s.updated_at).toLocaleDateString()}`,
-          sessionId: s.session_id,
-          messages: []
-        }));
-        if (loadedThreads.length > 0) {
-          setThreads(loadedThreads);
-          setActiveThreadId(loadedThreads[0].id);
-        }
-      } catch (e) {
-        console.error("Failed to load sessions", e);
-      }
-    };
-    fetchSessions();
-  }, []);
-  */
-
   const updateThreadById = useCallback((id: string, updater: (thread: Thread) => Thread) => {
     setThreads(prev => prev.map(t => t.id === id ? updater(t) : t));
   }, []);
-
-  useEffect(() => {
-    const fetchSessionMessages = async () => {
-      const thread = threads.find(t => t.id === activeThreadId);
-      if (thread && thread.sessionId && thread.messages.length === 0) {
-        try {
-          const data = await api.getSession(thread.sessionId);
-          updateThreadById(thread.id, t => ({ ...t, messages: data.messages }));
-        } catch (e) {
-          console.error("Failed to load session messages", e);
-          setError("Failed to load chat history.");
-        }
-      }
-    };
-    fetchSessionMessages();
-  }, [activeThreadId, threads, updateThreadById]);
 
   const activeThread = threads.find(t => t.id === activeThreadId) || threads[0];
 
   useEffect(() => {
     const initActiveThreadSession = async () => {
-    if (activeThread && !activeThread.sessionId) {
-      try {
-        const session = await api.createSession('nami', 'user1');
-        setThreads(prev => prev.map(t => 
-          t.id === activeThreadId ? { ...t, sessionId: session.session_id } : t
-        ));
-      } catch (e) {
-        console.error("Failed to initialize session on load", e);
+      if (activeThread && !activeThread.sessionId) {
+        try {
+          const session = await api.createSession('nami', 'user1');
+          setThreads(prev => prev.map(t => 
+            t.id === activeThreadId ? { ...t, sessionId: session.session_id } : t
+          ));
+        } catch (e) {
+          console.error("Failed to initialize session on load", e);
+        }
       }
-    }
-  };
-  initActiveThreadSession();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-}, [activeThreadId]); 
+    };
+    initActiveThreadSession();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeThreadId]); 
 
 const updateActiveThread = useCallback((updater: (thread: Thread) => Thread) => {
   updateThreadById(activeThreadId, updater);

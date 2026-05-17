@@ -1,5 +1,4 @@
 import { cn } from './lib/utils';
-import { ThreadList } from './components/ThreadList';
 import { ThreadView } from './components/ThreadView';
 import { PreviewPane } from './components/PreviewPane';
 import { FileExplorer } from './components/FileExplorer';
@@ -7,7 +6,7 @@ import { useChat } from './hooks/useChat';
 import { ServerStatusIndicator } from './components/ServerStatusIndicator';
 import { Group, Panel, Separator } from 'react-resizable-panels';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './components/ui/tabs';
-import {  FolderClosed, MessageSquare } from 'lucide-react';
+import {  FolderTreeIcon,  } from 'lucide-react';
 
 export default function App() {
   const {
@@ -40,27 +39,18 @@ export default function App() {
   return (
     <div className="flex h-screen bg-white overflow-hidden">
       <div className={cn("w-64 border-r bg-gray-50 flex flex-col transition-all duration-300 shrink-0", !sidebarOpen && "-ml-64")}>
-        <div className="p-2 border-b flex justify-between items-center">
-            <span className="font-bold text-sm">Server status</span>
-            <ServerStatusIndicator />
-        </div>
-        <Tabs defaultValue="chat" className="flex-1 flex flex-col overflow-hidden">
+        <Tabs defaultValue="files" className="flex-1 flex flex-col overflow-hidden">
           <TabsList className="w-full">
-            <TabsTrigger value="chat" className="flex-1"><MessageSquare/>Chat</TabsTrigger>
-            <TabsTrigger value="files" className="flex-1"><FolderClosed/>Files</TabsTrigger>
+            <TabsTrigger value="files" className="flex-1 justify-start pb-4 pt-4"><FolderTreeIcon/>Files</TabsTrigger>
           </TabsList>
-          <TabsContent value="chat" className="flex-1 overflow-hidden">
-            <ThreadList 
-                threads={threads} 
-                activeThreadId={activeThreadId} 
-                onSelectThread={setActiveThreadId} 
-                onNewThread={createNewThread} 
-            />
-          </TabsContent>
           <TabsContent value="files" className="flex-1 overflow-hidden">
              <FileExplorer onOpenFile={setPreviewPath} />
           </TabsContent>
         </Tabs>
+        <div className="p-2 border-t flex justify-between items-center">
+            <span className="font-bold text-sm">Server status</span>
+            <ServerStatusIndicator />
+        </div>
       </div>
 
       <div className="flex-1 flex overflow-hidden">
@@ -77,6 +67,7 @@ export default function App() {
               onPreviewFile={setPreviewPath}
               onPreviewWiki={setPreviewWikiPath}
               onClear={clearMessages}
+              onNewThread={createNewThread}
               isLoading={isLoading}
               error={error ?? undefined}
               attachments={attachments}
