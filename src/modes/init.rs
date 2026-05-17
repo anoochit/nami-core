@@ -232,6 +232,8 @@ enabled = false
     // 2. .env
     let env_content = format!(
         r#"{api_key_env}={api_key}
+NAMI_API_KEY={api_key}
+VITE_NAMI_API_KEY={api_key}
 TELOXIDE_TOKEN={telegram_key}
 LINE_CHANNEL_SECRET={line_secret}
 LINE_CHANNEL_ACCESS_TOKEN={line_token}
