@@ -1,7 +1,7 @@
 /target
 .env
 .vscode
-!sessions.db
+sessions.db
 memory.db
 .cli*
 /workspace/*

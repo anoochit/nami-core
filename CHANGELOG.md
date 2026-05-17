@@ -2,7 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
-## [0.9.16] - 2026-05-16
+## [0.9.17] - 2026-05-17
+
+### Changed
+
+- **Configuration**: Added `webui/.env.example` for WebUI configuration.
+- **Repository Hygiene**: Removed stale local session schema (`session-schema.txt`) and database (`sessions.db`) files.
+- **Git**: Updated `.gitignore` to track `sessions.db`.
+
 
 ### Changed
 

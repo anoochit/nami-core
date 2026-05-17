@@ -1,5 +1,0 @@
-CREATE TABLE _adk_session_migrations (version INTEGER PRIMARY KEY, description TEXT NOT NULL, applied_at TEXT NOT NULL);
-CREATE TABLE sessions (app_name TEXT NOT NULL, user_id TEXT NOT NULL, session_id TEXT NOT NULL, state TEXT NOT NULL, created_at TEXT NOT NULL, updated_at TEXT NOT NULL, PRIMARY KEY (app_name, user_id, session_id));
-CREATE TABLE events (id TEXT NOT NULL, app_name TEXT NOT NULL, user_id TEXT NOT NULL, session_id TEXT NOT NULL, invocation_id TEXT NOT NULL, branch TEXT NOT NULL, author TEXT NOT NULL, timestamp TEXT NOT NULL, llm_response TEXT NOT NULL, actions TEXT NOT NULL, long_running_tool_ids TEXT NOT NULL, PRIMARY KEY (id, app_name, user_id, session_id), FOREIGN KEY (app_name, user_id, session_id) REFERENCES sessions(app_name, user_id, session_id) ON DELETE CASCADE);
-CREATE TABLE app_states (app_name TEXT PRIMARY KEY, state TEXT NOT NULL, updated_at TEXT NOT NULL);
-CREATE TABLE user_states (app_name TEXT NOT NULL, user_id TEXT NOT NULL, state TEXT NOT NULL, updated_at TEXT NOT NULL, PRIMARY KEY (app_name, user_id));

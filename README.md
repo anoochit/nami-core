@@ -104,14 +104,19 @@ Nami Core is designed for extreme extensibility. You can add new capabilities by
 
 ```bash
 cp .env.example .env
+cp webui/.env.example webui/.env
 ```
 
 ```text
+# Root .env
 GOOGLE_API_KEY=your_google_api_key_here
 THAILLM_API_KEY=your_api_key_here
 TELOXIDE_TOKEN=your_telegram_bot_token
 SERPER_API_KEY=your_serper_api_key
 OTEL_COLLECTOR=your_otel_collector_url
+
+# webui/.env
+VITE_NAMI_API_KEY=your_secure_random_key_here
 ```
 
 1. Customize the Bot's Soul:
