@@ -1,4 +1,4 @@
-import type { Session, AgentContent, AgentEvent, Message } from '../types/chat';
+import type { Session, AgentContent, AgentEvent } from '../types/chat';
 
 const BASE_URL = import.meta.env.VITE_API_BASE_URL || "";
 

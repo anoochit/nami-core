@@ -10,16 +10,13 @@ import {  FolderTreeIcon,  } from 'lucide-react';
 
 export default function App() {
   const {
-    threads,
     activeThread,
-    activeThreadId,
     input,
     sidebarOpen,
     previewPath,
     previewWikiPath,
     isLoading,
     error,
-    setActiveThreadId,
     setInput,
     setSidebarOpen,
     setPreviewPath,
