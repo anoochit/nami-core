@@ -10,7 +10,6 @@ use serde_json::json;
 use tokio::fs;
 use walkdir::WalkDir;
 use crate::utils::{get_wiki_dir, get_workspace_dir, sandbox, ignore::NamiIgnore};
-use sqlx::{SqlitePool, Row};
 
 /// Returns the Axum Router for the API.
 use crate::modes::command_registry::CommandRegistry;
@@ -25,7 +24,6 @@ pub fn api_router() -> Router {
         .route("/api/wiki/pages", get(list_wiki_pages))
         .route("/api/wiki/pages/{*title}", get(read_wiki_page))
         .route("/api/commands", get(get_commands))
-        // .route("/api/sessions", get(list_sessions))
         .layer(middleware::from_fn(auth_middleware))
         .layer(middleware::from_fn(secure_headers))
 }
@@ -57,38 +55,6 @@ async fn auth_middleware(req: Request, next: Next) -> impl IntoResponse {
         next.run(req).await.into_response()
     }
 }
-
-// async fn list_sessions() -> impl IntoResponse {
-//     let db_path = "sessions.db";
-//     let pool = match SqlitePool::connect(&format!("sqlite:{}?mode=ro", db_path)).await {
-//         Ok(p) => p,
-//         Err(e) => return (StatusCode::INTERNAL_SERVER_ERROR, format!("DB Connect Error: {}", e)).into_response(),
-//     };
-
-//     let result = sqlx::query("SELECT session_id, app_name, user_id, created_at, updated_at FROM sessions")
-//         .fetch_all(&pool)
-//         .await;
-
-//     match result {
-//         Ok(rows) => {
-//             let sessions: Vec<_> = rows
-//                 .iter()
-//                 .filter(|row| row.get::<String, _>("session_id") != "background_tasks")
-//                 .map(|row| {
-//                     json!({
-//                         "session_id": row.get::<String, _>("session_id"),
-//                         "app_name": row.get::<String, _>("app_name"),
-//                         "user_id": row.get::<String, _>("user_id"),
-//                         "created_at": row.get::<String, _>("created_at"),
-//                         "updated_at": row.get::<String, _>("updated_at"),
-//                     })
-//                 })
-//                 .collect();
-//             Json(sessions).into_response()
-//         }
-//         Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, format!("Query Error: {}", e)).into_response(),
-//     }
-// }
 
 async fn upload_file(mut multipart: Multipart) -> impl IntoResponse {
     let mut uploaded_paths = Vec::new();
