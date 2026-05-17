@@ -2,10 +2,42 @@ import type { Session, AgentContent, AgentEvent } from '../types/chat';
 
 const BASE_URL = import.meta.env.VITE_API_BASE_URL || "";
 
+/**
+ * Gets the current API key from localStorage or environment
+ */
+export const getApiKey = () => {
+  return localStorage.getItem('nami_api_key') || (import.meta.env.VITE_NAMI_API_KEY as string) || "";
+};
+
+/**
+ * Sets the API key in localStorage
+ */
+export const setApiKey = (key: string) => {
+  localStorage.setItem('nami_api_key', key);
+};
+
+/**
+ * Common headers for all API requests
+ */
+export const getHeaders = (extraHeaders: Record<string, string> = {}) => {
+  const headers: Record<string, string> = {
+    ...extraHeaders
+  };
+  
+  const apiKey = getApiKey();
+  if (apiKey) {
+    headers['X-API-Key'] = apiKey;
+  }
+  
+  return headers;
+};
+
 export const api = {
   checkHealth: async (): Promise<boolean> => {
     try {
-      const response = await fetch(`${BASE_URL}/api/health`);
+      const response = await fetch(`${BASE_URL}/api/health`, {
+        headers: getHeaders()
+      });
       return response.ok;
     } catch {
       return false;
@@ -16,7 +48,7 @@ export const api = {
     const sessionId = crypto.randomUUID();
     const response = await fetch(`${BASE_URL}/api/sessions`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: getHeaders({ "Content-Type": "application/json" }),
       body: JSON.stringify({
         appName,
         userId,
@@ -46,7 +78,7 @@ export const api = {
       `${BASE_URL}/api/run/${appName}/${userId}/${sessionId}`,
       {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: getHeaders({ "Content-Type": "application/json" }),
         body: JSON.stringify({
           appName,
           userId,
@@ -100,7 +132,9 @@ export const api = {
   },
 
   readWorkspaceFile: async (path: string): Promise<{ content: string }> => {
-    const response = await fetch(`${BASE_URL}/api/workspace/read/${path}`);
+    const response = await fetch(`${BASE_URL}/api/workspace/read/${path}`, {
+        headers: getHeaders()
+    });
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
       throw new Error(errorData.message || errorData.error || `Failed to read file (${response.status})`);
@@ -114,6 +148,7 @@ export const api = {
 
     const response = await fetch(`${BASE_URL}/api/workspace/upload`, {
       method: "POST",
+      headers: getHeaders(), // Note: fetch will handle Content-Type for FormData
       body: formData,
     });
 
@@ -131,7 +166,9 @@ export const api = {
     const cleanPath = path.replace(/^\/+|\/+$/g, '');
     const url = cleanPath ? `${BASE_URL}/api/workspace/files/${cleanPath}` : `${BASE_URL}/api/workspace/files`;
     
-    const response = await fetch(url);
+    const response = await fetch(url, {
+        headers: getHeaders()
+    });
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
       throw new Error(errorData.message || errorData.error || `Failed to list files (${response.status})`);
@@ -140,7 +177,9 @@ export const api = {
   },
 
   listWikiPages: async (): Promise<{ pages: string[] }> => {
-    const response = await fetch(`${BASE_URL}/api/wiki/pages`);
+    const response = await fetch(`${BASE_URL}/api/wiki/pages`, {
+        headers: getHeaders()
+    });
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
       throw new Error(errorData.message || errorData.error || `Failed to list wiki pages (${response.status})`);
@@ -149,10 +188,23 @@ export const api = {
   },
 
   listSessions: async (): Promise<Array<{session_id: string, app_name: string, user_id: string, created_at: string, updated_at: string}>> => {
-    const response = await fetch(`${BASE_URL}/api/sessions`);
+    const response = await fetch(`${BASE_URL}/api/sessions`, {
+        headers: getHeaders()
+    });
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
       throw new Error(errorData.message || errorData.error || `Failed to list sessions (${response.status})`);
+    }
+    return response.json();
+  },
+
+  getSession: async (sessionId: string): Promise<{ messages: Message[] }> => {
+    const response = await fetch(`${BASE_URL}/api/sessions/${sessionId}`, {
+        headers: getHeaders()
+    });
+    if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.message || errorData.error || `Failed to get session (${response.status})`);
     }
     return response.json();
   },

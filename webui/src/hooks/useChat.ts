@@ -50,6 +50,22 @@ export const useChat = () => {
     fetchSessions();
   }, []);
 
+  useEffect(() => {
+    const fetchSessionMessages = async () => {
+      const thread = threads.find(t => t.id === activeThreadId);
+      if (thread && thread.sessionId && thread.messages.length === 0) {
+        try {
+          const data = await api.getSession(thread.sessionId);
+          updateThreadById(thread.id, t => ({ ...t, messages: data.messages }));
+        } catch (e) {
+          console.error("Failed to load session messages", e);
+          setError("Failed to load chat history.");
+        }
+      }
+    };
+    fetchSessionMessages();
+  }, [activeThreadId, threads, updateThreadById]);
+
   const activeThread = threads.find(t => t.id === activeThreadId) || threads[0];
 
   useEffect(() => {
