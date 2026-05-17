@@ -1,8 +1,17 @@
 use adk_session::SqliteSessionService;
 use inquire::{Password, Select, Text};
+use rand::{distributions::Alphanumeric, Rng};
 use std::fs::File;
 use std::io::Write;
 use termimad::{MadSkin, mad_print_inline};
+
+fn generate_random_key(length: usize) -> String {
+    rand::thread_rng()
+        .sample_iter(&Alphanumeric)
+        .take(length)
+        .map(char::from)
+        .collect()
+}
 
 fn write_file(name: &str, content: &str) -> std::io::Result<()> {
     let mut file = File::create(name)?;
@@ -90,11 +99,16 @@ pub async fn run_init() -> anyhow::Result<()> {
     };
 
     let api_key = if provider != "vertex" {
-        Password::new("Enter LLM API Key:")
+        let input = Password::new("Enter LLM API Key (leave empty for auto-generated):")
             .with_display_mode(inquire::PasswordDisplayMode::Masked)
-            .prompt()?
+            .prompt()?;
+        if input.is_empty() {
+            generate_random_key(32)
+        } else {
+            input
+        }
     } else {
-        String::new()
+        generate_random_key(32)
     };
 
     let (project_id, location) = if provider == "vertex" {

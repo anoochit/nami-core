@@ -3168,6 +3168,7 @@ dependencies = [
  "log",
  "mime_guess",
  "pretty_env_logger",
+ "rand 0.10.1",
  "regex",
  "reqwest 0.13.3",
  "rust-embed",
