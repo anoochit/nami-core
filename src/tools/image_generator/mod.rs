@@ -1,12 +1,12 @@
 use crate::utils::sandbox;
 use adk_rust::prelude::*;
 use adk_rust::serde::Deserialize;
-use base64::{engine::general_purpose, Engine as _};
+use async_trait::async_trait;
+use base64::{Engine as _, engine::general_purpose};
 use futures::StreamExt;
 use schemars::JsonSchema;
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 use std::sync::Arc;
-use async_trait::async_trait;
 
 #[derive(Deserialize, JsonSchema)]
 pub struct ImagenArgs {
@@ -30,7 +30,11 @@ impl Tool for ImageGenerator {
         "Generates a high-quality image from a text prompt."
     }
 
-    async fn execute(&self, _context: Arc<dyn ToolContext>, args: Value) -> std::result::Result<Value, AdkError> {
+    async fn execute(
+        &self,
+        _context: Arc<dyn ToolContext>,
+        args: Value,
+    ) -> std::result::Result<Value, AdkError> {
         let args: ImagenArgs = serde_json::from_value(args)
             .map_err(|e| AdkError::tool(format!("Invalid arguments: {}", e)))?;
 
@@ -39,9 +43,12 @@ impl Tool for ImageGenerator {
         } else {
             let api_key = std::env::var("GOOGLE_API_KEY")
                 .map_err(|_| AdkError::tool("GOOGLE_API_KEY environment variable not set"))?;
-            
-            Arc::new(GeminiModel::new(&api_key, "gemini-2.5-flash-image")
-                .map_err(|e| AdkError::tool(format!("Failed to create Gemini client: {}", e)))?)
+
+            Arc::new(
+                GeminiModel::new(&api_key, "gemini-2.5-flash-image").map_err(|e| {
+                    AdkError::tool(format!("Failed to create Gemini client: {}", e))
+                })?,
+            )
         };
 
         let mut prompt = args.prompt.clone();
@@ -59,13 +66,17 @@ impl Tool for ImageGenerator {
             )
             .await
             .map_err(|e| AdkError::tool(format!("Image generation failed: {}", e)))?;
-        
-        let res = stream.next().await
+
+        let res = stream
+            .next()
+            .await
             .ok_or_else(|| AdkError::tool("No response from image model"))?
             .map_err(|e| AdkError::tool(format!("Image generation failed: {}", e)))?;
 
         // Extract image data from parts
-        let image_bytes = res.content.as_ref()
+        let image_bytes = res
+            .content
+            .as_ref()
             .and_then(|c| {
                 c.parts.iter().find_map(|part| {
                     if let Part::InlineData { mime_type, data } = part {
