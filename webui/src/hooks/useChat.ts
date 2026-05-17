@@ -29,6 +29,7 @@ export const useChat = () => {
     threadsRef.current = threads;
   }, [threads]);
 
+  /*
   useEffect(() => {
     const fetchSessions = async () => {
       try {
@@ -49,6 +50,7 @@ export const useChat = () => {
     };
     fetchSessions();
   }, []);
+  */
 
   const updateThreadById = useCallback((id: string, updater: (thread: Thread) => Thread) => {
     setThreads(prev => prev.map(t => t.id === id ? updater(t) : t));
