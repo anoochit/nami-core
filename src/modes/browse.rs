@@ -3,13 +3,13 @@ use adk_rust::{Agent, Launcher, Llm};
 use axum::{
     body::Body,
     extract::Request,
-    http::{header, Response, StatusCode, Uri},
+    http::{header, Response, StatusCode, Uri, Method},
     middleware::{self, Next},
     response::IntoResponse,
 };
 use rust_embed::RustEmbed;
 use std::sync::Arc;
-use tower_http::cors::{Any, CorsLayer};
+use tower_http::cors::CorsLayer;
 
 #[derive(RustEmbed)]
 #[folder = "webui/dist/"]
@@ -19,13 +19,19 @@ pub(crate) async fn run_browse(
     agent: Arc<dyn Agent>,
     model: Arc<dyn Llm>,
     memory: Arc<dyn adk_rust::Memory>,
+    host: String,
     port: u16,
 ) -> anyhow::Result<()> {
     let base_url =
-        std::env::var("A2A_BASE_URL").unwrap_or_else(|_| format!("http://localhost:{}", port));
+        std::env::var("A2A_BASE_URL").unwrap_or_else(|_| format!("http://{}:{}", host, port));
 
     log::info!("Starting Browse mode on port {}", port);
     log::info!("Embedding WebUI from webui/dist/");
+
+    let cors = CorsLayer::new()
+        .allow_origin(tower_http::cors::Any)
+        .allow_methods([Method::GET, Method::POST, Method::OPTIONS])
+        .allow_headers([header::CONTENT_TYPE, header::HeaderName::from_static("x-api-key")]);
 
     // build_app() returns a router with hardcoded / -> /ui redirect and /ui routes.
     // We intercept these requests using middleware BEFORE they reach the routing table.
@@ -38,14 +44,9 @@ pub(crate) async fn run_browse(
         .merge(crate::modes::api::api_router())
         .fallback(static_handler)
         .layer(middleware::from_fn(intercept_ui))
-        .layer(
-            CorsLayer::new()
-                .allow_origin(Any)
-                .allow_methods(Any)
-                .allow_headers(Any),
-        );
+        .layer(cors);
 
-    let addr = format!("0.0.0.0:{port}");
+    let addr = format!("{}:{}", host, port);
     let listener = tokio::net::TcpListener::bind(&addr).await?;
 
     println!("\nADK Server starting on http://{}", addr);

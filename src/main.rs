@@ -39,17 +39,26 @@ enum Commands {
     /// Start the HTTP server.
     Serve {
         /// Optional port to serve on.
-        port: Option<u16>
+        port: Option<u16>,
+        /// Optional host to listen on (defaults to 127.0.0.1).
+        #[arg(long)]
+        host: Option<String>,
     },
     /// Browse mode with embedded WebUI.
     Browse {
         /// Optional port for the browser UI.
-        port: Option<u16>
+        port: Option<u16>,
+        /// Optional host to listen on (defaults to 127.0.0.1).
+        #[arg(long)]
+        host: Option<String>,
     },
     /// Run the LINE bot mode.
     Line {
         /// Optional port for the LINE webhook server.
-        port: Option<u16>
+        port: Option<u16>,
+        /// Optional host to listen on (defaults to 127.0.0.1).
+        #[arg(long)]
+        host: Option<String>,
     }
 }
 
@@ -158,16 +167,19 @@ async fn main() -> anyhow::Result<()> {
             log::info!("Running in direct run mode");
             modes::run::run_direct(agent, &prompt).await?;
         }
-        Commands::Serve { port } => {
+        Commands::Serve { port, host } => {
             log::info!("Running in serve mode");
-            modes::serve::run_serve(agent, model,deps.sessions.clone(), deps.memory_adapter, port.unwrap_or(8080)).await?;
+            let host = host.unwrap_or_else(|| "127.0.0.1".to_string());
+            modes::serve::run_serve(agent, model, deps.sessions.clone(), deps.memory_adapter, host, port.unwrap_or(8080)).await?;
         }
-        Commands::Browse { port } => {
+        Commands::Browse { port, host } => {
             log::info!("Running in browse mode");
-            modes::browse::run_browse(agent, model, deps.memory_adapter, port.unwrap_or(8080)).await?;
+            let host = host.unwrap_or_else(|| "127.0.0.1".to_string());
+            modes::browse::run_browse(agent, model, deps.memory_adapter, host, port.unwrap_or(8080)).await?;
         }
-        Commands::Line { port } => {
+        Commands::Line { port, host } => {
             log::info!("Running in LINE bot mode");
+            let host = host.unwrap_or_else(|| "127.0.0.1".to_string());
             let runner = Arc::new(AgentRunner::new(
                 agent,
                 deps.sessions.clone(),
@@ -175,7 +187,7 @@ async fn main() -> anyhow::Result<()> {
                 "line",
                 model,
             ));
-            modes::line::run_line(runner, port.unwrap_or(8080)).await?;
+            modes::line::run_line(runner, host, port.unwrap_or(8080)).await?;
         }
         Commands::Init => {
             log::info!("Running initialize mode");

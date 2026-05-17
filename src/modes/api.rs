@@ -1,6 +1,7 @@
 use axum::{
-    extract::{Path, Multipart},
-    http::StatusCode,
+    extract::{Path, Multipart, Request},
+    http::{StatusCode, header::HeaderValue},
+    middleware::{self, Next},
     response::IntoResponse,
     routing::{get, post},
     Json, Router,
@@ -25,6 +26,36 @@ pub fn api_router() -> Router {
         .route("/api/wiki/pages/{*title}", get(read_wiki_page))
         .route("/api/commands", get(get_commands))
         .route("/api/sessions", get(list_sessions))
+        .layer(middleware::from_fn(auth_middleware))
+        .layer(middleware::from_fn(secure_headers))
+}
+
+async fn secure_headers(req: Request, next: Next) -> impl IntoResponse {
+    let mut response = next.run(req).await.into_response();
+    let headers = response.headers_mut();
+    headers.insert("X-Content-Type-Options", HeaderValue::from_static("nosniff"));
+    headers.insert("X-Frame-Options", HeaderValue::from_static("DENY"));
+    headers.insert("X-XSS-Protection", HeaderValue::from_static("1; mode=block"));
+    response
+}
+
+async fn auth_middleware(req: Request, next: Next) -> impl IntoResponse {
+    if let Ok(expected_key) = std::env::var("NAMI_API_KEY") {
+        let provided_key = req.headers()
+            .get("X-API-Key")
+            .and_then(|h| h.to_str().ok());
+
+        if let Some(key) = provided_key {
+            if key == expected_key {
+                return next.run(req).await.into_response();
+            }
+        }
+        
+        (StatusCode::UNAUTHORIZED, "Invalid or missing X-API-Key").into_response()
+    } else {
+        // If NAMI_API_KEY is not set, allow all requests
+        next.run(req).await.into_response()
+    }
 }
 
 async fn list_sessions() -> impl IntoResponse {

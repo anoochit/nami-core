@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { X, FileText, Loader2, AlertCircle } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { api } from '../lib/api';
+import { api, getHeaders } from '../lib/api';
 
 const parseFrontmatter = (content: string) => {
     const match = content.match(/^---\r?\n([\s\S]+?)\r?\n---\r?\n([\s\S]*)$/);
@@ -27,26 +27,51 @@ export const PreviewPane: React.FC<PreviewPaneProps> = ({ path, onClose, isWiki 
   const [content, setContent] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [mediaUrl, setMediaUrl] = useState<string | null>(null);
 
   useEffect(() => {
     if (!path) {
       setContent(null);
+      setMediaUrl(null);
       return;
     }
 
     const fetchContent = async () => {
       setLoading(true);
       setError(null);
+      
+      // Cleanup previous media URL
+      if (mediaUrl) {
+        URL.revokeObjectURL(mediaUrl);
+        setMediaUrl(null);
+      }
+
       try {
+        const ext = path.split('.').pop()?.toLowerCase() || '';
+        const imageExtensions = ['png', 'jpg', 'jpeg', 'gif', 'svg', 'webp'];
+        const videoExtensions = ['mp4', 'webm'];
+        const audioExtensions = ['mp3', 'wav', 'ogg', 'm4a'];
+        
+        const isImage = imageExtensions.includes(ext);
+        const isVideo = videoExtensions.includes(ext);
+        const isAudio = audioExtensions.includes(ext);
+
         if (isWiki) {
-           const response = await fetch(`/api/wiki/pages/${path}`);
+           const response = await fetch(`/api/wiki/pages/${path}`, {
+               headers: getHeaders()
+           });
            if (!response.ok) throw new Error('Failed to load wiki page');
            const data = await response.json();
            setContent(data.content);
         } else if (isImage || isVideo || isAudio) {
-           // For binary files, we don't 'fetch' content state here, 
-           // we just set the URL in the img/video/audio elements below.
-           setContent(""); 
+           const response = await fetch(`/api/workspace/read-binary/${path}`, {
+               headers: getHeaders()
+           });
+           if (!response.ok) throw new Error('Failed to load media');
+           const blob = await response.blob();
+           const url = URL.createObjectURL(blob);
+           setMediaUrl(url);
+           setContent(""); // Signal that we have media
         } else {
            const data = await api.readWorkspaceFile(path);
            setContent(data.content);
@@ -59,6 +84,10 @@ export const PreviewPane: React.FC<PreviewPaneProps> = ({ path, onClose, isWiki 
     };
 
     fetchContent();
+
+    return () => {
+        if (mediaUrl) URL.revokeObjectURL(mediaUrl);
+    };
   }, [path, isWiki]);
 
   if (!path) return null;
@@ -129,14 +158,14 @@ export const PreviewPane: React.FC<PreviewPaneProps> = ({ path, onClose, isWiki 
               <p className="text-sm opacity-80">{error}</p>
             </div>
           </div>
-        ) : content !== null ? (
+        ) : (content !== null || mediaUrl !== null) ? (
           <div className="prose prose-sm max-w-none prose-pre:bg-gray-900 prose-pre:text-gray-100 h-full">
-            {isImage ? (
-              <img src={`/api/workspace/read-binary/${path}`} alt={path} className="max-w-full" />
-            ) : isVideo ? (
-              <video controls src={`/api/workspace/read-binary/${path}`} className="max-w-full" />
-            ) : isAudio ? (
-              <audio controls src={`/api/workspace/read-binary/${path}`} className="w-full" />
+            {isImage && mediaUrl ? (
+              <img src={mediaUrl} alt={path} className="max-w-full" />
+            ) : isVideo && mediaUrl ? (
+              <video controls src={mediaUrl} className="max-w-full" />
+            ) : isAudio && mediaUrl ? (
+              <audio controls src={mediaUrl} className="w-full" />
             ) : isHtml ? (
               <iframe srcDoc={content || ''} title="HTML Preview" className="w-full h-full border-none" />
             ) : (

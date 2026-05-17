@@ -161,26 +161,34 @@ async fn process_file_references(input: &str) -> String {
 
         seen_files.insert(file_path_str.to_string());
 
-        let workspace_path = std::path::Path::new("workspace");
-        let path = workspace_path.join(file_path_str);
+        // Use the sandbox utility for security
+        match crate::utils::sandbox(file_path_str).await {
+            Ok(path) => {
+                if path.exists() && path.is_file() {
+                    if let Ok(metadata) = std::fs::metadata(&path) {
+                        let size = metadata.len();
 
-        if path.exists()
-            && path.is_file()
-            && let Ok(metadata) = std::fs::metadata(&path)
-        {
-            let size = metadata.len();
-
-            if size < 4096 {
-                if let Ok(content) = tokio::fs::read_to_string(&path).await {
-                    appended_context.push_str(&format!(
-                        "\n\n--- Content from {} ---\n{}\n--- End ---\n",
-                        file_path_str, content
-                    ));
+                        if size < 4096 {
+                            if let Ok(content) = tokio::fs::read_to_string(&path).await {
+                                appended_context.push_str(&format!(
+                                    "\n\n--- Content from {} ---\n{}\n--- End ---\n",
+                                    file_path_str, content
+                                ));
+                            }
+                        } else {
+                            appended_context.push_str(&format!(
+                                "\n\n[REFERENCE: {} ({size} bytes)]\nUse filesystem tools.\n",
+                                file_path_str
+                            ));
+                        }
+                    }
                 }
-            } else {
+            }
+            Err(e) => {
+                log::warn!("Security check failed for file reference '@{}': {}", file_path_str, e);
                 appended_context.push_str(&format!(
-                    "\n\n[REFERENCE: {} ({size} bytes)]\nUse filesystem tools.\n",
-                    file_path_str
+                    "\n\n[ERROR: Reference '@{}' access denied: {}]\n",
+                    file_path_str, e
                 ));
             }
         }
@@ -408,6 +416,7 @@ async fn handle_slash_command(
     trimmed: &str,
     runner: &mut Runner,
     sessions: &Arc<dyn SessionService>,
+    app_name: &str,
     user_id: &str,
     session_id: &mut String,
     nami_skin: &MadSkin,
@@ -447,7 +456,7 @@ async fn handle_slash_command(
 
         "/new" => {
             let session_id_new = Uuid::new_v4().to_string();
-            ensure_session(sessions, "nami", user_id, &session_id_new).await?;
+            ensure_session(sessions, app_name, user_id, &session_id_new).await?;
 
             execute!(
                 io::stdout(),
@@ -592,6 +601,7 @@ pub(crate) async fn run_cli(
                         trimmed,
                         &mut runner,
                         &sessions,
+                        app_name,
                         user_id,
                         &mut session_id,
                         &nami_skin,

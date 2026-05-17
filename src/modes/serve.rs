@@ -4,6 +4,7 @@ use adk_rust::Launcher;
 use adk_rust::Llm;
 use adk_session::SessionService;
 use std::sync::Arc;
+use axum::http::{header, Method};
 use tower_http::cors::CorsLayer;
 use axum::{routing::get, response::Redirect, Router};
 
@@ -12,10 +13,16 @@ pub(crate) async fn run_serve(
     model: Arc<dyn Llm>,
     session:  Arc<dyn SessionService>,
     memory: Arc<dyn adk_rust::Memory>,
+    host: String,
     port: u16,
 ) -> anyhow::Result<()> {
     let base_url =
-        std::env::var("A2A_BASE_URL").unwrap_or_else(|_| format!("http://localhost:{}", port));
+        std::env::var("A2A_BASE_URL").unwrap_or_else(|_| format!("http://{}:{}", host, port));
+
+    let cors = CorsLayer::new()
+        .allow_origin(tower_http::cors::Any)
+        .allow_methods([Method::GET, Method::POST, Method::OPTIONS])
+        .allow_headers([header::CONTENT_TYPE, header::HeaderName::from_static("x-api-key")]);
 
     let app = Launcher::new(agent)
         .app_name("serve")
@@ -28,9 +35,9 @@ pub(crate) async fn run_serve(
         .merge(Router::new().route("/.well-known/agent-card.json", get(|| async {
             Redirect::temporary("/.well-known/agent.json")
         })))
-        .layer(CorsLayer::permissive());
+        .layer(cors);
 
-    let addr = format!("0.0.0.0:{port}");
+    let addr = format!("{}:{}", host, port);
     let listener = tokio::net::TcpListener::bind(&addr).await?;
     println!("ADK Server starting on http://{}", addr);
     println!("Press Ctrl+C to stop\n");

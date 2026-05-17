@@ -25,6 +25,7 @@ struct AppState {
 
 pub async fn run_line(
     runner: Arc<AgentRunner>,
+    host: String,
     port: u16,
 ) -> anyhow::Result<()> {
     let channel_secret = std::env::var("LINE_CHANNEL_SECRET")
@@ -43,7 +44,7 @@ pub async fn run_line(
         .route("/callback", post(handle_callback))
         .with_state(state);
 
-    let addr = format!("0.0.0.0:{}", port);
+    let addr = format!("{}:{}", host, port);
     let listener = tokio::net::TcpListener::bind(&addr).await?;
     println!("LINE Bot Webhook server starting on http://{}", addr);
     println!("Press Ctrl+C to stop\n");

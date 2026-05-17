@@ -1,3 +1,5 @@
+import { getHeaders } from './api';
+
 export interface CommandDefinition {
   name: string;
   template: string; // The backend-ready prompt string with {args} placeholder
@@ -8,7 +10,9 @@ let registry: CommandDefinition[] = [];
 
 export async function loadCommands(): Promise<void> {
   try {
-    const response = await fetch('/api/commands');
+    const response = await fetch('/api/commands', {
+        headers: getHeaders()
+    });
     if (!response.ok) throw new Error('Failed to fetch commands');
     
     const data: Record<string, { template: string, help: string }> = await response.json();
