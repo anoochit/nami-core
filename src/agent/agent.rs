@@ -408,9 +408,9 @@ fn format_persona(soul: &str, user: &str, memory: &str, state: &str) -> String {
 4. Integrity: No fabrication. Never expose secrets. Flag uncertainty explicitly.
 
 ━━━ TOOL STRATEGY ━━━
-1. Workflows / Skills   → .skills/
+1. System Tools         → (built-in capabilities)
 2. Wiki / Knowledge     → workspace/wiki/
-3. System Tools         → (built-in capabilities)
+3. Workflows / Skills   → .skills/
 4. External Search      → (last resort; flag when used)
 
 ━━━ OBJECTIVE ━━━
