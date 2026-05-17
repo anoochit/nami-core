@@ -1,17 +1,8 @@
 use adk_session::SqliteSessionService;
 use inquire::{Password, Select, Text};
-use rand::{distributions::Alphanumeric, Rng};
 use std::fs::File;
 use std::io::Write;
 use termimad::{MadSkin, mad_print_inline};
-
-fn generate_random_key(length: usize) -> String {
-    rand::thread_rng()
-        .sample_iter(&Alphanumeric)
-        .take(length)
-        .map(char::from)
-        .collect()
-}
 
 fn write_file(name: &str, content: &str) -> std::io::Result<()> {
     let mut file = File::create(name)?;
@@ -99,16 +90,11 @@ pub async fn run_init() -> anyhow::Result<()> {
     };
 
     let api_key = if provider != "vertex" {
-        let input = Password::new("Enter LLM API Key (leave empty for auto-generated):")
+        Password::new("Enter LLM API Key:")
             .with_display_mode(inquire::PasswordDisplayMode::Masked)
-            .prompt()?;
-        if input.is_empty() {
-            generate_random_key(32)
-        } else {
-            input
-        }
+            .prompt()?
     } else {
-        generate_random_key(32)
+        String::new()
     };
 
     let (project_id, location) = if provider == "vertex" {
@@ -153,6 +139,12 @@ pub async fn run_init() -> anyhow::Result<()> {
     // --- 4. Observability Configuration ---
     skin.print_text("\n### 4. Observability Configuration\n");
     let otel_collector = Text::new("Enter OTEL_COLLECTOR URL (e.g., http://localhost:4317) (optional):")
+        .prompt()?;
+
+    // --- 5. Nami API Configuration ---
+    skin.print_text("\n### 5. Nami API Configuration\n");
+    let nami_api_key = Password::new("Enter Nami API Key (optional):")
+        .with_display_mode(inquire::PasswordDisplayMode::Masked)
         .prompt()?;
 
     // --- File Generation ---
@@ -246,13 +238,13 @@ enabled = false
     // 2. .env
     let env_content = format!(
         r#"{api_key_env}={api_key}
-NAMI_API_KEY={api_key}
-VITE_NAMI_API_KEY={api_key}
 TELOXIDE_TOKEN={telegram_key}
 LINE_CHANNEL_SECRET={line_secret}
 LINE_CHANNEL_ACCESS_TOKEN={line_token}
 SERPER_API_KEY={serper_api_key}
 OTEL_COLLECTOR={otel_collector}
+NAMI_API_KEY={nami_api_key}
+VITE_NAMI_API_KEY={nami_api_key}
 "#
     );
     write_file(".env", &env_content)?;
