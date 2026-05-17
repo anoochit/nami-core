@@ -21,13 +21,37 @@ export default defineConfig({
             if (id.includes('recharts') || id.includes('d3')) {
               return 'recharts-vendor';
             }
-            if (id.includes('react-markdown') || id.includes('remark') || id.includes('micromark') || id.includes('unist') || id.includes('vfile') || id.includes('property-information') || id.includes('space-separated-tokens') || id.includes('comma-separated-tokens') || id.includes('hast')) {
+            if (
+              id.includes('react-markdown') || 
+              id.includes('remark') || 
+              id.includes('rehype') || 
+              id.includes('micromark') || 
+              id.includes('unist') || 
+              id.includes('vfile') || 
+              id.includes('hast') || 
+              id.includes('mdast') ||
+              id.includes('unified') ||
+              id.includes('property-information') || 
+              id.includes('space-separated-tokens') || 
+              id.includes('comma-separated-tokens')
+            ) {
               return 'markdown-vendor';
             }
             if (id.includes('lucide-react')) {
               return 'lucide-vendor';
             }
-            if (id.includes('radix-ui') || id.includes('@radix-ui') || id.includes('@base-ui')) {
+            if (
+              id.includes('radix-ui') || 
+              id.includes('@radix-ui') || 
+              id.includes('@base-ui') ||
+              id.includes('cmdk') ||
+              id.includes('embla-carousel') ||
+              id.includes('vaul') ||
+              id.includes('sonner') ||
+              id.includes('input-otp') ||
+              id.includes('react-day-picker') ||
+              id.includes('react-resizable-panels')
+            ) {
               return 'ui-vendor';
             }
             return 'vendor';
