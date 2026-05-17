@@ -50,6 +50,10 @@ export const useChat = () => {
     fetchSessions();
   }, []);
 
+  const updateThreadById = useCallback((id: string, updater: (thread: Thread) => Thread) => {
+    setThreads(prev => prev.map(t => t.id === id ? updater(t) : t));
+  }, []);
+
   useEffect(() => {
     const fetchSessionMessages = async () => {
       const thread = threads.find(t => t.id === activeThreadId);
@@ -70,28 +74,24 @@ export const useChat = () => {
 
   useEffect(() => {
     const initActiveThreadSession = async () => {
-      if (activeThread && !activeThread.sessionId) {
-        try {
-          const session = await api.createSession('nami', 'user1');
-          setThreads(prev => prev.map(t => 
-            t.id === activeThreadId ? { ...t, sessionId: session.session_id } : t
-          ));
-        } catch (e) {
-          console.error("Failed to initialize session on load", e);
-        }
+    if (activeThread && !activeThread.sessionId) {
+      try {
+        const session = await api.createSession('nami', 'user1');
+        setThreads(prev => prev.map(t => 
+          t.id === activeThreadId ? { ...t, sessionId: session.session_id } : t
+        ));
+      } catch (e) {
+        console.error("Failed to initialize session on load", e);
       }
-    };
-    initActiveThreadSession();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeThreadId]); 
+    }
+  };
+  initActiveThreadSession();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+}, [activeThreadId]); 
 
-  const updateThreadById = useCallback((id: string, updater: (thread: Thread) => Thread) => {
-    setThreads(prev => prev.map(t => t.id === id ? updater(t) : t));
-  }, []);
-
-  const updateActiveThread = useCallback((updater: (thread: Thread) => Thread) => {
-    updateThreadById(activeThreadId, updater);
-  }, [activeThreadId, updateThreadById]);
+const updateActiveThread = useCallback((updater: (thread: Thread) => Thread) => {
+  updateThreadById(activeThreadId, updater);
+}, [activeThreadId, updateThreadById]);
 
   const addAttachments = async (files: FileList | File[]) => {
     const newAttachments: Attachment[] = Array.from(files).map(file => ({
