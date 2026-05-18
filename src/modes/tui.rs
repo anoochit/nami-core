@@ -40,6 +40,7 @@ enum MessageRole {
 struct Message {
     role: MessageRole,
     content: String,
+    rendered_lines: Vec<Line<'static>>,
 }
 
 struct App<'a> {
@@ -48,6 +49,7 @@ struct App<'a> {
     list_state: ListState,
     is_thinking: bool,
     session_id: String,
+    last_width: usize,
     history: Vec<String>,
     history_index: Option<usize>,
 }
@@ -60,6 +62,7 @@ impl<'a> App<'a> {
             list_state: ListState::default(),
             is_thinking: false,
             session_id,
+            last_width: 0,
             history: Vec::new(),
             history_index: None,
         }
@@ -69,9 +72,13 @@ impl<'a> App<'a> {
         self.messages.push(Message {
             role,
             content,
+            rendered_lines: Vec::new(),
         });
         let len = self.messages.len();
         if len > 0 {
+            if self.last_width > 0 {
+                self.render_message(len - 1, self.last_width);
+            }
             // Auto-scroll to bottom on new message
             self.list_state.select(Some(len - 1));
         }
@@ -81,12 +88,84 @@ impl<'a> App<'a> {
         if let Some(last) = self.messages.last_mut() {
             if matches!(last.role, MessageRole::Assistant) {
                 last.content.push_str(chunk);
+                if self.last_width > 0 {
+                    let idx = self.messages.len() - 1;
+                    self.render_message(idx, self.last_width);
+                }
                 // Auto-scroll to bottom while streaming
                 self.list_state.select(Some(self.messages.len() - 1));
                 return;
             }
         }
         self.add_message(MessageRole::Assistant, chunk.to_string());
+    }
+
+    fn render_message(&mut self, index: usize, width: usize) {
+        if let Some(m) = self.messages.get_mut(index) {
+            let (role_text, color) = match m.role {
+                MessageRole::User => ("\n🧔 You > ", Color::Cyan),
+                MessageRole::Assistant => ("\n🤖 Nami > ", Color::Magenta),
+                MessageRole::System => ("\n📢 System > ", Color::Yellow),
+                MessageRole::ToolCall => ("\n🔨 Calling > ", Color::Blue),
+                MessageRole::ToolResponse => ("\n✅ Response > ", Color::DarkGray),
+            };
+
+            let mut lines = Vec::new();
+
+            // Role header
+            lines.push(Line::from(vec![Span::styled(
+                role_text,
+                Style::default().fg(color).add_modifier(Modifier::BOLD),
+            )]));
+
+            // Gap
+            lines.push(Line::from(""));
+
+            // Markdown content using Termimad for table support
+            let skin = termimad::MadSkin::default();
+            // Subtract a bit for indentation and borders
+            let content_width = width.saturating_sub(4);
+            let text = skin.text(&m.content, Some(content_width));
+
+            for line in text.lines {
+                let mut spans = vec![Span::raw("  ")]; // Indentation
+                match line {
+                    termimad::FmtLine::Normal(composite) => {
+                        render_composite(&mut spans, &composite, &skin);
+                    }
+                    termimad::FmtLine::TableRow(row) => {
+                        spans.push(Span::raw("|"));
+                        for cell in row.cells {
+                            render_composite(&mut spans, &cell, &skin);
+                            spans.push(Span::raw("|"));
+                        }
+                    }
+                    termimad::FmtLine::TableRule(rule) => {
+                        let mut s = String::from("+");
+                        for &w in &rule.widths {
+                            s.push_str(&"-".repeat(w));
+                            s.push('+');
+                        }
+                        spans.push(Span::raw(s));
+                    }
+                    termimad::FmtLine::HorizontalRule => {
+                        spans.push(Span::raw("-".repeat(content_width)));
+                    }
+                }
+                lines.push(Line::from(spans));
+            }
+
+            // End gap
+            lines.push(Line::from(""));
+            m.rendered_lines = lines;
+        }
+    }
+
+    fn re_render_all(&mut self, width: usize) {
+        self.last_width = width;
+        for i in 0..self.messages.len() {
+            self.render_message(i, width);
+        }
     }
 
     fn scroll_down(&mut self) {
@@ -113,6 +192,88 @@ impl<'a> App<'a> {
             None => 0,
         };
         self.list_state.select(Some(i));
+    }
+}
+
+fn render_composite(spans: &mut Vec<Span<'static>>, composite: &termimad::FmtComposite<'_>, skin: &termimad::MadSkin) {
+    let mut current_width = 0;
+    
+    let mut base_style = Style::default();
+    match composite.kind {
+        termimad::CompositeKind::Header(level) => {
+            if let Some(h) = skin.headers.get(level as usize - 1) {
+                apply_compound_style(&mut base_style, &h.compound_style);
+            }
+        }
+        termimad::CompositeKind::Code => {
+            apply_compound_style(&mut base_style, &skin.code_block.compound_style);
+        }
+        termimad::CompositeKind::Quote => {
+            apply_compound_style(&mut base_style, &skin.paragraph.compound_style);
+        }
+        _ => {
+            apply_compound_style(&mut base_style, &skin.paragraph.compound_style);
+        }
+    }
+
+    for compound in &composite.compounds {
+        let mut style = base_style;
+        if compound.bold {
+            style = style.add_modifier(Modifier::BOLD);
+        }
+        if compound.italic {
+            style = style.add_modifier(Modifier::ITALIC);
+        }
+        if compound.strikeout {
+            style = style.add_modifier(Modifier::CROSSED_OUT);
+        }
+        if compound.code {
+            apply_compound_style(&mut style, &skin.inline_code);
+        }
+
+        let text = compound.src.to_string();
+        current_width += text.chars().count();
+        spans.push(Span::styled(text, style));
+    }
+
+    if let Some(spacing) = &composite.spacing {
+        if spacing.width > current_width {
+            let padding = " ".repeat(spacing.width - current_width);
+            spans.push(Span::styled(padding, base_style));
+        }
+    }
+}
+
+fn apply_compound_style(style: &mut Style, c_style: &termimad::CompoundStyle) {
+    if let Some(fg) = c_style.get_fg() {
+        *style = style.fg(map_termimad_color(fg));
+    }
+    if let Some(bg) = c_style.get_bg() {
+        *style = style.bg(map_termimad_color(bg));
+    }
+}
+
+fn map_termimad_color(c: crossterm::style::Color) -> Color {
+    match c {
+        crossterm::style::Color::Reset => Color::Reset,
+        crossterm::style::Color::Black => Color::Black,
+        crossterm::style::Color::DarkGrey => Color::DarkGray,
+        crossterm::style::Color::Red => Color::LightRed,
+        crossterm::style::Color::DarkRed => Color::Red,
+        crossterm::style::Color::Green => Color::LightGreen,
+        crossterm::style::Color::DarkGreen => Color::Green,
+        crossterm::style::Color::Yellow => Color::LightYellow,
+        crossterm::style::Color::DarkYellow => Color::Yellow,
+        crossterm::style::Color::Blue => Color::LightBlue,
+        crossterm::style::Color::DarkBlue => Color::Blue,
+        crossterm::style::Color::Magenta => Color::LightMagenta,
+        crossterm::style::Color::DarkMagenta => Color::Magenta,
+        crossterm::style::Color::Cyan => Color::LightCyan,
+        crossterm::style::Color::DarkCyan => Color::Cyan,
+        crossterm::style::Color::White => Color::White,
+        crossterm::style::Color::Grey => Color::Gray,
+        crossterm::style::Color::Rgb { r, g, b } => Color::Rgb(r, g, b),
+        crossterm::style::Color::AnsiValue(v) => Color::Indexed(v),
     }
 }
 
@@ -488,43 +649,15 @@ fn ui(f: &mut Frame, app: &mut App, workspace: &str, branch: &str, model: &str) 
     f.render_widget(header, chunks[0]);
 
     // --- Messages ---
+    let list_width = chunks[1].width as usize;
+    if app.last_width != list_width {
+        app.re_render_all(list_width);
+    }
+
     let messages: Vec<ListItem> = app
         .messages
         .iter()
-        .map(|m| {
-            let (role_text, color) = match m.role {
-                MessageRole::User => ("\n🧔 You > ", Color::Cyan),
-                MessageRole::Assistant => ("\n🤖 Nami > ", Color::Magenta),
-                MessageRole::System => ("\n⚙️ System > ", Color::Yellow),
-                MessageRole::ToolCall => ("\n🔨 Calling > ", Color::Blue),
-                MessageRole::ToolResponse => ("\n✅ Response > ", Color::DarkGray),
-            };
-
-            let mut lines = Vec::new();
-
-            // Role header
-            lines.push(Line::from(vec![Span::styled(
-                role_text,
-                Style::default().fg(color).add_modifier(Modifier::BOLD),
-            )]));
-
-            // Gap
-            lines.push(Line::from(""));
-
-            // Markdown content
-            let md = tui_markdown::from_str(&m.content);
-            for line in md.lines {
-                // Add simple indentation
-                let mut spans = vec![Span::raw("  ")];
-                spans.extend(line.spans);
-                lines.push(Line::from(spans));
-            }
-
-            // End gap
-            lines.push(Line::from(""));
-
-            ListItem::new(lines)
-        })
+        .map(|m| ListItem::new(m.rendered_lines.clone()))
         .collect();
 
     let messages_list =
