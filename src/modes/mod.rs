@@ -14,3 +14,4 @@ pub mod ui_utils;
 pub mod line;
 pub mod startup;
 pub mod scheduler;
+pub mod tui;

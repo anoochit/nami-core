@@ -24,34 +24,28 @@ use adk_session::{CreateRequest, GetRequest, SessionService};
 
 struct NamiHelper;
 
-fn render_help(registry: &CommandRegistry) {
-    println!("{}", style::style("Available Commands:").yellow().bold());
+pub fn render_help(registry: &CommandRegistry) -> String {
+    let mut help = String::new();
+    help.push_str("Available Commands\n\n");
     
     // Render static commands
-    println!("{}  Show commands", style::style("/?").cyan().bold());
-    println!("{}  Quit", style::style("/exit").cyan().bold());
-    println!("{}  Clear screen", style::style("/clear").cyan().bold());
-    println!("{}  New session", style::style("/new").cyan().bold());
-    println!("{}  List active tasks", style::style("/tasks").cyan().bold());
-    println!("{}  Agent status", style::style("/status").cyan().bold());
-    println!("{}  CLI version", style::style("/version").cyan().bold());
+    help.push_str("- /exit: Quit\n");
+    help.push_str("- /clear: Clear screen\n");
+    help.push_str("- /new: New session\n");
+    help.push_str("- /tasks: List active tasks\n");
+    help.push_str("- /status: Agent status\n");
+    help.push_str("- /version: CLI version\n");
 
     // Render dynamic commands from registry
-    println!("\n{}", style::style("Custom Commands:").magenta().bold());
+    help.push_str("\nCustom Commands\n\n");
     let mut commands: Vec<_> = registry.commands.iter().collect();
     commands.sort_by(|a, b| a.0.cmp(b.0));
     for (name, cmd) in commands {
-        println!("{}  {}", style::style(name).cyan().bold(), cmd.help);
+        help.push_str(&format!("- {}: {}\n", name, cmd.help));
     }
 
-    println!(
-        r#"
-Examples:
-  /plan Build AI research system
-  /wiki Rust async traits
-  /memo User prefers concise output
-"#
-    );
+    help.push_str("\nExamples:\n  /plan Build AI research system\n  /wiki Rust async traits\n  /memo User prefers concise output\n");
+    help
 }
 
 
@@ -412,7 +406,7 @@ fn print_status_line(stdout: &mut io::Stdout, text: &str) -> io::Result<()> {
     Ok(())
 }
 
-async fn handle_slash_command(
+pub(crate) async fn handle_slash_command(
     trimmed: &str,
     runner: &mut Runner,
     sessions: &Arc<dyn SessionService>,
@@ -437,7 +431,7 @@ async fn handle_slash_command(
     // Fallback to static commands
     match trimmed {
         "/?" => {
-            render_help(registry);
+            println!("{}", render_help(registry));
         }
 
         "/exit" | "/quit" => {

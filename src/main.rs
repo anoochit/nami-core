@@ -29,6 +29,8 @@ enum Commands {
     Bot,
     /// Run the interactive CLI mode.
     Cli,
+    /// Run the interactive TUI mode (Ratatui).
+    Tui,
     /// Initialize the project configuration and database.
     Init,
     /// Execute a prompt directly and exit.
@@ -162,6 +164,10 @@ async fn main() -> anyhow::Result<()> {
         Commands::Cli => {
             log::info!("Running in CLI mode");
             modes::cli::run_cli(agent, deps.sessions, model, provider, model_name).await?;
+        }
+        Commands::Tui => {
+            log::info!("Running in TUI mode");
+            modes::tui::run_tui(agent, deps.sessions, deps.memory_adapter, model, provider, model_name).await?;
         }
         Commands::Run { prompt } => {
             log::info!("Running in direct run mode");
