@@ -507,6 +507,11 @@ async fn run_app<B: Backend>(
                                                             crate::modes::cli::ensure_session(&sessions, "tui", user_id, &app.session_id).await?;
                                                             continue;
                                                         }
+                                                        "/clear" => {
+                                                            app.messages.clear();
+                                                            app.list_state.select(None);
+                                                            continue;
+                                                        }
                                                         "/?" => {
                                                             let help = crate::modes::cli::render_help(&registry);
                                                             app.add_message(MessageRole::System, help);
