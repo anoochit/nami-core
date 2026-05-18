@@ -8,6 +8,28 @@ pub mod ignore;
 
 const WORKSPACE_NAME: &str = "workspace";
 
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum ErrorCategory {
+    Transient, // Retryable (e.g., rate limits, timeouts)
+    Fatal,     // Non-retryable (e.g., authentication, bad schema)
+}
+
+/// Categorizes an error based on its content to determine if it's transient and retryable.
+pub fn categorize_error(e: &anyhow::Error) -> ErrorCategory {
+    let err_str = e.to_string().to_lowercase();
+    if err_str.contains("rate_limited") || 
+       err_str.contains("429") || 
+       err_str.contains("timeout") ||
+       err_str.contains("408") ||
+       err_str.contains("503") ||
+       err_str.contains("529") ||
+       (err_str.contains("400") && err_str.contains("number of function response parts")) {
+        ErrorCategory::Transient
+    } else {
+        ErrorCategory::Fatal
+    }
+}
+
 /// Returns a clean, user-friendly error message by stripping technical details and parsing JSON.
 pub fn clean_error_message(e: impl std::fmt::Display) -> String {
     let err_str = e.to_string();

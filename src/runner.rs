@@ -1,6 +1,8 @@
 use crate::agent::get_compaction_config;
+use crate::utils::{categorize_error, ErrorCategory};
 use futures::StreamExt;
 use std::sync::Arc;
+use tokio::time::{sleep, Duration};
 
 use adk_rust::prelude::*;
 use adk_session::{CreateRequest, GetRequest, SessionService};
@@ -34,6 +36,29 @@ impl AgentRunner {
 
     /// Executes a single input within a session, returning the agent's response.
     pub async fn run(
+        &self,
+        user_id: &str,
+        session_id: &str,
+        input: &str,
+    ) -> anyhow::Result<String> {
+        let mut retries = 3;
+        let mut delay = Duration::from_secs(1);
+
+        loop {
+            match self.execute_once(user_id, session_id, input).await {
+                Ok(response) => return Ok(response),
+                Err(e) if retries > 0 && categorize_error(&e) == ErrorCategory::Transient => {
+                    log::warn!("Transient error encountered (retries left: {}): {}", retries, e);
+                    sleep(delay).await;
+                    retries -= 1;
+                    delay *= 2;
+                }
+                Err(e) => return Err(e),
+            }
+        }
+    }
+
+    async fn execute_once(
         &self,
         user_id: &str,
         session_id: &str,
@@ -79,24 +104,6 @@ impl AgentRunner {
         while let Some(result) = stream.next().await {
             let event = match result {
                 Ok(event) => event,
-                Err(e) if e.to_string().contains("400") && e.to_string().contains("number of function response parts") => {
-                    return Ok(
-                        "⚠️ Tool response error: The model had trouble processing parallel responses. Please try again, or use /clear to reset the conversation."
-                            .to_string(),
-                    );
-                }
-                Err(e) if e.to_string().contains("400 Bad Request") => {
-                    return Ok(
-                        "⚠️ Context limit reached. Please use /clear to reset the conversation."
-                            .to_string(),
-                    );
-                }
-                Err(e)
-                    if e.to_string().contains("decoding response body")
-                        || e.to_string().contains("stream read error") =>
-                {
-                    return Ok("⚠️ Stream error occurred. Please try again or use /clear if the issue persists.".to_string());
-                }
                 Err(e) => return Err(e.into()),
             };
 
