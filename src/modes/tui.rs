@@ -2,24 +2,22 @@ use adk_rust::Agent;
 use adk_rust::prelude::*;
 use adk_session::SessionService;
 use crossterm::{
-    event::{
-        self, DisableBracketedPaste, EnableBracketedPaste,
-        Event, KeyCode, KeyEventKind,
-    },
+    event::{ self, DisableBracketedPaste, EnableBracketedPaste, Event, KeyCode, KeyEventKind },
     execute,
-    terminal::{EnterAlternateScreen, LeaveAlternateScreen, disable_raw_mode, enable_raw_mode},
+    terminal::{ EnterAlternateScreen, LeaveAlternateScreen, disable_raw_mode, enable_raw_mode },
 };
 use futures::StreamExt;
 use futures::stream::BoxStream;
 use ratatui::{
-    Frame, Terminal,
-    backend::{Backend, CrosstermBackend},
-    layout::{Constraint, Direction, Layout},
-    style::{Color, Modifier, Style},
-    text::{Line, Span},
-    widgets::{Block, Borders, List, ListItem, ListState, Padding, Paragraph},
+    Frame,
+    Terminal,
+    backend::{ Backend, CrosstermBackend },
+    layout::{ Constraint, Direction, Layout },
+    style::{ Color, Modifier, Style },
+    text::{ Line, Span },
+    widgets::{ Block, Borders, List, ListItem, ListState, Padding, Paragraph },
 };
-use rustyline::{Config, Editor, history::FileHistory};
+use rustyline::{ Config, Editor, history::FileHistory };
 use std::io;
 use std::sync::Arc;
 use tokio::sync::mpsc;
@@ -135,10 +133,16 @@ impl<'a> App<'a> {
             let mut lines = Vec::new();
 
             // Role header
-            lines.push(Line::from(vec![Span::styled(
-                role_text,
-                Style::default().fg(color).add_modifier(Modifier::BOLD),
-            )]));
+            lines.push(
+                Line::from(
+                    vec![
+                        Span::styled(
+                            role_text,
+                            Style::default().fg(color).add_modifier(Modifier::BOLD)
+                        )
+                    ]
+                )
+            );
 
             // Gap
             lines.push(Line::from(""));
@@ -217,13 +221,17 @@ impl<'a> App<'a> {
     }
 }
 
-fn render_composite(spans: &mut Vec<Span<'static>>, composite: &termimad::FmtComposite<'_>, skin: &termimad::MadSkin) {
+fn render_composite(
+    spans: &mut Vec<Span<'static>>,
+    composite: &termimad::FmtComposite<'_>,
+    skin: &termimad::MadSkin
+) {
     let mut current_width = 0;
-    
+
     let mut base_style = Style::default();
     match composite.kind {
         termimad::CompositeKind::Header(level) => {
-            if let Some(h) = skin.headers.get(level as usize - 1) {
+            if let Some(h) = skin.headers.get((level as usize) - 1) {
                 apply_compound_style(&mut base_style, &h.compound_style);
             }
         }
@@ -309,16 +317,12 @@ pub(crate) async fn run_tui(
     memory: Arc<dyn adk_rust::Memory>,
     model: Arc<dyn Llm>,
     provider: String,
-    model_name: String,
+    model_name: String
 ) -> anyhow::Result<()> {
     // Setup terminal
     enable_raw_mode()?;
     let mut stdout = io::stdout();
-    execute!(
-        stdout,
-        EnterAlternateScreen,
-        EnableBracketedPaste
-    )?;
+    execute!(stdout, EnterAlternateScreen, EnableBracketedPaste)?;
     let backend = CrosstermBackend::new(stdout);
     let mut terminal = Terminal::new(backend)?;
 
@@ -327,7 +331,8 @@ pub(crate) async fn run_tui(
     let session_id = Uuid::new_v4().to_string();
 
     let workspace = std::env::current_dir()?.to_string_lossy().to_string();
-    let branch = std::process::Command::new("git")
+    let branch = std::process::Command
+        ::new("git")
         .args(["rev-parse", "--abbrev-ref", "HEAD"])
         .output()
         .map(|o| String::from_utf8_lossy(&o.stdout).trim().to_string())
@@ -347,12 +352,7 @@ pub(crate) async fn run_tui(
     let mut app = App::new(session_id.clone());
     app.add_message(
         MessageRole::System,
-        format!(
-            "Nami TUI v{} ({} using {})",
-            env!("CARGO_PKG_VERSION"),
-            provider,
-            model_name
-        ),
+        format!("Nami TUI v{} ({} using {})", env!("CARGO_PKG_VERSION"), provider, model_name)
     );
 
     let (tx, mut rx) = mpsc::channel(100);
@@ -372,17 +372,12 @@ pub(crate) async fn run_tui(
         provider,
         model_name,
         &workspace,
-        &branch,
-    )
-    .await;
+        &branch
+    ).await;
 
     // Restore terminal
     disable_raw_mode()?;
-    execute!(
-        terminal.backend_mut(),
-        LeaveAlternateScreen,
-        DisableBracketedPaste
-    )?;
+    execute!(terminal.backend_mut(), LeaveAlternateScreen, DisableBracketedPaste)?;
     terminal.show_cursor()?;
 
     if let Err(err) = res {
@@ -406,7 +401,7 @@ async fn run_app<B: Backend>(
     provider: String,
     model_name: String,
     workspace: &str,
-    branch: &str,
+    branch: &str
 ) -> anyhow::Result<()> {
     // Background thread for terminal events
     let tx_event = tx.clone();
@@ -421,7 +416,7 @@ async fn run_app<B: Backend>(
     });
 
     let mut stream: Option<
-        BoxStream<'static, std::result::Result<adk_session::Event, adk_rust::AdkError>>,
+        BoxStream<'static, std::result::Result<adk_session::Event, adk_rust::AdkError>>
     > = None;
 
     loop {
@@ -500,6 +495,9 @@ async fn run_app<B: Backend>(
 
                                                 // Support Slash Commands in TUI
                                                 if trimmed.starts_with('/') {
+                                                    let registry = crate::modes::command_registry::CommandRegistry::load_from_config("config.toml")
+                                                        .unwrap_or(crate::modes::command_registry::CommandRegistry { commands: Default::default() });
+
                                                     match trimmed {
                                                         "/exit" => return Ok(()),
                                                         "/new" => {
@@ -509,62 +507,32 @@ async fn run_app<B: Backend>(
                                                             crate::modes::cli::ensure_session(&sessions, "tui", user_id, &app.session_id).await?;
                                                             continue;
                                                         }
-                                                        "/clear" => {
-                                                            app.messages.clear();
-                                                            app.list_state.select(None);
-                                                            continue;
-                                                        }
                                                         "/?" => {
-                                                            let registry = crate::modes::command_registry::CommandRegistry::load_from_config("config.toml")
-                                                                .unwrap_or(crate::modes::command_registry::CommandRegistry { commands: Default::default() });
                                                             let help = crate::modes::cli::render_help(&registry);
                                                             app.add_message(MessageRole::System, help);
                                                             continue;
                                                         }
+                                                        cmd if cmd.starts_with('/') => {
+                                                            let cmd_name = &cmd[1..];
+                                                            if let Some(command) = registry.get_command(cmd_name) {
+                                                                let prompt = command.template.clone();
+                                                                app.add_message(MessageRole::User, format!("Running command: {}", cmd_name));
+                                                                app.add_message(MessageRole::Assistant, String::new());
+                                                                app.is_thinking = true;
+                                                                
+                                                                let content = Content::new("user").with_text(prompt);
+                                                                match runner.run_str(user_id, &app.session_id, content).await {
+                                                                    Ok(s) => { stream = Some(s); }
+                                                                    Err(e) => {
+                                                                        app.is_thinking = false;
+                                                                        app.add_message(MessageRole::System, format!("Error: {}", e));
+                                                                    }
+                                                                }
+                                                                continue;
+                                                            }
+                                                        }
                                                         _ => {}
                                                     }
-
-                                                    let agent_clone = agent.clone();
-                                                    let sessions_clone = sessions.clone();
-                                                    let memory_clone = memory.clone();
-                                                    let model_clone = model.clone();
-                                                    let app_name = "tui";
-                                                    let user_id_clone = user_id.to_string();
-                                                    let mut session_id_clone = app.session_id.clone();
-                                                    let mut provider_clone = provider.clone();
-                                                    let mut model_name_clone = model_name.clone();
-                                                    let cmd = trimmed.to_string();
-
-                                                    let tx_cmd = tx.clone();
-
-                                                    tokio::spawn(async move {
-                                                        let mut runner_clone = Runner::builder()
-                                                            .app_name(app_name)
-                                                            .agent(agent_clone)
-                                                            .session_service(sessions_clone.clone())
-                                                            .memory_service(memory_clone)
-                                                            .compaction_config(get_compaction_config(model_clone))
-                                                            .build().unwrap();
-
-                                                        let registry = crate::modes::command_registry::CommandRegistry::load_from_config("config.toml")
-                                                            .unwrap_or(crate::modes::command_registry::CommandRegistry { commands: Default::default() });
-
-                                                        let _ = crate::modes::cli::handle_slash_command(
-                                                            &cmd,
-                                                            &mut runner_clone,
-                                                            &sessions_clone,
-                                                            app_name,
-                                                            &user_id_clone,
-                                                            &mut session_id_clone,
-                                                            &termimad::MadSkin::default(),
-                                                            &mut provider_clone,
-                                                            &mut model_name_clone,
-                                                            &registry,
-                                                        ).await;
-
-                                                        let _ = tx_cmd.send(AppEvent::TerminalEvent(Event::Key(KeyCode::Null.into()))).await;
-                                                    });
-                                                    continue;
                                                 }
 
                                                 app.add_message(MessageRole::Assistant, String::new());
@@ -638,11 +606,10 @@ fn ui(f: &mut Frame, app: &mut App, workspace: &str, branch: &str, model: &str) 
         .constraints(
             [
                 Constraint::Length(3), // Header + gap
-                Constraint::Min(1),    // Messages
+                Constraint::Min(1), // Messages
                 Constraint::Length(3), // Input
                 Constraint::Length(2), // Footer
-            ]
-            .as_ref(),
+            ].as_ref()
         )
         .split(f.area());
 
@@ -653,22 +620,26 @@ fn ui(f: &mut Frame, app: &mut App, workspace: &str, branch: &str, model: &str) 
         Span::styled("● ready", Style::default().fg(Color::Green))
     };
 
-    let header = Paragraph::new(vec![
-        Line::from(vec![
-            Span::styled("⚡ ", Style::default().fg(Color::Magenta)),
-            Span::styled(
-                format!("Nami TUI v{}", env!("CARGO_PKG_VERSION")),
-                Style::default().bold(),
+    let header = Paragraph::new(
+        vec![
+            Line::from(
+                vec![
+                    Span::styled("⚡ ", Style::default().fg(Color::Magenta)),
+                    Span::styled(
+                        format!("Nami TUI v{}", env!("CARGO_PKG_VERSION")),
+                        Style::default().bold()
+                    ),
+                    Span::raw(" ".repeat(4)),
+                    Span::styled("Session:", Style::default().fg(Color::DarkGray)),
+                    Span::raw(" "),
+                    Span::styled(&app.session_id, Style::default().fg(Color::Cyan)),
+                    Span::raw(" ".repeat(4)),
+                    status
+                ]
             ),
-            Span::raw(" ".repeat(4)),
-            Span::styled("Session:", Style::default().fg(Color::DarkGray)),
-            Span::raw(" "),
-            Span::styled(&app.session_id, Style::default().fg(Color::Cyan)),
-            Span::raw(" ".repeat(4)),
-            status,
-        ]),
-        Line::from(""), // Gap
-    ]);
+            Line::from("") // Gap
+        ]
+    );
     f.render_widget(header, chunks[0]);
 
     // --- Messages ---
@@ -677,14 +648,14 @@ fn ui(f: &mut Frame, app: &mut App, workspace: &str, branch: &str, model: &str) 
         app.re_render_all(list_width);
     }
 
-    let messages: Vec<ListItem> = app
-        .messages
+    let messages: Vec<ListItem> = app.messages
         .iter()
         .map(|m| ListItem::new(m.rendered_lines.clone()))
         .collect();
 
-    let messages_list =
-        List::new(messages).highlight_style(Style::default().add_modifier(Modifier::BOLD));
+    let messages_list = List::new(messages).highlight_style(
+        Style::default().add_modifier(Modifier::BOLD)
+    );
 
     f.render_stateful_widget(messages_list, chunks[1], &mut app.list_state);
 
@@ -695,18 +666,14 @@ fn ui(f: &mut Frame, app: &mut App, workspace: &str, branch: &str, model: &str) 
         .padding(Padding::new(1, 0, 0, 0));
 
     app.input.set_block(input_block);
-    app.input
-        .set_cursor_style(Style::default().bg(Color::White).fg(Color::Black));
+    app.input.set_cursor_style(Style::default().bg(Color::White).fg(Color::Black));
 
     let input_layout = Layout::default()
         .direction(Direction::Horizontal)
         .constraints([Constraint::Length(2), Constraint::Min(1)])
         .split(chunks[2]);
 
-    f.render_widget(
-        Paragraph::new(">").style(Style::default().fg(Color::Yellow)),
-        input_layout[0],
-    );
+    f.render_widget(Paragraph::new(">").style(Style::default().fg(Color::Yellow)), input_layout[0]);
     f.render_widget(&app.input, input_layout[1]);
 
     // --- Footer ---
@@ -715,24 +682,25 @@ fn ui(f: &mut Frame, app: &mut App, workspace: &str, branch: &str, model: &str) 
         .constraints([Constraint::Length(1), Constraint::Length(1)])
         .split(chunks[3]);
 
-    let labels = Line::from(vec![
-        Span::styled(
-            "workspace (/directory)",
-            Style::default().fg(Color::DarkGray),
-        ),
-        Span::raw(" ".repeat(2)),
-        Span::styled("branch", Style::default().fg(Color::DarkGray)),
-        Span::raw(" ".repeat(2)),
-        Span::styled("model", Style::default().fg(Color::DarkGray)),
-    ]);
+    let labels = Line::from(
+        vec![
+            Span::styled("workspace (/directory)", Style::default().fg(Color::DarkGray)),
+            Span::raw(" ".repeat(2)),
+            Span::styled("branch", Style::default().fg(Color::DarkGray)),
+            Span::raw(" ".repeat(2)),
+            Span::styled("model", Style::default().fg(Color::DarkGray))
+        ]
+    );
 
-    let values = Line::from(vec![
-        Span::styled(workspace, Style::default()),
-        Span::raw(" | "),
-        Span::styled(branch, Style::default()),
-        Span::raw(" | "),
-        Span::styled(model, Style::default()),
-    ]);
+    let values = Line::from(
+        vec![
+            Span::styled(workspace, Style::default()),
+            Span::raw(" | "),
+            Span::styled(branch, Style::default()),
+            Span::raw(" | "),
+            Span::styled(model, Style::default())
+        ]
+    );
 
     f.render_widget(Paragraph::new(labels), footer_layout[0]);
     f.render_widget(Paragraph::new(values), footer_layout[1]);
