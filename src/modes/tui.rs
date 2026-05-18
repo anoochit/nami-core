@@ -2,19 +2,22 @@ use adk_rust::Agent;
 use adk_rust::prelude::*;
 use adk_session::SessionService;
 use crossterm::{
-    event::{self, DisableMouseCapture, EnableMouseCapture, Event, KeyCode, KeyEventKind, EnableBracketedPaste, DisableBracketedPaste},
+    event::{
+        self, DisableBracketedPaste, DisableMouseCapture, EnableBracketedPaste, EnableMouseCapture,
+        Event, KeyCode, KeyEventKind,
+    },
     execute,
-    terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
+    terminal::{EnterAlternateScreen, LeaveAlternateScreen, disable_raw_mode, enable_raw_mode},
 };
-use futures::stream::BoxStream;
 use futures::StreamExt;
+use futures::stream::BoxStream;
 use ratatui::{
+    Frame, Terminal,
     backend::{Backend, CrosstermBackend},
     layout::{Constraint, Direction, Layout},
     style::{Color, Modifier, Style},
     text::{Line, Span},
     widgets::{Block, Borders, List, ListItem, ListState, Padding, Paragraph},
-    Frame, Terminal,
 };
 use std::io;
 use std::sync::Arc;
@@ -73,7 +76,6 @@ impl<'a> App<'a> {
         });
         let len = self.messages.len();
         if len > 0 {
-            self.list_state.select(Some(len - 1));
             if self.last_width > 0 {
                 self.render_message(len - 1, self.last_width);
             }
@@ -139,7 +141,10 @@ impl<'a> App<'a> {
                             // Break extremely long words
                             for chunk in word.as_bytes().chunks(width - 2) {
                                 let s = String::from_utf8_lossy(chunk).to_string();
-                                lines.push(Line::from(vec![Span::raw("  "), Span::styled(s, span.style)]));
+                                lines.push(Line::from(vec![
+                                    Span::raw("  "),
+                                    Span::styled(s, span.style),
+                                ]));
                             }
                             continue;
                         }
@@ -156,7 +161,8 @@ impl<'a> App<'a> {
             }
 
             // Add extra space at the end of message
-            lines.push(Line::from(""));            m.rendered_lines = lines;
+            lines.push(Line::from(""));
+            m.rendered_lines = lines;
         }
     }
 
@@ -243,12 +249,36 @@ pub(crate) async fn run_tui(
         .build()?;
 
     let mut app = App::new(session_id.clone());
-    app.add_message(MessageRole::System, format!("Nami TUI v{} ({} using {})", env!("CARGO_PKG_VERSION"), provider, model_name));
+    app.add_message(
+        MessageRole::System,
+        format!(
+            "Nami TUI v{} ({} using {})",
+            env!("CARGO_PKG_VERSION"),
+            provider,
+            model_name
+        ),
+    );
 
     let (tx, mut rx) = mpsc::channel(100);
 
     // Main loop
-    let res = run_app(&mut terminal, app, tx, &mut rx, runner, user_id, sessions, memory, agent, model, provider, model_name, &workspace, &branch).await;
+    let res = run_app(
+        &mut terminal,
+        app,
+        tx,
+        &mut rx,
+        runner,
+        user_id,
+        sessions,
+        memory,
+        agent,
+        model,
+        provider,
+        model_name,
+        &workspace,
+        &branch,
+    )
+    .await;
 
     // Restore terminal
     disable_raw_mode()?;
@@ -295,10 +325,14 @@ async fn run_app<B: Backend>(
         }
     });
 
-    let mut stream: Option<BoxStream<'static, std::result::Result<adk_session::Event, adk_rust::AdkError>>> = None;
+    let mut stream: Option<
+        BoxStream<'static, std::result::Result<adk_session::Event, adk_rust::AdkError>>,
+    > = None;
 
     loop {
-        terminal.draw(|f| ui(f, &mut app, workspace, branch, &model_name)).map_err(|e| anyhow::anyhow!("Draw error: {}", e))?;
+        terminal
+            .draw(|f| ui(f, &mut app, workspace, branch, &model_name))
+            .map_err(|e| anyhow::anyhow!("Draw error: {}", e))?;
 
         tokio::select! {
             // Handle agent stream if active
@@ -475,10 +509,10 @@ async fn run_app<B: Backend>(
                                                 }
                                             }
                                         }
-                                        KeyCode::Left | KeyCode::PageUp => {
+                                        KeyCode::PageUp => {
                                             app.scroll_up();
                                         }
-                                        KeyCode::Right | KeyCode::PageDown => {
+                                        KeyCode::PageDown => {
                                             app.scroll_down();
                                         }
                                         _ => {
@@ -508,7 +542,7 @@ fn ui(f: &mut Frame, app: &mut App, workspace: &str, branch: &str, model: &str) 
         .constraints(
             [
                 Constraint::Length(4), // Header + gap
-                Constraint::Min(1),   // Messages
+                Constraint::Min(1),    // Messages
                 Constraint::Length(3), // Input
                 Constraint::Length(2), // Footer
             ]
@@ -526,7 +560,10 @@ fn ui(f: &mut Frame, app: &mut App, workspace: &str, branch: &str, model: &str) 
     let header = Paragraph::new(vec![
         Line::from(vec![
             Span::styled("⚡ ", Style::default().fg(Color::Magenta)),
-            Span::styled(format!("Nami TUI v{}", env!("CARGO_PKG_VERSION")), Style::default().bold()),
+            Span::styled(
+                format!("Nami TUI v{}", env!("CARGO_PKG_VERSION")),
+                Style::default().bold(),
+            ),
             Span::raw(" ".repeat(4)),
             Span::styled("Session:", Style::default().fg(Color::DarkGray)),
             Span::raw(" "),
@@ -550,8 +587,8 @@ fn ui(f: &mut Frame, app: &mut App, workspace: &str, branch: &str, model: &str) 
         .map(|m| ListItem::new(m.rendered_lines.clone()))
         .collect();
 
-    let messages_list = List::new(messages)
-        .highlight_style(Style::default().add_modifier(Modifier::ITALIC));
+    let messages_list =
+        List::new(messages).highlight_style(Style::default().add_modifier(Modifier::BOLD));
 
     f.render_stateful_widget(messages_list, chunks[1], &mut app.list_state);
 
@@ -560,16 +597,20 @@ fn ui(f: &mut Frame, app: &mut App, workspace: &str, branch: &str, model: &str) 
         .borders(Borders::TOP)
         .border_style(Style::default().fg(Color::DarkGray))
         .padding(Padding::new(1, 0, 0, 0));
-    
+
     app.input.set_block(input_block);
-    app.input.set_cursor_style(Style::default().bg(Color::White).fg(Color::Black));
-    
+    app.input
+        .set_cursor_style(Style::default().bg(Color::White).fg(Color::Black));
+
     let input_layout = Layout::default()
         .direction(Direction::Horizontal)
         .constraints([Constraint::Length(2), Constraint::Min(1)])
         .split(chunks[2]);
 
-    f.render_widget(Paragraph::new(">").style(Style::default().fg(Color::Yellow)), input_layout[0]);
+    f.render_widget(
+        Paragraph::new(">").style(Style::default().fg(Color::Yellow)),
+        input_layout[0],
+    );
     f.render_widget(&app.input, input_layout[1]);
 
     // --- Footer ---
@@ -579,13 +620,16 @@ fn ui(f: &mut Frame, app: &mut App, workspace: &str, branch: &str, model: &str) 
         .split(chunks[3]);
 
     let labels = Line::from(vec![
-        Span::styled("workspace (/directory)", Style::default().fg(Color::DarkGray)),
+        Span::styled(
+            "workspace (/directory)",
+            Style::default().fg(Color::DarkGray),
+        ),
         Span::raw(" ".repeat(2)),
         Span::styled("branch", Style::default().fg(Color::DarkGray)),
         Span::raw(" ".repeat(2)),
         Span::styled("model", Style::default().fg(Color::DarkGray)),
     ]);
-    
+
     let values = Line::from(vec![
         Span::styled(workspace, Style::default()),
         Span::raw(" | "),
@@ -593,7 +637,7 @@ fn ui(f: &mut Frame, app: &mut App, workspace: &str, branch: &str, model: &str) 
         Span::raw(" | "),
         Span::styled(model, Style::default()),
     ]);
-    
+
     f.render_widget(Paragraph::new(labels), footer_layout[0]);
     f.render_widget(Paragraph::new(values), footer_layout[1]);
 }
