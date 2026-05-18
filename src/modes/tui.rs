@@ -40,7 +40,6 @@ enum MessageRole {
 struct Message {
     role: MessageRole,
     content: String,
-    rendered_lines: Vec<Line<'static>>,
 }
 
 struct App<'a> {
@@ -49,7 +48,6 @@ struct App<'a> {
     list_state: ListState,
     is_thinking: bool,
     session_id: String,
-    last_width: usize,
     history: Vec<String>,
     history_index: Option<usize>,
 }
@@ -62,7 +60,6 @@ impl<'a> App<'a> {
             list_state: ListState::default(),
             is_thinking: false,
             session_id,
-            last_width: 0,
             history: Vec::new(),
             history_index: None,
         }
@@ -72,13 +69,9 @@ impl<'a> App<'a> {
         self.messages.push(Message {
             role,
             content,
-            rendered_lines: Vec::new(),
         });
         let len = self.messages.len();
         if len > 0 {
-            if self.last_width > 0 {
-                self.render_message(len - 1, self.last_width);
-            }
             // Auto-scroll to bottom on new message
             self.list_state.select(Some(len - 1));
         }
@@ -88,93 +81,12 @@ impl<'a> App<'a> {
         if let Some(last) = self.messages.last_mut() {
             if matches!(last.role, MessageRole::Assistant) {
                 last.content.push_str(chunk);
-                if self.last_width > 0 {
-                    let idx = self.messages.len() - 1;
-                    self.render_message(idx, self.last_width);
-                }
                 // Auto-scroll to bottom while streaming
                 self.list_state.select(Some(self.messages.len() - 1));
                 return;
             }
         }
         self.add_message(MessageRole::Assistant, chunk.to_string());
-    }
-
-    fn render_message(&mut self, index: usize, width: usize) {
-        if let Some(m) = self.messages.get_mut(index) {
-            let (role_text, color) = match m.role {
-                MessageRole::User => ("\n🧔 You > ", Color::Cyan),
-                MessageRole::Assistant => ("\n🤖 Nami > ", Color::Magenta),
-                MessageRole::System => ("\n⚙️ System > ", Color::Yellow),
-                MessageRole::ToolCall => ("\n🔨 Calling > ", Color::Blue),
-                MessageRole::ToolResponse => ("\n✅ Response > ", Color::DarkGray),
-            };
-
-            let mut lines = Vec::new();
-
-            // Prepend role
-            lines.push(Line::from(vec![Span::styled(
-                role_text,
-                Style::default().fg(color).add_modifier(Modifier::BOLD),
-            )]));
-
-            // Add a gap for visual separation
-            lines.push(Line::from(""));
-
-            // Render markdown content
-            let md_text = tui_markdown::from_str(&m.content);
-
-            for line in md_text.lines {
-                let mut current_line_spans = Vec::new();
-                let mut current_width = 2; // Add indentation
-
-                // Add indentation
-                current_line_spans.push(Span::raw("  "));
-
-                for span in line.spans {
-                    let words: Vec<&str> = span.content.split_inclusive(' ').collect();
-                    for word in words {
-                        let word_width = word.len();
-                        if current_width + word_width > width && current_width > 2 {
-                            lines.push(Line::from(std::mem::take(&mut current_line_spans)));
-                            current_line_spans.push(Span::raw("  "));
-                            current_width = 2;
-                        }
-
-                        if word_width > width - 2 {
-                            // Break extremely long words
-                            for chunk in word.as_bytes().chunks(width - 2) {
-                                let s = String::from_utf8_lossy(chunk).to_string();
-                                lines.push(Line::from(vec![
-                                    Span::raw("  "),
-                                    Span::styled(s, span.style),
-                                ]));
-                            }
-                            continue;
-                        }
-
-                        current_line_spans.push(Span::styled(word.to_string(), span.style));
-                        current_width += word_width;
-                    }
-                }
-                if !current_line_spans.is_empty() {
-                    lines.push(Line::from(current_line_spans));
-                } else {
-                    lines.push(Line::from(""));
-                }
-            }
-
-            // Add extra space at the end of message
-            lines.push(Line::from(""));
-            m.rendered_lines = lines;
-        }
-    }
-
-    fn re_render_all(&mut self, width: usize) {
-        self.last_width = width;
-        for i in 0..self.messages.len() {
-            self.render_message(i, width);
-        }
     }
 
     fn scroll_down(&mut self) {
@@ -576,15 +488,43 @@ fn ui(f: &mut Frame, app: &mut App, workspace: &str, branch: &str, model: &str) 
     f.render_widget(header, chunks[0]);
 
     // --- Messages ---
-    let list_width = chunks[1].width as usize;
-    if app.last_width != list_width {
-        app.re_render_all(list_width);
-    }
-
     let messages: Vec<ListItem> = app
         .messages
         .iter()
-        .map(|m| ListItem::new(m.rendered_lines.clone()))
+        .map(|m| {
+            let (role_text, color) = match m.role {
+                MessageRole::User => ("\n🧔 You > ", Color::Cyan),
+                MessageRole::Assistant => ("\n🤖 Nami > ", Color::Magenta),
+                MessageRole::System => ("\n⚙️ System > ", Color::Yellow),
+                MessageRole::ToolCall => ("\n🔨 Calling > ", Color::Blue),
+                MessageRole::ToolResponse => ("\n✅ Response > ", Color::DarkGray),
+            };
+
+            let mut lines = Vec::new();
+
+            // Role header
+            lines.push(Line::from(vec![Span::styled(
+                role_text,
+                Style::default().fg(color).add_modifier(Modifier::BOLD),
+            )]));
+
+            // Gap
+            lines.push(Line::from(""));
+
+            // Markdown content
+            let md = tui_markdown::from_str(&m.content);
+            for line in md.lines {
+                // Add simple indentation
+                let mut spans = vec![Span::raw("  ")];
+                spans.extend(line.spans);
+                lines.push(Line::from(spans));
+            }
+
+            // End gap
+            lines.push(Line::from(""));
+
+            ListItem::new(lines)
+        })
         .collect();
 
     let messages_list =
