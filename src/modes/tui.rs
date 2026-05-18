@@ -112,27 +112,34 @@ impl<'a> App<'a> {
                 Style::default().fg(color).add_modifier(Modifier::BOLD),
             )]));
 
+            // Add a gap for visual separation
+            lines.push(Line::from(""));
+
             // Render markdown content
             let md_text = tui_markdown::from_str(&m.content);
 
             for line in md_text.lines {
                 let mut current_line_spans = Vec::new();
-                let mut current_width = 0;
+                let mut current_width = 2; // Add indentation
+
+                // Add indentation
+                current_line_spans.push(Span::raw("  "));
 
                 for span in line.spans {
                     let words: Vec<&str> = span.content.split_inclusive(' ').collect();
                     for word in words {
                         let word_width = word.len();
-                        if current_width + word_width > width && current_width > 0 {
+                        if current_width + word_width > width && current_width > 2 {
                             lines.push(Line::from(std::mem::take(&mut current_line_spans)));
-                            current_width = 0;
+                            current_line_spans.push(Span::raw("  "));
+                            current_width = 2;
                         }
-                        
-                        if word_width > width {
+
+                        if word_width > width - 2 {
                             // Break extremely long words
-                            for chunk in word.as_bytes().chunks(width) {
+                            for chunk in word.as_bytes().chunks(width - 2) {
                                 let s = String::from_utf8_lossy(chunk).to_string();
-                                lines.push(Line::from(vec![Span::styled(s, span.style)]));
+                                lines.push(Line::from(vec![Span::raw("  "), Span::styled(s, span.style)]));
                             }
                             continue;
                         }
@@ -143,11 +150,13 @@ impl<'a> App<'a> {
                 }
                 if !current_line_spans.is_empty() {
                     lines.push(Line::from(current_line_spans));
-                } else if lines.last().map(|l| !l.spans.is_empty()).unwrap_or(true) {
+                } else {
                     lines.push(Line::from(""));
                 }
             }
-            m.rendered_lines = lines;
+
+            // Add extra space at the end of message
+            lines.push(Line::from(""));            m.rendered_lines = lines;
         }
     }
 
