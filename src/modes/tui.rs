@@ -19,6 +19,7 @@ use ratatui::{
     text::{Line, Span},
     widgets::{Block, Borders, List, ListItem, ListState, Padding, Paragraph},
 };
+use rustyline::{Config, Editor, history::FileHistory};
 use std::io;
 use std::sync::Arc;
 use tokio::sync::mpsc;
@@ -56,6 +57,7 @@ struct App<'a> {
 
 impl<'a> App<'a> {
     fn new(session_id: String) -> App<'a> {
+        let history = Self::load_history_file().unwrap_or_default();
         App {
             input: TextArea::default(),
             messages: Vec::new(),
@@ -63,9 +65,29 @@ impl<'a> App<'a> {
             is_thinking: false,
             session_id,
             last_width: 0,
-            history: Vec::new(),
+            history,
             history_index: None,
         }
+    }
+
+    fn load_history_file() -> anyhow::Result<Vec<String>> {
+        let config = Config::builder().build();
+        let mut rl: Editor<(), FileHistory> = Editor::with_config(config)?;
+        let _ = rl.load_history(".cli_history");
+        let mut history = Vec::new();
+        for entry in rl.history().iter() {
+            history.push(entry.to_string());
+        }
+        Ok(history)
+    }
+
+    fn save_history_entry(entry: &str) -> anyhow::Result<()> {
+        let config = Config::builder().build();
+        let mut rl: Editor<(), FileHistory> = Editor::with_config(config)?;
+        let _ = rl.load_history(".cli_history");
+        rl.add_history_entry(entry)?;
+        rl.save_history(".cli_history")?;
+        Ok(())
     }
 
     fn add_message(&mut self, role: MessageRole, content: String) {
@@ -471,6 +493,7 @@ async fn run_app<B: Backend>(
                                             let trimmed = input_text.trim();
                                             if !trimmed.is_empty() {
                                                 app.history.push(input_text.clone());
+                                                let _ = App::save_history_entry(trimmed);
                                                 app.history_index = None;
                                                 app.add_message(MessageRole::User, input_text.clone());
                                                 app.input = TextArea::default();
@@ -614,7 +637,7 @@ fn ui(f: &mut Frame, app: &mut App, workspace: &str, branch: &str, model: &str) 
         .direction(Direction::Vertical)
         .constraints(
             [
-                Constraint::Length(4), // Header + gap
+                Constraint::Length(3), // Header + gap
                 Constraint::Min(1),    // Messages
                 Constraint::Length(3), // Input
                 Constraint::Length(2), // Footer

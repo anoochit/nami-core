@@ -3,7 +3,7 @@
 .vscode
 sessions.db
 memory.db
-.cli*
+!.cli*
 /workspace/*
 !/workspace/.skills/
 !/workspace/wiki/Templates/
