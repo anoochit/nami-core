@@ -379,6 +379,11 @@ async fn run_app<B: Backend>(
                                                             crate::modes::cli::ensure_session(&sessions, "tui", user_id, &app.session_id).await?;
                                                             continue;
                                                         }
+                                                        "/clear" => {
+                                                            app.messages.clear();
+                                                            app.list_state.select(None);
+                                                            continue;
+                                                        }
                                                         "/?" => {
                                                             let registry = crate::modes::command_registry::CommandRegistry::load_from_config("config.toml")
                                                                 .unwrap_or(crate::modes::command_registry::CommandRegistry { commands: Default::default() });
