@@ -2,6 +2,25 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.9.18] - 2026-05-18
+
+### Added
+
+- **TUI Persistence**: Integrated `.cli_history` for persistent prompt history across sessions.
+- **TUI Commands**: Added `/clear` command to reset message history in the TUI mode.
+- **Resilience Middleware**: Implemented a new resilience middleware in the runner with automatic retry logic for failed requests.
+
+### Fixed
+
+- **Markdown Rendering**: Implemented robust markdown table support in the TUI using `termimad`.
+- **TUI UX**: Restored auto-scroll functionality, enabled native text selection, and fixed paste issues in the terminal interface.
+- **Tool Handling**: Added graceful recovery for Gemini tool response mismatches, improving stability during tool-heavy interactions.
+- **UI Polish**: Improved message readability with enhanced padding, indentation, and refined footer alignment.
+
+### Changed
+
+- **Repository Hygiene**: Included `.cli_history` files in the repository to track CLI usage patterns.
+
 ## [0.9.17] - 2026-05-17
 
 ### Changed

@@ -10,7 +10,6 @@ pub mod api;
 pub mod browse;
 pub mod run;
 pub mod serve;
-pub mod ui_utils;
 pub mod line;
 pub mod startup;
 pub mod scheduler;
