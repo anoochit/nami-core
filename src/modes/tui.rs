@@ -3,7 +3,7 @@ use adk_rust::prelude::*;
 use adk_session::SessionService;
 use crossterm::{
     event::{
-        self, DisableBracketedPaste, DisableMouseCapture, EnableBracketedPaste, EnableMouseCapture,
+        self, DisableBracketedPaste, EnableBracketedPaste,
         Event, KeyCode, KeyEventKind,
     },
     execute,
@@ -79,6 +79,8 @@ impl<'a> App<'a> {
             if self.last_width > 0 {
                 self.render_message(len - 1, self.last_width);
             }
+            // Auto-scroll to bottom on new message
+            self.list_state.select(Some(len - 1));
         }
     }
 
@@ -90,6 +92,8 @@ impl<'a> App<'a> {
                     let idx = self.messages.len() - 1;
                     self.render_message(idx, self.last_width);
                 }
+                // Auto-scroll to bottom while streaming
+                self.list_state.select(Some(self.messages.len() - 1));
                 return;
             }
         }
@@ -174,13 +178,12 @@ impl<'a> App<'a> {
     }
 
     fn scroll_down(&mut self) {
+        if self.messages.is_empty() {
+            return;
+        }
         let i = match self.list_state.selected() {
             Some(i) => {
-                if i >= self.messages.len() - 1 {
-                    0
-                } else {
-                    i + 1
-                }
+                if i >= self.messages.len() - 1 { i } else { i + 1 }
             }
             None => 0,
         };
@@ -188,13 +191,12 @@ impl<'a> App<'a> {
     }
 
     fn scroll_up(&mut self) {
+        if self.messages.is_empty() {
+            return;
+        }
         let i = match self.list_state.selected() {
             Some(i) => {
-                if i == 0 {
-                    self.messages.len() - 1
-                } else {
-                    i - 1
-                }
+                if i == 0 { 0 } else { i - 1 }
             }
             None => 0,
         };
@@ -220,7 +222,6 @@ pub(crate) async fn run_tui(
     execute!(
         stdout,
         EnterAlternateScreen,
-        EnableMouseCapture,
         EnableBracketedPaste
     )?;
     let backend = CrosstermBackend::new(stdout);
@@ -285,7 +286,6 @@ pub(crate) async fn run_tui(
     execute!(
         terminal.backend_mut(),
         LeaveAlternateScreen,
-        DisableMouseCapture,
         DisableBracketedPaste
     )?;
     terminal.show_cursor()?;
@@ -523,9 +523,9 @@ async fn run_app<B: Backend>(
                                     }
                                 }
                             }
-                            Event::Paste(_) => {
+                            Event::Paste(content) => {
                                 if !app.is_thinking {
-                                    app.input.input(ev);
+                                    app.input.insert_str(content);
                                 }
                             }
                             _ => {}
