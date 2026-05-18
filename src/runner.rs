@@ -79,6 +79,12 @@ impl AgentRunner {
         while let Some(result) = stream.next().await {
             let event = match result {
                 Ok(event) => event,
+                Err(e) if e.to_string().contains("400") && e.to_string().contains("number of function response parts") => {
+                    return Ok(
+                        "⚠️ Tool response error: The model had trouble processing parallel responses. Please try again, or use /clear to reset the conversation."
+                            .to_string(),
+                    );
+                }
                 Err(e) if e.to_string().contains("400 Bad Request") => {
                     return Ok(
                         "⚠️ Context limit reached. Please use /clear to reset the conversation."
