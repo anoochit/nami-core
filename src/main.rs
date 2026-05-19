@@ -1,8 +1,6 @@
 use std::sync::Arc;
 use std::time::Duration;
-use std::fs::File;
 use adk_telemetry::{init_with_otlp, shutdown_telemetry};
-use tracing_subscriber::{fmt, layer::SubscriberExt, util::SubscriberInitExt};
 use clap::{Parser, Subcommand};
 use nami::runner::AgentRunner;
 use nami::agent;
