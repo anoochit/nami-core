@@ -89,6 +89,7 @@ async fn main() -> anyhow::Result<()> {
     }
 
     log::info!("Application starting with telemetry: {}", use_telemetry);
+    tracing::info!("Application starting with telemetry: {}", use_telemetry);
 
     // shared setup
     log::info!("Building agent...");
