@@ -311,7 +311,7 @@ enum AppEvent {
     TerminalEvent(Event),
 }
 
-pub(crate) async fn run_tui(
+pub async fn run_tui(
     agent: Arc<dyn Agent>,
     sessions: Arc<dyn SessionService>,
     memory: Arc<dyn adk_rust::Memory>,

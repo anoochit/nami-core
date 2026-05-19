@@ -15,7 +15,7 @@ use tower_http::cors::CorsLayer;
 #[folder = "webui/dist/"]
 struct Asset;
 
-pub(crate) async fn run_browse(
+pub async fn run_browse(
     agent: Arc<dyn Agent>,
     model: Arc<dyn Llm>,
     memory: Arc<dyn adk_rust::Memory>,

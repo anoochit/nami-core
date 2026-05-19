@@ -1,17 +1,12 @@
-mod agent;
-mod modes;
-mod runner;
-mod tools;
-mod utils;
-
 use std::sync::Arc;
-
-// use adk_telemetry::{init_with_otlp, shutdown_telemetry};
+use std::time::Duration;
+use adk_telemetry::{init_with_otlp, shutdown_telemetry};
 use clap::{Parser, Subcommand};
-use runner::AgentRunner;
-
-use crate::modes::init::run_init;
-use crate::modes::startup::setup_dependencies;
+use nami::runner::AgentRunner;
+use nami::agent;
+use nami::modes;
+use nami::modes::init::run_init;
+use nami::modes::startup::setup_dependencies;
 
 
 /// The command-line interface for the application.
@@ -33,6 +28,8 @@ enum Commands {
     Tui,
     /// Initialize the project configuration and database.
     Init,
+    /// Run automated evaluations against a dataset.
+    Eval,
     /// Execute a prompt directly and exit.
     Run {
         /// The prompt to execute.
@@ -76,23 +73,18 @@ async fn main() -> anyhow::Result<()> {
     let cli = Cli::parse();
 
     // Logging & Telemetry setup
-    // let otel_endpoint = std::env::var("OTEL_COLLECTOR").unwrap_or_default();
-    // let use_telemetry = !otel_endpoint.is_empty();
+    if std::env::var("RUST_LOG").is_err() {
+        unsafe { std::env::set_var("RUST_LOG", "info") };
+    }
 
-    // if use_telemetry {
-    //     log::info!("Init telemetry...");
-    //     init_with_otlp("agent", &otel_endpoint).expect("Failed to initialize telemetry");
-    // } else {
-    //     // Single, unconditional fallback — no branching on command
-    //     if std::env::var("RUST_LOG").is_err() {
-    //         unsafe { std::env::set_var("RUST_LOG", "info") };
-    //     }
-    //     tracing_subscriber::fmt()
-    //         .with_env_filter(tracing_subscriber::EnvFilter::from_default_env())
-    //         .init();
-    // }
+    let otel_endpoint = std::env::var("OTEL_COLLECTOR").unwrap_or_default();
+    let use_telemetry = !otel_endpoint.is_empty();
 
-    log::info!("Application starting...");
+    if use_telemetry {
+        init_with_otlp("nami", &otel_endpoint).expect("Failed to initialize telemetry");
+    }
+
+    log::info!("Application starting with telemetry: {}", use_telemetry);
 
     // shared setup
     log::info!("Building agent...");
@@ -162,11 +154,11 @@ async fn main() -> anyhow::Result<()> {
             modes::bot::run_bot(runner, deps.sessions.clone()).await?;
         }
         Commands::Cli => {
-            log::info!("Running in CLI mode");
+            unsafe { std::env::set_var("RUST_LOG", "error") };
             modes::cli::run_cli(agent, deps.sessions, model, provider, model_name).await?;
         }
         Commands::Tui => {
-            log::info!("Running in TUI mode");
+            unsafe { std::env::set_var("RUST_LOG", "error") };
             modes::tui::run_tui(agent, deps.sessions, deps.memory_adapter, model, provider, model_name).await?;
         }
         Commands::Run { prompt } => {
@@ -199,11 +191,17 @@ async fn main() -> anyhow::Result<()> {
             log::info!("Running initialize mode");
             run_init().await?;
         },
+        Commands::Eval => {
+            log::info!("Running evaluation mode");
+            modes::eval::run_eval(agent, deps.sessions, deps.memory_adapter, model).await?;
+        }
     }
 
     // shutdown telemetry
-    // if use_telemetry {
-    //     shutdown_telemetry();
-    // }
+    if use_telemetry {
+        log::info!("Flushing telemetry...");
+        tokio::time::sleep(Duration::from_millis(500)).await;
+        shutdown_telemetry();
+    }
     Ok(())
 }

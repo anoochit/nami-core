@@ -30,6 +30,14 @@ clean:
 run:
 	cargo run -- browse
 
+# Run automated evaluations
+eval:
+	cargo run -- eval
+
+# Run all tests (unit and integration)
+test:
+	cargo test
+
 # Generate technical documentation
 docs:
 	cargo doc --no-deps --target-dir docs/reference

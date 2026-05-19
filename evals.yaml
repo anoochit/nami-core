@@ -1,0 +1,14 @@
+- name: "Greeting"
+  prompt: "Say hello to me"
+  expected: ".*(H|h)ello.*|.*(H|h)i.*"
+  match_type: "regex"
+
+- name: "Capabilities"
+  prompt: "What can you do?"
+  expected: "filesystem"
+  match_type: "contains"
+
+- name: "Math Simple"
+  prompt: "2+2=?"
+  expected: "4"
+  match_type: "contains"

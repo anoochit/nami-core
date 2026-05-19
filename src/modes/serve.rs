@@ -8,7 +8,7 @@ use axum::http::{header, Method};
 use tower_http::cors::CorsLayer;
 use axum::{routing::get, response::Redirect, Router};
 
-pub(crate) async fn run_serve(
+pub async fn run_serve(
     agent: Arc<dyn Agent>,
     model: Arc<dyn Llm>,
     session:  Arc<dyn SessionService>,

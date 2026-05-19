@@ -1,8 +1,7 @@
 use crate::agent::get_compaction_config;
-use crate::utils::{categorize_error, ErrorCategory};
 use futures::StreamExt;
 use std::sync::Arc;
-use tokio::time::{sleep, Duration};
+use tokio::time::Duration;
 
 use adk_rust::prelude::*;
 use adk_session::{CreateRequest, GetRequest, SessionService};
@@ -34,6 +33,11 @@ impl AgentRunner {
         }
     }
 
+    /// Returns the application name.
+    pub fn app_name(&self) -> &str {
+        &self.app_name
+    }
+
     /// Executes a single input within a session, returning the agent's response.
     pub async fn run(
         &self,
@@ -41,21 +45,13 @@ impl AgentRunner {
         session_id: &str,
         input: &str,
     ) -> anyhow::Result<String> {
-        let mut retries = 3;
-        let mut delay = Duration::from_secs(1);
-
-        loop {
-            match self.execute_once(user_id, session_id, input).await {
-                Ok(response) => return Ok(response),
-                Err(e) if retries > 0 && categorize_error(&e) == ErrorCategory::Transient => {
-                    log::warn!("Transient error encountered (retries left: {}): {}", retries, e);
-                    sleep(delay).await;
-                    retries -= 1;
-                    delay *= 2;
-                }
-                Err(e) => return Err(e),
-            }
-        }
+        crate::utils::with_retry(
+            "AgentRunner",
+            || self.execute_once(user_id, session_id, input),
+            5,
+            Duration::from_secs(1),
+            Duration::from_secs(30),
+        ).await
     }
 
     async fn execute_once(

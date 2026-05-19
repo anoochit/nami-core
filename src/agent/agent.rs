@@ -148,7 +148,7 @@ pub fn load_config_sync() -> anyhow::Result<AppConfig> {
 /// Generates the compaction configuration for managing agent history events.
 pub fn get_compaction_config(model: Arc<dyn Llm>) -> EventsCompactionConfig {
     EventsCompactionConfig {
-        compaction_interval: 5,
+        compaction_interval: 10,
         overlap_size: 0,
         summarizer: Arc::new(LlmEventSummarizer::new(model)),
     }

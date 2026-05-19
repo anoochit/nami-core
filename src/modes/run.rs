@@ -5,7 +5,7 @@ use futures::StreamExt;
 use std::collections::HashMap;
 use std::sync::Arc;
 
-pub(crate) async fn run_direct(agent: Arc<dyn Agent>, prompt: &str) -> anyhow::Result<()> {
+pub async fn run_direct(agent: Arc<dyn Agent>, prompt: &str) -> anyhow::Result<()> {
     let app_name = "cli";
     let user_id = "default_user";
 
