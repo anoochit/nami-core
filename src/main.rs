@@ -5,7 +5,7 @@ use nami::modes;
 use nami::modes::init::run_init;
 use nami::modes::startup::setup_dependencies;
 use nami::runner::AgentRunner;
-use tracing_subscriber::{fmt, prelude::*, util::SubscriberInitExt};
+use tracing_subscriber::{fmt, util::SubscriberInitExt};
 use std::fs::File;
 use std::sync::Arc;
 use std::time::Duration;
@@ -83,13 +83,13 @@ async fn main() -> anyhow::Result<()> {
         unsafe { std::env::set_var("RUST_LOG", "info") };
     }
     println!(
-        "DEBUG: RUST_LOG set to '{}'",
+        "RUST_LOG set to '{}'",
         std::env::var("RUST_LOG").unwrap()
     );
 
     let otel_endpoint = std::env::var("OTEL_COLLECTOR").unwrap_or_else(|_| "NOT_SET".to_string());
     let use_telemetry = otel_endpoint != "NOT_SET" && !otel_endpoint.is_empty();
-    println!("DEBUG: OTEL_COLLECTOR='{}'", otel_endpoint);
+    println!("OTEL_COLLECTOR='{}'", otel_endpoint);
 
     println!("Initializing telemetry...");
 
@@ -102,7 +102,9 @@ async fn main() -> anyhow::Result<()> {
             .with(fmt::layer().with_writer(log_file))
             .init();
     } else {
-        init_with_otlp("nami", &otel_endpoint).expect("Failed to initialize telemetry");
+        if use_telemetry {
+            init_with_otlp("nami", &otel_endpoint).expect("Failed to initialize telemetry");
+        }
     }
 
     println!("Telemetry initialized. Starting app...");
