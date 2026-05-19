@@ -63,6 +63,8 @@ enum Commands {
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
+    println!("Application entry reached");
+    log::info!("Application entry reached");
     rustls::crypto::ring::default_provider()
         .install_default()
         .expect("Failed to install rustls crypto provider");
@@ -79,6 +81,7 @@ async fn main() -> anyhow::Result<()> {
 
     let otel_endpoint = std::env::var("OTEL_COLLECTOR").unwrap_or_default();
     let use_telemetry = !otel_endpoint.is_empty();
+    log::info!("Detected OTEL_COLLECTOR: '{}'", otel_endpoint);
 
     if use_telemetry {
         init_with_otlp("nami", &otel_endpoint).expect("Failed to initialize telemetry");
