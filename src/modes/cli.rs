@@ -10,11 +10,9 @@ use rustyline::{Config, Context, Editor, Helper};
 use std::borrow::Cow;
 use std::io::{self, Write};
 use std::sync::Arc;
-use std::time::Duration;
 use termimad::MadSkin;
 use uuid::Uuid;
 use walkdir::WalkDir;
-use std::sync::OnceLock;
 
 // use crate::agent::agent::{check_config_mtime, create_agent, get_config_mtime, get_skills_mtime};
 use crate::agent::get_compaction_config;
@@ -23,8 +21,6 @@ use crate::modes::command_registry::CommandRegistry;
 use adk_rust::Agent;
 use adk_rust::prelude::*;
 use adk_session::{CreateRequest, GetRequest, SessionService};
-
-static RE_FILE_REF: OnceLock<Regex> = OnceLock::new();
 
 struct NamiHelper;
 
@@ -145,13 +141,10 @@ impl Helper for NamiHelper {}
 async fn process_file_references(input: &str) -> String {
     let mut final_prompt = input.to_string();
 
-    let re = RE_FILE_REF.get_or_init(|| Regex::new(r"@([\w\./\-]+)").unwrap());
+    let re = Regex::new(r"@([\w\./\-]+)").unwrap();
 
     let mut appended_context = String::new();
     let mut seen_files = std::collections::HashSet::new();
-
-    // Load ignore once per prompt
-    let ignore = crate::utils::ignore::NamiIgnore::load().await;
 
     for cap in re.captures_iter(input) {
         let file_path_str = &cap[1];
@@ -163,13 +156,13 @@ async fn process_file_references(input: &str) -> String {
         seen_files.insert(file_path_str.to_string());
 
         // Use the sandbox utility for security
-        match crate::utils::sandbox_with_ignore(file_path_str, Some(&ignore)).await {
+        match crate::utils::sandbox(file_path_str).await {
             Ok(path) => {
                 if path.exists() && path.is_file() {
                     if let Ok(metadata) = std::fs::metadata(&path) {
                         let size = metadata.len();
 
-                        if size < 8192 {
+                        if size < 4096 {
                             if let Ok(content) = tokio::fs::read_to_string(&path).await {
                                 appended_context.push_str(&format!(
                                     "\n\n--- Content from {} ---\n{}\n--- End ---\n",
@@ -208,8 +201,8 @@ fn format_error(e: impl std::fmt::Display) -> String {
     format!("\n\n> ❌ Error\n> \n> {}\n\n", clean_msg)
 }
 
-async fn run_agent_prompt(
-    runner: &Runner,
+async fn run_system_prompt(
+    runner: &mut Runner,
     user_id: &str,
     session_id: &str,
     prompt: &str,
@@ -225,18 +218,7 @@ async fn run_agent_prompt(
     )?;
 
     let content = Content::new("user").with_text(prompt);
-    let mut stream = crate::utils::with_retry(
-        "CLI",
-        || {
-            let content_clone = content.clone();
-            async move {
-                runner.run_str(user_id, session_id, content_clone).await.map_err(|e| anyhow::anyhow!(e))
-            }
-        },
-        3,
-        Duration::from_secs(1),
-        Duration::from_secs(10),
-    ).await?;
+    let mut stream = runner.run_str(user_id, session_id, content).await?;
     let mut response = String::new();
     let mut cancelled = false;
     let mut cancelled_by_esc = false;
@@ -252,15 +234,7 @@ async fn run_agent_prompt(
                         if let Some(content) = &event.llm_response.content {
                             for part in &content.parts {
                                 if let Some(text) = part.text() {
-                                    if response.is_empty() {
-                                         clear_current_line(&mut io::stdout())?;
-                                    }
                                     response.push_str(text);
-                                    
-                                    // Streaming output
-                                    let clean_text = text.replace('\n', "\r\n");
-                                    print!("{}", clean_text);
-                                    io::stdout().flush()?;
                                 }
                                 if let Part::FunctionCall { name, args, .. } = part {
                                     let args_str = args.to_string().replace('\n', " ").replace("  ", " ");
@@ -320,6 +294,21 @@ async fn run_agent_prompt(
         return Ok(());
     }
 
+    println!();
+
+    let rendered = termimad::FmtText::from(
+        nami_skin,
+        &response,
+        Some(
+            terminal::size()
+                .map(|(w, _)| w as usize)
+                .unwrap_or(80)
+                .saturating_sub(4),
+        ),
+    )
+    .to_string();
+
+    println!("{}", rendered);
     println!();
 
     Ok(())
@@ -419,7 +408,7 @@ fn print_status_line(stdout: &mut io::Stdout, text: &str) -> io::Result<()> {
 
 pub async fn handle_slash_command(
     trimmed: &str,
-    runner: &Runner,
+    runner: &mut Runner,
     sessions: &Arc<dyn SessionService>,
     app_name: &str,
     user_id: &str,
@@ -435,7 +424,7 @@ pub async fn handle_slash_command(
 
     // Dynamic registry lookup
     if let Some(prompt) = registry.format_prompt(command_name, args) {
-        run_agent_prompt(runner, user_id, session_id, &prompt, nami_skin).await?;
+        run_system_prompt(runner, user_id, session_id, &prompt, nami_skin).await?;
         return Ok(false);
     }
 
@@ -487,11 +476,11 @@ pub async fn handle_slash_command(
         }
         
         "/tasks" => {
-            run_agent_prompt(runner, user_id, session_id, "list_active_tasks", nami_skin).await?;
+            run_system_prompt(runner, user_id, session_id, "list_active_tasks", nami_skin).await?;
         }
 
         "/status" => {
-            run_agent_prompt(runner, user_id, session_id, "get_system_status", nami_skin).await?;
+            run_system_prompt(runner, user_id, session_id, "get_system_status", nami_skin).await?;
         }
 
         _ => {
@@ -524,7 +513,7 @@ pub async fn run_cli(
 
     ensure_session(&sessions, app_name, user_id, &session_id).await?;
 
-    let runner = Runner::builder()
+    let mut runner = Runner::builder()
         .app_name(app_name)
         .agent(agent.clone())
         .session_service(sessions.clone())
@@ -552,10 +541,46 @@ pub async fn run_cli(
         .bullet
         .set_fg(termimad::crossterm::style::Color::Magenta);
 
-    let registry = CommandRegistry::load_from_config("config.toml")
-        .unwrap_or(CommandRegistry { commands: Default::default() });
+    // let mut last_config_mtime = get_config_mtime();
+    // let mut last_skills_mtime = get_skills_mtime();
 
     loop {
+        // let mut config_changed = false;
+
+        // if let Some(new_config) = check_config_mtime(&mut last_config_mtime) {
+        //     let (new_agent, new_model) = create_agent(&new_config).await?;
+
+        //     agent = new_agent;
+        //     model = new_model;
+
+        //     provider = new_config
+        //         .model
+        //         .provider
+        //         .clone()
+        //         .unwrap_or_else(|| "gemini".to_string());
+        //     model_name = new_config.model.model_name.clone();
+
+        //     config_changed = true;
+        // }
+
+        // let current_skills_mtime = get_skills_mtime();
+
+        // if last_skills_mtime != current_skills_mtime {
+        //     last_skills_mtime = current_skills_mtime;
+        //     config_changed = true;
+        // }
+
+        // if config_changed {
+        //     runner = Runner::builder()
+        //         .app_name(app_name)
+        //         .agent(agent.clone())
+        //         .session_service(sessions.clone())
+        //         .compaction_config(get_compaction_config(model.clone()))
+        //         .build()?;
+
+        //     println!("\n{}\n", style::style("🧠 Agent reloaded").cyan());
+        // }
+
         let line = rl.readline("You > ");
 
         match line {
@@ -563,9 +588,12 @@ pub async fn run_cli(
                 let trimmed = line.trim();
 
                 if trimmed.starts_with('/') {
+                    let registry = CommandRegistry::load_from_config("config.toml")
+                        .unwrap_or(CommandRegistry { commands: Default::default() });
+
                     if handle_slash_command(
                         trimmed,
-                        &runner,
+                        &mut runner,
                         &sessions,
                         app_name,
                         user_id,
@@ -596,7 +624,123 @@ pub async fn run_cli(
 
                 let enriched_prompt = process_file_references(trimmed).await;
 
-                run_agent_prompt(&runner, user_id, &session_id, &enriched_prompt, &nami_skin).await?;
+                print_status_line(
+                    &mut io::stdout(),
+                    &format!(
+                        "{} {}",
+                        style::style("⏳").magenta(),
+                        style::style("Agent is thinking...").dim()
+                    ),
+                )?;
+
+                let content = Content::new("user").with_text(enriched_prompt);
+                let mut stream = runner.run_str(user_id, &session_id, content).await?;
+                let mut response_buffer = String::new();
+                let mut cancelled = false;
+                let mut cancelled_by_esc = false;
+                let mut event_reader = EventStream::new();
+
+                terminal::enable_raw_mode()?;
+
+                loop {
+                    tokio::select! {
+                        result = stream.next() => {
+                            match result {
+                                Some(Ok(event)) => {
+                                    if let Some(content) =
+                                        &event.llm_response.content
+                                    {
+                                        for part in &content.parts {
+                                            if let Some(text) =
+                                                part.text()
+                                            {
+                                                response_buffer
+                                                    .push_str(text);
+                                            }
+
+                                            if let Part::FunctionCall { name, args, .. } = part {
+                                                let args_str = args.to_string().replace('\n', " ").replace("  ", " ");
+                                                let compact_args = if args_str.chars().count() > 60 {
+                                                    format!("{}...", args_str.chars().take(57).collect::<String>())
+                                                } else {
+                                                    args_str
+                                                };
+                                                print_status_line(
+                                                    &mut io::stdout(),
+                                                    &format!(
+                                                        "{} {} {}({})",
+                                                        style::style("🔨"),
+                                                        style::style("Calling").dim().bold(),
+                                                        style::style(name).cyan(),
+                                                        style::style(compact_args).dim()
+                                                    ),
+                                                )?;
+                                            }
+                                        }
+                                    }
+                                }
+
+                                Some(Err(e)) => {
+                                    response_buffer.push_str(&format_error(e));
+
+                                    break;
+                                }
+
+                                None => break,
+                            }
+                        }
+
+                        maybe_event = event_reader.next() => {
+                            if let Some(Ok(Event::Key(key))) =
+                                maybe_event
+                            {
+                                if key.kind == KeyEventKind::Press {
+                                    if key.code == KeyCode::Esc {
+                                        runner.interrupt(&session_id);
+                                        cancelled = true;
+                                        cancelled_by_esc = true;
+                                        break;
+                                    } else if key.code == KeyCode::Char('c') && key.modifiers.contains(KeyModifiers::CONTROL) {
+                                        runner.interrupt(&session_id);
+                                        cancelled = true;
+                                        break;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                terminal::disable_raw_mode()?;
+                clear_current_line(&mut io::stdout())?;
+
+                if cancelled {
+                    if !cancelled_by_esc {
+                        println!();
+                        println!("{}", style::style("🚀 Request cancelled").dim());
+                    }
+                    continue;
+                }
+                println!();
+
+                let cleaned = response_buffer
+                    .lines()
+                    .map(|line| line.trim_end())
+                    .collect::<Vec<_>>()
+                    .join("\n");
+
+                let term_width = terminal::size()
+                    .map(|(w, _)| w as usize)
+                    .unwrap_or(80)
+                    .saturating_sub(4);
+
+                let rendered =
+                    termimad::FmtText::from(&nami_skin, &cleaned, Some(term_width)).to_string();
+
+                println!("{}", rendered);
+
+                println!();
+                println!();
             }
 
             Err(_) => {
