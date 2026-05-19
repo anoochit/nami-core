@@ -79,8 +79,9 @@ async fn main() -> anyhow::Result<()> {
         unsafe { std::env::set_var("RUST_LOG", "info") };
     }
 
-    let otel_endpoint = std::env::var("OTEL_COLLECTOR").unwrap_or_default();
-    let use_telemetry = !otel_endpoint.is_empty();
+    let otel_endpoint = std::env::var("OTEL_COLLECTOR").unwrap_or_else(|_| "NOT_SET".to_string());
+    let use_telemetry = otel_endpoint != "NOT_SET" && !otel_endpoint.is_empty();
+    println!("DEBUG: OTEL_COLLECTOR='{}'", otel_endpoint);
     log::info!("Detected OTEL_COLLECTOR: '{}'", otel_endpoint);
 
     if use_telemetry {
