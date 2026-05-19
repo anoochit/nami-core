@@ -309,7 +309,7 @@ async fn run_system_prompt(
     }
 
     terminal::disable_raw_mode()?;
-    // clear_current_line(&mut io::stdout())?; // Don't clear, user wants to see behavior
+    clear_current_line(&mut io::stdout())?;
 
     if cancelled {
         if !cancelled_by_esc {
