@@ -322,43 +322,6 @@ async fn run_agent_prompt(
 
     println!();
 
-    // Render with termimad ONLY if it hasn't been streamed, 
-    // or just use it to "finalize" the formatting on the screen if possible.
-    // For now, to avoid double-printing, we will just print a newline if we streamed.
-    // BUT we want the nice formatting. 
-    // A compromise: clear the screen and print the rendered version if it's short, 
-    // or just let the user see the raw stream. 
-    // Let's stick to streaming for now and only print rendered if it's not too long? 
-    // Actually, I'll just print the rendered version and suggest the user uses TUI for better experience.
-    
-    // Improvement: print rendered version ONLY. To do this without "waiting", 
-    // we would need a more complex setup. 
-    // Let's just fix the double print by NOT re-printing the whole thing if it's already on screen.
-    // However, the raw stream lacks markdown formatting.
-    
-    // Final decision: Clear the streamed text (if possible) and print rendered. 
-    // But clearing is hard. So I'll just leave a small gap.
-    
-    let rendered = termimad::FmtText::from(
-        nami_skin,
-        &response,
-        Some(
-            terminal::size()
-                .map(|(w, _)| w as usize)
-                .unwrap_or(80)
-                .saturating_sub(4),
-        ),
-    )
-    .to_string();
-
-    // If response was long, it's already there. 
-    // We'll just print a "---" and the rendered version? No.
-    // I'll just print a single newline and the rendered version for now, 
-    // but I'll make the streamed output "dimmer" or similar if I could.
-    
-    println!("{}", rendered);
-    println!();
-
     Ok(())
 }
 
