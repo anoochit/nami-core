@@ -79,20 +79,23 @@ async fn main() -> anyhow::Result<()> {
     if rust_log.is_empty() {
         unsafe { std::env::set_var("RUST_LOG", "info") };
     }
-    println!("DEBUG: RUST_LOG set to '{}'", std::env::var("RUST_LOG").unwrap());
 
     let otel_endpoint = std::env::var("OTEL_COLLECTOR").unwrap_or_else(|_| "NOT_SET".to_string());
     let use_telemetry = otel_endpoint != "NOT_SET" && !otel_endpoint.is_empty();
-    println!("DEBUG: OTEL_COLLECTOR='{}'", otel_endpoint);
-    
-    println!("Initializing telemetry...");
-    if use_telemetry {
-        init_with_otlp("nami", &otel_endpoint).expect("Failed to initialize telemetry");
-    }
 
-    println!("Telemetry initialized. Starting app...");
-    log::info!("Application starting with telemetry: {}", use_telemetry);
-    tracing::info!("Application starting with telemetry: {}", use_telemetry);
+    // If in CLI/TUI mode, log to file, otherwise stdout
+    let is_interactive = matches!(cli.command, Commands::Cli | Commands::Tui);
+    
+    if is_interactive {
+        let log_file = File::create("nami.log").expect("Failed to create log file");
+        tracing_subscriber::registry()
+            .with(fmt::layer().with_writer(log_file))
+            .init();
+    } else {
+        tracing_subscriber::registry()
+            .with(fmt::layer())
+            .init();
+    }
 
     // shared setup
     log::info!("Building agent...");
