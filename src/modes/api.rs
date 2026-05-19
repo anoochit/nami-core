@@ -101,6 +101,7 @@ async fn upload_file(mut multipart: Multipart) -> impl IntoResponse {
 }
 
 
+#[tracing::instrument]
 async fn get_commands() -> impl IntoResponse {
     match CommandRegistry::load_from_config("config.toml") {
         Ok(registry) => Json(json!(registry.commands)).into_response(),
