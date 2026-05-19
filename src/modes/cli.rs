@@ -238,34 +238,34 @@ async fn run_system_prompt(
                                 }
                                 if let Part::FunctionCall { name, args, .. } = part {
                                     let args_str = args.to_string().replace('\n', " ").replace("  ", " ");
-                                    let compact_args = if args_str.chars().count() > 80 {
-                                        format!("{}...", args_str.chars().take(77).collect::<String>())
-                                    } else {
-                                        args_str
-                                    };
+                                    // let compact_args = if args_str.chars().count() > 80 {
+                                    //     format!("{}...", args_str.chars().take(77).collect::<String>())
+                                    // } else {
+                                    //     args_str
+                                    // };
                                     
                                     clear_current_line(&mut io::stdout())?;
                                     println!("{} {} {}({})\r", 
                                         style::style("🔨").magenta(),
                                         style::style("Tool Call:").dim().bold(),
                                         style::style(name).cyan(),
-                                        style::style(compact_args).dim()
+                                        style::style(args_str).dim()
                                     );
                                     io::stdout().flush()?;
                                 }
                                 if let Part::FunctionResponse { function_response, .. } = part {
                                     let resp_str = function_response.response.to_string().replace('\n', " ");
-                                    let compact_resp = if resp_str.chars().count() > 100 {
-                                        format!("{}...", resp_str.chars().take(97).collect::<String>())
-                                    } else {
-                                        resp_str
-                                    };
+                                    // let compact_resp = if resp_str.chars().count() > 100 {
+                                    //     format!("{}...", resp_str.chars().take(97).collect::<String>())
+                                    // } else {
+                                    //     resp_str
+                                    // };
                                     
                                     clear_current_line(&mut io::stdout())?;
                                     println!("{} {} {}\r", 
                                         style::style("✅").green(),
                                         style::style("Tool Result:").dim().bold(),
-                                        style::style(compact_resp).dim()
+                                        style::style(resp_str).dim()
                                     );
                                     io::stdout().flush()?;
                                 }
@@ -685,34 +685,34 @@ pub async fn run_cli(
 
                                             if let Part::FunctionCall { name, args, .. } = part {
                                                 let args_str = args.to_string().replace('\n', " ").replace("  ", " ");
-                                                let compact_args = if args_str.chars().count() > 80 {
-                                                    format!("{}...", args_str.chars().take(77).collect::<String>())
-                                                } else {
-                                                    args_str
-                                                };
+                                                // let compact_args = if args_str.chars().count() > 80 {
+                                                //     format!("{}...", args_str.chars().take(77).collect::<String>())
+                                                // } else {
+                                                //     args_str
+                                                // };
                                                 
                                                 clear_current_line(&mut io::stdout())?;
                                                 println!("{} {} {}({})\r", 
                                                     style::style("🔨").magenta(),
                                                     style::style("Tool Call:").dim().bold(),
                                                     style::style(name).cyan(),
-                                                    style::style(compact_args).dim()
+                                                    style::style(args_str).dim()
                                                 );
                                                 io::stdout().flush()?;
                                             }
                                             if let Part::FunctionResponse { function_response, .. } = part {
                                                 let resp_str = function_response.response.to_string().replace('\n', " ");
-                                                let compact_resp = if resp_str.chars().count() > 100 {
-                                                    format!("{}...", resp_str.chars().take(97).collect::<String>())
-                                                } else {
-                                                    resp_str
-                                                };
+                                                // let compact_resp = if resp_str.chars().count() > 100 {
+                                                //     format!("{}...", resp_str.chars().take(97).collect::<String>())
+                                                // } else {
+                                                //     resp_str
+                                                // };
                                                 
                                                 clear_current_line(&mut io::stdout())?;
                                                 println!("{} {} {}\r", 
                                                     style::style("✅").green(),
                                                     style::style("Tool Result:").dim().bold(),
-                                                    style::style(compact_resp).dim()
+                                                    style::style(resp_str).dim()
                                                 );
                                                 io::stdout().flush()?;
                                             }
@@ -762,7 +762,7 @@ pub async fn run_cli(
                 }
 
                 terminal::disable_raw_mode()?;
-                // clear_current_line(&mut io::stdout())?; // Don't clear, user wants to see behavior
+                clear_current_line(&mut io::stdout())?;
 
                 if cancelled {
                     if !cancelled_by_esc {
