@@ -1,15 +1,16 @@
-use std::sync::Arc;
-use std::time::Duration;
-use std::fs::File;
 use adk_telemetry::{init_with_otlp, shutdown_telemetry};
-use tracing_subscriber::{fmt, prelude::*};
 use clap::{Parser, Subcommand};
-use nami::runner::AgentRunner;
 use nami::agent;
 use nami::modes;
 use nami::modes::init::run_init;
 use nami::modes::startup::setup_dependencies;
+use nami::runner::AgentRunner;
+use tracing_subscriber::{fmt, prelude::*, util::SubscriberInitExt};
+use std::fs::File;
+use std::sync::Arc;
+use std::time::Duration;
 
+use tracing_subscriber::prelude::__tracing_subscriber_SubscriberExt;
 
 /// The command-line interface for the application.
 #[derive(Parser)]
@@ -35,7 +36,7 @@ enum Commands {
     /// Execute a prompt directly and exit.
     Run {
         /// The prompt to execute.
-        prompt: String
+        prompt: String,
     },
     /// Start the HTTP server.
     Serve {
@@ -60,7 +61,7 @@ enum Commands {
         /// Optional host to listen on (defaults to 127.0.0.1).
         #[arg(long)]
         host: Option<String>,
-    }
+    },
 }
 
 #[tokio::main]
@@ -81,23 +82,32 @@ async fn main() -> anyhow::Result<()> {
     if rust_log.is_empty() {
         unsafe { std::env::set_var("RUST_LOG", "info") };
     }
+    println!(
+        "DEBUG: RUST_LOG set to '{}'",
+        std::env::var("RUST_LOG").unwrap()
+    );
 
     let otel_endpoint = std::env::var("OTEL_COLLECTOR").unwrap_or_else(|_| "NOT_SET".to_string());
     let use_telemetry = otel_endpoint != "NOT_SET" && !otel_endpoint.is_empty();
+    println!("DEBUG: OTEL_COLLECTOR='{}'", otel_endpoint);
+
+    println!("Initializing telemetry...");
 
     // If in CLI/TUI mode, log to file, otherwise stdout
     let is_interactive = matches!(cli.command, Commands::Cli | Commands::Tui);
-    
+
     if is_interactive {
         let log_file = File::create("nami.log").expect("Failed to create log file");
         tracing_subscriber::registry()
             .with(fmt::layer().with_writer(log_file))
             .init();
     } else {
-        tracing_subscriber::registry()
-            .with(fmt::layer())
-            .init();
+        init_with_otlp("nami", &otel_endpoint).expect("Failed to initialize telemetry");
     }
+
+    println!("Telemetry initialized. Starting app...");
+    log::info!("Application starting with telemetry: {}", use_telemetry);
+    tracing::info!("Application starting with telemetry: {}", use_telemetry);
 
     // shared setup
     log::info!("Building agent...");
@@ -129,15 +139,27 @@ async fn main() -> anyhow::Result<()> {
     let sessions_scheduler = deps.sessions.clone();
     let model_scheduler = model.clone();
     tokio::spawn(async move {
-        if let Err(e) = crate::modes::scheduler::run_scheduler_loop_with_deps(agent_scheduler, model_scheduler, sessions_scheduler).await {
+        if let Err(e) = crate::modes::scheduler::run_scheduler_loop_with_deps(
+            agent_scheduler,
+            model_scheduler,
+            sessions_scheduler,
+        )
+        .await
+        {
             log::error!("Scheduler background error: {:?}", e);
         }
     });
 
     // Reflection Service
-    if config.reflection.as_ref().map(|r| r.enabled).unwrap_or(false) {
+    if config
+        .reflection
+        .as_ref()
+        .map(|r| r.enabled)
+        .unwrap_or(false)
+    {
         let reflection_model_cfg = config.reflection.as_ref().and_then(|r| r.to_model_config());
-        let reflection_model = agent::load_model_with_fallback(&reflection_model_cfg, &config.model).await?;
+        let reflection_model =
+            agent::load_model_with_fallback(&reflection_model_cfg, &config.model).await?;
         let reflection_model_name = reflection_model_cfg
             .as_ref()
             .map(|c| c.model_name.clone())
@@ -172,7 +194,15 @@ async fn main() -> anyhow::Result<()> {
         }
         Commands::Tui => {
             unsafe { std::env::set_var("RUST_LOG", "error") };
-            modes::tui::run_tui(agent, deps.sessions, deps.memory_adapter, model, provider, model_name).await?;
+            modes::tui::run_tui(
+                agent,
+                deps.sessions,
+                deps.memory_adapter,
+                model,
+                provider,
+                model_name,
+            )
+            .await?;
         }
         Commands::Run { prompt } => {
             log::info!("Running in direct run mode");
@@ -181,12 +211,27 @@ async fn main() -> anyhow::Result<()> {
         Commands::Serve { port, host } => {
             log::info!("Running in serve mode");
             let host = host.unwrap_or_else(|| "127.0.0.1".to_string());
-            modes::serve::run_serve(agent, model, deps.sessions.clone(), deps.memory_adapter, host, port.unwrap_or(8080)).await?;
+            modes::serve::run_serve(
+                agent,
+                model,
+                deps.sessions.clone(),
+                deps.memory_adapter,
+                host,
+                port.unwrap_or(8080),
+            )
+            .await?;
         }
         Commands::Browse { port, host } => {
             log::info!("Running in browse mode");
             let host = host.unwrap_or_else(|| "127.0.0.1".to_string());
-            modes::browse::run_browse(agent, model, deps.memory_adapter, host, port.unwrap_or(8080)).await?;
+            modes::browse::run_browse(
+                agent,
+                model,
+                deps.memory_adapter,
+                host,
+                port.unwrap_or(8080),
+            )
+            .await?;
         }
         Commands::Line { port, host } => {
             log::info!("Running in LINE bot mode");
@@ -203,7 +248,7 @@ async fn main() -> anyhow::Result<()> {
         Commands::Init => {
             log::info!("Running initialize mode");
             run_init().await?;
-        },
+        }
         Commands::Eval => {
             log::info!("Running evaluation mode");
             modes::eval::run_eval(agent, deps.sessions, deps.memory_adapter, model).await?;
