@@ -71,7 +71,7 @@ async fn main() -> anyhow::Result<()> {
 
     dotenvy::dotenv().ok();
 
-    // parse cli
+    println!("Parsing CLI...");
     let cli = Cli::parse();
 
     // Logging & Telemetry setup
@@ -82,12 +82,13 @@ async fn main() -> anyhow::Result<()> {
     let otel_endpoint = std::env::var("OTEL_COLLECTOR").unwrap_or_else(|_| "NOT_SET".to_string());
     let use_telemetry = otel_endpoint != "NOT_SET" && !otel_endpoint.is_empty();
     println!("DEBUG: OTEL_COLLECTOR='{}'", otel_endpoint);
-    log::info!("Detected OTEL_COLLECTOR: '{}'", otel_endpoint);
-
+    
+    println!("Initializing telemetry...");
     if use_telemetry {
         init_with_otlp("nami", &otel_endpoint).expect("Failed to initialize telemetry");
     }
 
+    println!("Telemetry initialized. Starting app...");
     log::info!("Application starting with telemetry: {}", use_telemetry);
     tracing::info!("Application starting with telemetry: {}", use_telemetry);
 
