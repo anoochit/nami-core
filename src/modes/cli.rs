@@ -238,24 +238,49 @@ async fn run_system_prompt(
                                 }
                                 if let Part::FunctionCall { name, args, .. } = part {
                                     let args_str = args.to_string().replace('\n', " ").replace("  ", " ");
-                                    let compact_args = if args_str.chars().count() > 60 {
-                                        format!("{}...", args_str.chars().take(57).collect::<String>())
+                                    let compact_args = if args_str.chars().count() > 80 {
+                                        format!("{}...", args_str.chars().take(77).collect::<String>())
                                     } else {
                                         args_str
                                     };
-                                    print_status_line(
-                                        &mut io::stdout(),
-                                        &format!(
-                                            "{} {} {}({})",
-                                            style::style("🔨"),
-                                            style::style("Calling").dim().bold(),
-                                            style::style(name).cyan(),
-                                            style::style(compact_args).dim()
-                                        ),
-                                    )?;
+                                    
+                                    clear_current_line(&mut io::stdout())?;
+                                    println!("{} {} {}({})\r", 
+                                        style::style("🔨").magenta(),
+                                        style::style("Tool Call:").dim().bold(),
+                                        style::style(name).cyan(),
+                                        style::style(compact_args).dim()
+                                    );
+                                    io::stdout().flush()?;
+                                }
+                                if let Part::FunctionResponse { function_response, .. } = part {
+                                    let resp_str = function_response.response.to_string().replace('\n', " ");
+                                    let compact_resp = if resp_str.chars().count() > 100 {
+                                        format!("{}...", resp_str.chars().take(97).collect::<String>())
+                                    } else {
+                                        resp_str
+                                    };
+                                    
+                                    clear_current_line(&mut io::stdout())?;
+                                    println!("{} {} {}\r", 
+                                        style::style("✅").green(),
+                                        style::style("Tool Result:").dim().bold(),
+                                        style::style(compact_resp).dim()
+                                    );
+                                    io::stdout().flush()?;
                                 }
                             }
                         }
+
+                        // Re-print the thinking status if we are still waiting for more
+                        print_status_line(
+                            &mut io::stdout(),
+                            &format!(
+                                "{} {}",
+                                style::style("⏳").magenta(),
+                                style::style("Agent is thinking...").dim()
+                            ),
+                        )?;
                     }
                     Some(Err(e)) => {
                         response.push_str(&format_error(e));
@@ -284,7 +309,7 @@ async fn run_system_prompt(
     }
 
     terminal::disable_raw_mode()?;
-    clear_current_line(&mut io::stdout())?;
+    // clear_current_line(&mut io::stdout())?; // Don't clear, user wants to see behavior
 
     if cancelled {
         if !cancelled_by_esc {
@@ -660,24 +685,49 @@ pub async fn run_cli(
 
                                             if let Part::FunctionCall { name, args, .. } = part {
                                                 let args_str = args.to_string().replace('\n', " ").replace("  ", " ");
-                                                let compact_args = if args_str.chars().count() > 60 {
-                                                    format!("{}...", args_str.chars().take(57).collect::<String>())
+                                                let compact_args = if args_str.chars().count() > 80 {
+                                                    format!("{}...", args_str.chars().take(77).collect::<String>())
                                                 } else {
                                                     args_str
                                                 };
-                                                print_status_line(
-                                                    &mut io::stdout(),
-                                                    &format!(
-                                                        "{} {} {}({})",
-                                                        style::style("🔨"),
-                                                        style::style("Calling").dim().bold(),
-                                                        style::style(name).cyan(),
-                                                        style::style(compact_args).dim()
-                                                    ),
-                                                )?;
+                                                
+                                                clear_current_line(&mut io::stdout())?;
+                                                println!("{} {} {}({})\r", 
+                                                    style::style("🔨").magenta(),
+                                                    style::style("Tool Call:").dim().bold(),
+                                                    style::style(name).cyan(),
+                                                    style::style(compact_args).dim()
+                                                );
+                                                io::stdout().flush()?;
+                                            }
+                                            if let Part::FunctionResponse { function_response, .. } = part {
+                                                let resp_str = function_response.response.to_string().replace('\n', " ");
+                                                let compact_resp = if resp_str.chars().count() > 100 {
+                                                    format!("{}...", resp_str.chars().take(97).collect::<String>())
+                                                } else {
+                                                    resp_str
+                                                };
+                                                
+                                                clear_current_line(&mut io::stdout())?;
+                                                println!("{} {} {}\r", 
+                                                    style::style("✅").green(),
+                                                    style::style("Tool Result:").dim().bold(),
+                                                    style::style(compact_resp).dim()
+                                                );
+                                                io::stdout().flush()?;
                                             }
                                         }
                                     }
+
+                                    // Re-print the thinking status if we are still waiting for more
+                                    print_status_line(
+                                        &mut io::stdout(),
+                                        &format!(
+                                            "{} {}",
+                                            style::style("⏳").magenta(),
+                                            style::style("Agent is thinking...").dim()
+                                        ),
+                                    )?;
                                 }
 
                                 Some(Err(e)) => {
@@ -712,7 +762,7 @@ pub async fn run_cli(
                 }
 
                 terminal::disable_raw_mode()?;
-                clear_current_line(&mut io::stdout())?;
+                // clear_current_line(&mut io::stdout())?; // Don't clear, user wants to see behavior
 
                 if cancelled {
                     if !cancelled_by_esc {
