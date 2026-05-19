@@ -41,6 +41,12 @@ pub async fn run_serve(
     let listener = tokio::net::TcpListener::bind(&addr).await?;
     println!("ADK Server starting on http://{}", addr);
     println!("Press Ctrl+C to stop\n");
-    axum::serve(listener, app).await?;
+    
+    axum::serve(listener, app)
+        .with_graceful_shutdown(async move {
+            tokio::signal::ctrl_c().await.expect("failed to listen for ctrl-c");
+            println!("\nShutting down server...");
+        })
+        .await?;
     Ok(())
 }
