@@ -75,6 +75,8 @@ async fn main() -> anyhow::Result<()> {
     let cli = Cli::parse();
 
     // Logging & Telemetry setup
+    let rust_log = std::env::var("RUST_LOG").unwrap_or_else(|_| "info".to_string());
+    println!("DEBUG: RUST_LOG='{}'", rust_log);
     if std::env::var("RUST_LOG").is_err() {
         unsafe { std::env::set_var("RUST_LOG", "info") };
     }
