@@ -42,3 +42,7 @@ help = "Schedule a repeating task (goal | cron)"
 [commands."/recall"]
 template = "recall_memory: {args}"
 help = "Recall information from memory"
+
+[commands."/pev"]
+template = "Please use PEV mode for this objective: {args}. First, use pev_init(goal='{args}', task_id='pev-{uuid}') to plan it, then use pev_run(task_id='pev-{uuid}') to execute and verify it."
+help = "Run the Planner-Executor-Verifier loop for a goal"

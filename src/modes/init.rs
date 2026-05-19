@@ -169,6 +169,7 @@ api_key_env = "{api_key_env}"
 project_id = "{project_id_str}"
 location = "{location_str}"
 
+# --- Custom command definitions ---
 [commands]
 # Custom command definitions
 [commands."/plan"]
@@ -198,6 +199,10 @@ help = "Schedule a repeating task (goal | cron)"
 [commands."/recall"]
 template = "recall_memory: {{args}}"
 help = "Recall information from memory"
+
+[commands."/pev"]
+template = "Please use PEV mode for this objective: {{args}}. First, use pev_init(goal='{{args}}', task_id='pev-{{uuid}}') to plan it, then use pev_run(task_id='pev-{{uuid}}') to execute and verify it."
+help = "Run the Planner-Executor-Verifier loop for a goal"
 
 # --- Granular Service Configurations (Optional) ---
 # If a section is missing, it falls back to the default [model] settings.

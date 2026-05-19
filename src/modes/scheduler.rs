@@ -69,7 +69,7 @@ pub async fn run_scheduler_loop_with_deps(
                     .map(|s| s.status.clone())
                     .unwrap_or(TaskStatus::InProgress);
 
-                if current_status != TaskStatus::Completed {
+                if !current_status.is_terminal() {
                     log::info!("Scheduler triggering task: {}", task.goal);
 
                     let content = Content::new("user").with_text(&format!(

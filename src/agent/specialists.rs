@@ -106,6 +106,23 @@ pub fn get_specialists(
     }
     let ralph = Arc::new(ralph_builder.build().expect("Failed to build ralph agent"));
 
+    let mut verifier_builder = LlmAgentBuilder::new("verifier")
+        .description(
+            "A rigorous evaluation specialist. It analyzes outputs against verification criteria and identifies faults, edge cases, or missed requirements."
+        )
+        .instruction(
+            "You are a rigorous Verifier. Your goal is to ensure that the work performed by other agents is correct, complete, and meets all verification criteria. 
+            Be critical. Look for bugs, side effects, missing documentation, or incomplete implementations.
+            If the output is perfect, say 'VERIFIED'. 
+            If there are issues, list them clearly so the executor can fix them."
+        )
+        .model(get_model("verifier"));
+
+    for t in &tools {
+        verifier_builder = verifier_builder.tool(t.clone());
+    }
+    let verifier = Arc::new(verifier_builder.build().expect("Failed to build verifier agent"));
+
     let mut specialists: HashMap<String, Arc<dyn Tool>> = HashMap::new();
     specialists.insert(
         "generalist".to_string(),
@@ -118,6 +135,7 @@ pub fn get_specialists(
     );
     specialists.insert("writer".to_string(), Arc::new(AgentTool::new(writer)));
     specialists.insert("ralph".to_string(), Arc::new(AgentTool::new(ralph)));
+    specialists.insert("verifier".to_string(), Arc::new(AgentTool::new(verifier)));
 
     specialists
 }

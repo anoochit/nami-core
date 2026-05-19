@@ -13,20 +13,41 @@ use tokio::fs;
 #[derive(Serialize, Deserialize, JsonSchema, Clone, Debug, PartialEq)]
 #[serde(rename_all = "snake_case")]
 pub enum TaskStatus {
+    Backlog,
+    Todo,
     InProgress,
+    InReview,
     Blocked,
-    Completed,
-    Failed,
+    #[serde(alias = "completed")]
+    Done,
+    #[serde(alias = "failed")]
+    Cancelled,
+}
+
+impl TaskStatus {
+    pub fn is_active(&self) -> bool {
+        matches!(
+            self,
+            TaskStatus::Todo | TaskStatus::InProgress | TaskStatus::InReview | TaskStatus::Blocked
+        )
+    }
+
+    pub fn is_terminal(&self) -> bool {
+        matches!(self, TaskStatus::Done | TaskStatus::Cancelled)
+    }
 }
 
 impl std::str::FromStr for TaskStatus {
     type Err = AdkError;
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s.to_lowercase().as_str() {
+            "backlog" => Ok(TaskStatus::Backlog),
+            "todo" => Ok(TaskStatus::Todo),
             "in_progress" => Ok(TaskStatus::InProgress),
+            "in_review" => Ok(TaskStatus::InReview),
             "blocked" => Ok(TaskStatus::Blocked),
-            "completed" => Ok(TaskStatus::Completed),
-            "failed" => Ok(TaskStatus::Failed),
+            "done" | "completed" => Ok(TaskStatus::Done),
+            "cancelled" | "failed" | "cancel" => Ok(TaskStatus::Cancelled),
             _ => Err(AdkError::tool(format!("Invalid status: {}", s))),
         }
     }
@@ -36,6 +57,7 @@ impl std::str::FromStr for TaskStatus {
 pub struct Step {
     pub description: String,
     pub completed: bool,
+    pub verification_criteria: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, JsonSchema, Clone, Debug)]
@@ -55,8 +77,10 @@ struct InitTaskArgs {
     task_id: String,
     /// High-level objective of the task.
     goal: String,
-    /// List of initial execution steps (descriptions).
-    steps: Vec<String>,
+    /// Initial status of the task.
+    status: Option<String>,
+    /// List of initial execution steps. Can be strings (description) or objects.
+    steps: Vec<Value>,
 }
 
 #[derive(Deserialize, JsonSchema)]
@@ -69,7 +93,7 @@ struct UpdateTaskArgs {
     last_step: Option<String>,
     /// Data needed for the next run (JSON object).
     context_payload: Option<Value>,
-    /// Updated list of steps as JSON array: [{"description": "...", "completed": bool}]
+    /// Updated list of steps as JSON array: [{"description": "...", "completed": bool, "verification_criteria": "..."}]
     steps: Option<Value>,
 }
 
@@ -122,10 +146,27 @@ impl Tool for InitTask {
             "properties": {
                 "task_id": { "type": "string", "description": "Unique identifier for the task." },
                 "goal": { "type": "string", "description": "High-level objective of the task." },
+                "status": {
+                    "type": "string",
+                    "enum": ["backlog", "todo", "in_progress", "in_review", "blocked", "done", "cancel"],
+                    "description": "Initial status of the task (defaults to in_progress)."
+                },
                 "steps": {
                     "type": "array",
-                    "items": { "type": "string" },
-                    "description": "List of initial execution steps (descriptions)."
+                    "items": {
+                        "oneOf": [
+                            { "type": "string", "description": "Description of the step." },
+                            {
+                                "type": "object",
+                                "properties": {
+                                    "description": { "type": "string" },
+                                    "verification_criteria": { "type": "string" }
+                                },
+                                "required": ["description"]
+                            }
+                        ]
+                    },
+                    "description": "List of initial execution steps (descriptions or objects with criteria)."
                 }
             },
             "required": ["task_id", "goal", "steps"]
@@ -147,18 +188,42 @@ impl Tool for InitTask {
             )));
         }
 
+        let initial_status = if let Some(s) = args.status {
+            s.parse()?
+        } else {
+            TaskStatus::InProgress
+        };
+
         let steps = args
             .steps
             .into_iter()
-            .map(|d| Step {
-                description: d,
-                completed: false,
+            .map(|v| {
+                if let Some(s) = v.as_str() {
+                    Ok(Step {
+                        description: s.to_string(),
+                        completed: false,
+                        verification_criteria: None,
+                    })
+                } else {
+                    #[derive(Deserialize)]
+                    struct StepInput {
+                        description: String,
+                        verification_criteria: Option<String>,
+                    }
+                    let input: StepInput = serde_json::from_value(v)
+                        .map_err(|e| AdkError::tool(format!("Invalid step format: {}", e)))?;
+                    Ok(Step {
+                        description: input.description,
+                        completed: false,
+                        verification_criteria: input.verification_criteria,
+                    })
+                }
             })
-            .collect();
+            .collect::<std::result::Result<Vec<_>, AdkError>>()?;
 
         let new_task = TaskState {
             task_id: args.task_id.clone(),
-            status: TaskStatus::InProgress,
+            status: initial_status,
             goal: args.goal,
             steps,
             last_step: None,
@@ -186,7 +251,11 @@ impl Tool for UpdateTask {
             "type": "object",
             "properties": {
                 "task_id": { "type": "string", "description": "The ID of the task to update." },
-                "status": { "type": "string", "description": "New status: in_progress, blocked, completed, failed." },
+                "status": {
+                    "type": "string",
+                    "enum": ["backlog", "todo", "in_progress", "in_review", "blocked", "done", "cancel"],
+                    "description": "New Kanban status for the task."
+                },
                 "last_step": { "type": "string", "description": "Summary of the last completed action." },
                 "context_payload": { "type": "object", "description": "Data needed for the next run." },
                 "steps": {
@@ -195,8 +264,10 @@ impl Tool for UpdateTask {
                         "type": "object",
                         "properties": {
                             "description": { "type": "string" },
-                            "completed": { "type": "boolean" }
-                        }
+                            "completed": { "type": "boolean" },
+                            "verification_criteria": { "type": "string" }
+                        },
+                        "required": ["description"]
                     },
                     "description": "Updated list of steps."
                 }
@@ -292,7 +363,7 @@ impl Tool for ListActiveTasks {
         let states = load_states().await?;
         let active: Vec<_> = states
             .into_iter()
-            .filter(|t| matches!(t.status, TaskStatus::InProgress | TaskStatus::Blocked))
+            .filter(|t| t.status.is_active())
             .collect();
 
         if active.is_empty() {
@@ -311,3 +382,67 @@ pub fn state_manager_tools() -> Vec<Arc<dyn Tool>> {
         Arc::new(ListActiveTasks),
     ]
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_json::json;
+
+    #[test]
+    fn test_status_parsing() {
+        assert_eq!("backlog".parse::<TaskStatus>().unwrap(), TaskStatus::Backlog);
+        assert_eq!("todo".parse::<TaskStatus>().unwrap(), TaskStatus::Todo);
+        assert_eq!("in_progress".parse::<TaskStatus>().unwrap(), TaskStatus::InProgress);
+        assert_eq!("in_review".parse::<TaskStatus>().unwrap(), TaskStatus::InReview);
+        assert_eq!("blocked".parse::<TaskStatus>().unwrap(), TaskStatus::Blocked);
+        assert_eq!("done".parse::<TaskStatus>().unwrap(), TaskStatus::Done);
+        assert_eq!("completed".parse::<TaskStatus>().unwrap(), TaskStatus::Done);
+        assert_eq!("cancelled".parse::<TaskStatus>().unwrap(), TaskStatus::Cancelled);
+        assert_eq!("failed".parse::<TaskStatus>().unwrap(), TaskStatus::Cancelled);
+        assert_eq!("cancel".parse::<TaskStatus>().unwrap(), TaskStatus::Cancelled);
+    }
+
+    #[test]
+    fn test_status_logic() {
+        assert!(TaskStatus::Todo.is_active());
+        assert!(TaskStatus::InProgress.is_active());
+        assert!(TaskStatus::InReview.is_active());
+        assert!(TaskStatus::Blocked.is_active());
+        assert!(!TaskStatus::Backlog.is_active());
+        assert!(!TaskStatus::Done.is_active());
+        assert!(!TaskStatus::Cancelled.is_active());
+
+        assert!(TaskStatus::Done.is_terminal());
+        assert!(TaskStatus::Cancelled.is_terminal());
+        assert!(!TaskStatus::InProgress.is_terminal());
+    }
+
+    #[test]
+    fn test_status_serde_aliases() {
+        // Test backward compatibility aliases
+        let completed: TaskStatus = serde_json::from_value(json!("completed")).unwrap();
+        assert_eq!(completed, TaskStatus::Done);
+
+        let failed: TaskStatus = serde_json::from_value(json!("failed")).unwrap();
+        assert_eq!(failed, TaskStatus::Cancelled);
+
+        // Test normal serialization
+        let json = serde_json::to_value(TaskStatus::Done).unwrap();
+        assert_eq!(json, json!("done"));
+    }
+
+    #[test]
+    fn test_step_verification_criteria() {
+        let step = Step {
+            description: "Test".to_string(),
+            completed: false,
+            verification_criteria: Some("Criteria".to_string()),
+        };
+        let json = serde_json::to_value(&step).unwrap();
+        assert_eq!(json["verification_criteria"], json!("Criteria"));
+
+        let deserialized: Step = serde_json::from_value(json).unwrap();
+        assert_eq!(deserialized.verification_criteria, Some("Criteria".to_string()));
+    }
+}
+

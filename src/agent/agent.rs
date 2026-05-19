@@ -225,6 +225,8 @@ pub async fn create_agent(
     let specialists =
         specialists::get_specialists(model.clone(), specialist_models, core_tools.clone());
 
+    core_tools.extend(tools::pev_loop::pev_tools(model.clone(), specialists.clone()));
+
     let mut builder = LlmAgentBuilder::new("nami")
         .description("A helpful and playful AI assistant")
         .instruction(format_persona(
