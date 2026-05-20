@@ -18,7 +18,7 @@ export default defineConfig({
             if (id.includes('react-dom') || id.includes('react/') || id.includes('scheduler')) {
               return 'react-vendor';
             }
-            if (id.includes('recharts') || id.includes('d3')) {
+            if (id.includes('recharts') || id.includes('d3') || id.includes('victory-vendor')) {
               return 'recharts-vendor';
             }
             if (
@@ -53,6 +53,18 @@ export default defineConfig({
               id.includes('react-resizable-panels')
             ) {
               return 'ui-vendor';
+            }
+            if (id.includes('pdfjs-dist')) {
+              return 'pdfjs-vendor';
+            }
+            if (
+              id.includes('@marp-team') || 
+              id.includes('katex') || 
+              id.includes('mathjax-full') || 
+              id.includes('markdown-it') || 
+              id.includes('highlight.js')
+            ) {
+              return 'marp-vendor';
             }
             return 'vendor';
           }
