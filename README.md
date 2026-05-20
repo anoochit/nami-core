@@ -188,7 +188,7 @@ graph TD
         Run[Direct Run]
         Server[HTTP Server/Browse]
         Browse[Browse]
-        Desktop[Tauri Desktop App]
+        Desktop[Desktop App]
     end
 
     EntryPoints --> Runner[adk-rust Runner]
