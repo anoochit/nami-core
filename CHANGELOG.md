@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.9.19] - 2026-05-19
+
+### Added
+
+- **Canvas Rendering**: Added support for PDF rendering in the WebUI `PreviewPane` using `pdfjs-dist`.
+- **Marp Support**: Added client-side Marp slide rendering for Markdown files with `marp: true` frontmatter using `@marp-team/marp-core`.
+
 ## [0.9.18] - 2026-05-18
 
 ### Added
