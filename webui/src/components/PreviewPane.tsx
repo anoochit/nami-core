@@ -111,7 +111,7 @@ export const PreviewPane: React.FC<PreviewPaneProps> = ({ path, onClose, isWiki 
         if (!context) return;
         canvas.height = viewport.height;
         canvas.width = viewport.width;
-        await page.render({ canvasContext: context, viewport }).promise;
+        await page.render({ canvasContext: context, viewport, canvas }).promise;
     };
 
     fetchContent();
