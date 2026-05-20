@@ -20,6 +20,7 @@ A modular, extensible AI-powered `Nami` built on top of [adk-rust](https://githu
 * **Parallel Task Execution**: A custom `parallel_tasks` tool that orchestrates multiple specialists simultaneously for high-speed multi-tasking.
 * **Autonomous Goal Loops**: A "Ralph Wiggum" loop agent that persists through multiple iterations to achieve complex goals, triggered via `/goal`.
 * **Hybrid MCP Support**: Seamlessly connect to both local (stdio-based) and remote (streamable HTTP/SSE) [Model Context Protocol](https://modelcontextprotocol.io/) servers. Tools are automatically namespaced with `mcp_` to prevent collisions.
+* **Native Desktop App (Tauri)**: A premium, cross-platform desktop experience built with Tauri v2. Features an embedded Nami server, native window management, and a high-performance React UI.
 
 ### 💻 Rich User Interface
 
@@ -43,17 +44,17 @@ A modular, extensible AI-powered `Nami` built on top of [adk-rust](https://githu
 
 * **Long-Term Searchable Memory**: Integrated `adk-memory` with a SQLite backend. This allows the agent to search past conversations for relevant facts and projects across all modes (CLI, Bot, Serve, Browse).
 * **Obsidian-Style Wiki KM**: A transparent, human-readable Knowledge Management system using `.md` files.
-  * `add_wiki_page`: Markdown saving with `[[wikilink]]` syntax.
-  * `get_wiki_graph`: Knowledge graph visualization.
-  * `search_wiki_by_tag`: Filter notes by specific `#tags`.
-  * `create_daily_note`: Journal entries for the current date.
-  * `get_backlinks`: List pages linking to a specific note.
-  * `rename_wiki_page`: Safe renaming with link updates.
+*   `add_wiki_page`: Markdown saving with `[[wikilink]]` syntax.
+*   `get_wiki_graph`: Knowledge graph visualization.
+*   `search_wiki_by_tag`: Filter notes by specific `#tags`.
+*   `create_daily_note`: Journal entries for the current date.
+*   `get_backlinks`: List pages linking to a specific note.
+*   `rename_wiki_page`: Safe renaming with link updates.
 * **Persistent Sessions**: SQLite-backed conversation history keyed by Telegram user ID.
 * **State Management**: A structured JSON-based system for tracking long-running tasks, guided by `workspace/STATE_PROTOCOL.md`.
-  * `init_task`: Initialize new processes with goals and steps.
-  * `update_task`: Progress tracking and persistent context.
-  * `list_active_tasks`: View all in-progress or blocked tasks.
+*   `init_task`: Initialize new processes with goals and steps.
+*   `update_task`: Progress tracking and persistent context.
+*   `list_active_tasks`: View all in-progress or blocked tasks.
 * **Todo Management**: Built-in task manager for tracking goals and daily items (`add_todo`, `list_todos`, `mark_todo_done`).
 
 ### 🛠 Specialized Skills & Tools
@@ -145,7 +146,7 @@ VITE_NAMI_API_KEY=your_secure_random_key_here
 
    The generated executable will be found in `target/release/`.
 
-2. **(Optional) Install globally**:
+1. **(Optional) Install globally**:
    To run `nami` from any directory, you can move the binary to a location in your system's `PATH`:
 
    * **Linux/macOS**:
@@ -170,6 +171,8 @@ The application provides several run modes:
 | **Run** | `nami run <prompt>` | Execute a single prompt directly from the CLI. |
 | **Server** | `nami serve` | Run as an HTTP service. |
 | **Browse** | `nami browse` | Start server with embedded WebUI. |
+| **Desktop (Dev)** | `make desktop-dev` | Launch the native Tauri desktop app in development mode. |
+| **Desktop (Build)** | `make desktop` | Build the production desktop installer (MSI, DMG, DEB). |
 
 ## 🏗 Architecture
 
@@ -185,6 +188,7 @@ graph TD
         Run[Direct Run]
         Server[HTTP Server/Browse]
         Browse[Browse]
+        Desktop[Tauri Desktop App]
     end
 
     EntryPoints --> Runner[adk-rust Runner]

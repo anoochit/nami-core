@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.9.20] - 2026-05-20
+
+### Added
+
+- **Desktop Mode (Tauri)**: Integrated a native desktop application powered by Tauri v2.
+  - **Embedded Backend**: The Nami API server now runs as a background thread within the native app.
+  - **Automatic Routing**: Frontend is pre-configured to communicate with the local embedded server via a proxy.
+  - **Native Build System**: Added `make desktop` and `make desktop-dev` to the root Makefile.
+- **CI/CD Desktop Releases**: Updated GitHub Actions to automatically build and release desktop installers (`.msi`, `.dmg`, `.deb`) for every nightly build.
+
 ## [0.9.19] - 2026-05-19
 
 ### Added
@@ -48,17 +58,6 @@ All notable changes to this project will be documented in this file.
 
 - **Compilation**: Resolved `unresolved import` and missing function errors in `src/main.rs` by correctly importing and calling `run_init`.
 
-
-### Changed
-
-- **Logging**: Migrated from `pretty_env_logger` to `tracing-subscriber` for improved logging in `src/main.rs`.
-- **Backend**: Implemented folder content sorting in `src/modes/api.rs`, ensuring directories appear before files.
-- **Frontend**: Updated WebUI icons in `webui/src/App.tsx` using `lucide-react`.
-
-### Fixed
-
-- **Compilation**: Resolved `unresolved import` and missing function errors in `src/main.rs` by correctly importing and calling `run_init`.
-
 ## [0.9.15] - 2026-05-16
 
 ### Added
@@ -69,7 +68,6 @@ All notable changes to this project will be documented in this file.
 ### Changed
 
 - **Codebase Sync**: Synchronized all local changes with the remote `origin/main` repository.
-
 
 ## [0.9.14] - 2026-05-15
 
@@ -113,45 +111,6 @@ All notable changes to this project will be documented in this file.
 - **WebUI Architectural Refactor**: Decomposed the monolithic `ThreadView.tsx` into a modular component tree to improve maintainability and scalability.
 - **Refined Streaming Polish**: Enhanced the Thai/English auto-spacing algorithm in `useChat.ts` and improved SSE (Server-Sent Events) chunk processing in `api.ts` for increased robustness against partial data.
 - **WebUI UX Improvements**: Redesigned the chat input send button with a perfect circular shape and pixel-perfect icon centering using CSS Grid.
-
-### Fixed
-
-- **TypeScript Compilation**: Resolved a `Type 'unknown' is not assignable to type 'ReactNode'` error in `ToolAccordion.tsx` by implementing explicit null/undefined checks.
-- **UI Alignment**: Corrected the visual centering of the Send icon within the circular action button.
-- **Project Initialization**: Fixed a compilation error in `init.rs` caused by unescaped curly braces in the `config.toml` template.
-- **CLI Code Quality**: Resolved compiler warnings by removing unused `mut` qualifiers in the `run_cli` function.
-
-
-
-### Changed
-
-- **WebUI Architectural Refactor**: Decomposed the monolithic `ThreadView.tsx` into a modular component tree (`ChatHeader`, `MessageList`, `MessageItem`, `ChatInput`) to improve maintainability and scalability.
-- **Project Configuration**: Updated `Cargo.toml` and `Cargo.toml.example` to reflect the latest dependency requirements and build settings.
-- **CLI & Tools**: Refactored modes and tools to enhance performance and code quality, including the removal of `src/modes/agui.rs` and improvements to `src/tools/web_fetch/mod.rs`.
-
-### Fixed
-
-- **Project Initialization**: Fixed a compilation error in `init.rs` caused by unescaped curly braces in the `config.toml` template.
-- **CLI Code Quality**: Resolved compiler warnings in `src/main.rs` by removing unused `mut` qualifiers.
-- **UI Alignment**: Corrected visual centering of the Send icon within the circular action button.
-- **TypeScript Compilation**: Resolved type issues in WebUI components.
-
-
-
-### Added
-
-- **Type-Safe Chat Architecture**: Introduced a centralized type system in `webui/src/types/chat.ts` for messages, threads, and agent events, eliminating `any` usage and improving compile-time safety.
-- **New Modular Components**:
-  - `ChatHeader`: Dedicated component for thread metadata and sidebar toggling.
-  - `MessageList`: Encapsulated auto-scrolling container for chat history.
-  - `MessageItem`: Specialized component for rendering message bubbles, tool-calls, and Markdown content.
-  - `ChatInput`: Integrated component for input handling, slash command autocomplete, and prompt history.
-
-### Changed
-
-- **WebUI Architectural Refactor**: Decomposed the monolithic `ThreadView.tsx` into a modular component tree to improve maintainability and scalability.
-- **Refined Streaming Polish**: Enhanced the Thai/English auto-spacing algorithm in `useChat.ts` and improved SSE (Server-Sent Events) chunk processing in `api.ts` for increased robustness against partial data.
-- WebUI UX Improvements: Redesigned the chat input send button with a perfect circular shape and pixel-perfect icon centering using CSS Grid.
 
 ### Fixed
 
@@ -275,6 +234,8 @@ All notable changes to this project will be documented in this file.
 ### Added
 
 - **Workspace Configuration**: Integrated `pnpm-workspace.yaml` in the WebUI directory to explicitly manage `esbuild` dependency, ensuring build consistency across environments.
+
+## [0.9.2] - 2026-05-10
 
 ### Added
 

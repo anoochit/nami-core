@@ -9,7 +9,7 @@ build: nami
 # Build WebUI assets
 webui:
 	@echo "Building WebUI..."
-	cd webui && npm install && npm run build
+	cd webui && pnpm install && pnpm run build
 
 # Build Rust binary (depends on WebUI assets for embedding)
 nami: webui
@@ -41,6 +41,16 @@ test:
 # Generate technical documentation
 docs:
 	cargo doc --no-deps --target-dir docs/reference
+
+# Build for Desktop (Tauri)
+desktop:
+	@echo "Building Desktop application (Tauri)..."
+	npx @tauri-apps/cli build
+
+# Run Desktop in development mode
+desktop-dev:
+	@echo "Starting Desktop in development mode..."
+	npx @tauri-apps/cli dev
 
 # Check for missing module README.md files
 check-docs:
