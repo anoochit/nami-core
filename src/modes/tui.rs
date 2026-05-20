@@ -2,7 +2,7 @@ use adk_rust::Agent;
 use adk_rust::prelude::*;
 use adk_session::SessionService;
 use crossterm::{
-    event::{ self, DisableBracketedPaste, EnableBracketedPaste, Event, KeyCode, KeyEventKind },
+    event::{ self, DisableBracketedPaste, EnableBracketedPaste, EnableMouseCapture, DisableMouseCapture, Event, KeyCode, KeyEventKind },
     execute,
     terminal::{ EnterAlternateScreen, LeaveAlternateScreen, disable_raw_mode, enable_raw_mode },
 };
@@ -15,7 +15,7 @@ use ratatui::{
     layout::{ Constraint, Direction, Layout },
     style::{ Color, Modifier, Style },
     text::{ Line, Span },
-    widgets::{ Block, Borders, List, ListItem, ListState, Padding, Paragraph },
+    widgets::{ Block, Borders, Padding, Paragraph, Scrollbar, ScrollbarState, ScrollbarOrientation },
 };
 use rustyline::{ Config, Editor, history::FileHistory };
 use std::io;
@@ -45,7 +45,8 @@ struct Message {
 struct App<'a> {
     input: TextArea<'a>,
     messages: Vec<Message>,
-    list_state: ListState,
+    scroll_offset: usize,
+    auto_scroll: bool,
     is_thinking: bool,
     session_id: String,
     last_width: usize,
@@ -59,7 +60,8 @@ impl<'a> App<'a> {
         App {
             input: TextArea::default(),
             messages: Vec::new(),
-            list_state: ListState::default(),
+            scroll_offset: 0,
+            auto_scroll: true,
             is_thinking: false,
             session_id,
             last_width: 0,
@@ -88,6 +90,18 @@ impl<'a> App<'a> {
         Ok(())
     }
 
+    fn total_lines(&self) -> usize {
+        self.messages.iter().map(|m| m.rendered_lines.len()).sum()
+    }
+
+    fn get_all_lines(&self) -> Vec<Line<'static>> {
+        let mut lines = Vec::new();
+        for m in &self.messages {
+            lines.extend(m.rendered_lines.clone());
+        }
+        lines
+    }
+
     fn add_message(&mut self, role: MessageRole, content: String) {
         self.messages.push(Message {
             role,
@@ -100,7 +114,7 @@ impl<'a> App<'a> {
                 self.render_message(len - 1, self.last_width);
             }
             // Auto-scroll to bottom on new message
-            self.list_state.select(Some(len - 1));
+            self.auto_scroll = true;
         }
     }
 
@@ -113,7 +127,7 @@ impl<'a> App<'a> {
                     self.render_message(idx, self.last_width);
                 }
                 // Auto-scroll to bottom while streaming
-                self.list_state.select(Some(self.messages.len() - 1));
+                self.auto_scroll = true;
                 return;
             }
         }
@@ -194,30 +208,29 @@ impl<'a> App<'a> {
         }
     }
 
-    fn scroll_down(&mut self) {
-        if self.messages.is_empty() {
-            return;
+    fn scroll_down_by(&mut self, amount: usize, viewport_height: usize) {
+        let total = self.total_lines();
+        let max_scroll = total.saturating_sub(viewport_height);
+        self.scroll_offset = (self.scroll_offset + amount).min(max_scroll);
+        if self.scroll_offset >= max_scroll {
+            self.auto_scroll = true;
         }
-        let i = match self.list_state.selected() {
-            Some(i) => {
-                if i >= self.messages.len() - 1 { i } else { i + 1 }
-            }
-            None => 0,
-        };
-        self.list_state.select(Some(i));
     }
 
-    fn scroll_up(&mut self) {
-        if self.messages.is_empty() {
-            return;
-        }
-        let i = match self.list_state.selected() {
-            Some(i) => {
-                if i == 0 { 0 } else { i - 1 }
-            }
-            None => 0,
-        };
-        self.list_state.select(Some(i));
+    fn scroll_up_by(&mut self, amount: usize) {
+        self.scroll_offset = self.scroll_offset.saturating_sub(amount);
+        self.auto_scroll = false;
+    }
+
+    fn scroll_to_top(&mut self) {
+        self.scroll_offset = 0;
+        self.auto_scroll = false;
+    }
+
+    fn scroll_to_bottom(&mut self, viewport_height: usize) {
+        let total = self.total_lines();
+        self.scroll_offset = total.saturating_sub(viewport_height);
+        self.auto_scroll = true;
     }
 }
 
@@ -319,10 +332,18 @@ pub async fn run_tui(
     provider: String,
     model_name: String
 ) -> anyhow::Result<()> {
+    // Set panic hook to restore terminal on panic
+    let original_hook = std::panic::take_hook();
+    std::panic::set_hook(Box::new(move |panic_info| {
+        let _ = disable_raw_mode();
+        let _ = execute!(io::stdout(), LeaveAlternateScreen, DisableBracketedPaste, DisableMouseCapture);
+        original_hook(panic_info);
+    }));
+
     // Setup terminal
     enable_raw_mode()?;
     let mut stdout = io::stdout();
-    execute!(stdout, EnterAlternateScreen, EnableBracketedPaste)?;
+    execute!(stdout, EnterAlternateScreen, EnableBracketedPaste, EnableMouseCapture)?;
     let backend = CrosstermBackend::new(stdout);
     let mut terminal = Terminal::new(backend)?;
 
@@ -377,7 +398,7 @@ pub async fn run_tui(
 
     // Restore terminal
     disable_raw_mode()?;
-    execute!(terminal.backend_mut(), LeaveAlternateScreen, DisableBracketedPaste)?;
+    execute!(terminal.backend_mut(), LeaveAlternateScreen, DisableBracketedPaste, DisableMouseCapture)?;
     terminal.show_cursor()?;
 
     if let Err(err) = res {
@@ -472,7 +493,6 @@ async fn run_app<B: Backend>(
                             Event::Key(key) => {
                                 if key.kind == KeyEventKind::Press {
                                     match key.code {
-                                        // ... existing key handling ...
                                         KeyCode::Char('c') if key.modifiers.contains(event::KeyModifiers::CONTROL) => {
                                             return Ok(());
                                         }
@@ -484,76 +504,90 @@ async fn run_app<B: Backend>(
                                              }
                                         }
                                         KeyCode::Enter if !app.is_thinking => {
-                                            let input_text = app.input.lines().join("\n");
-                                            let trimmed = input_text.trim();
-                                            if !trimmed.is_empty() {
-                                                app.history.push(input_text.clone());
-                                                let _ = App::save_history_entry(trimmed);
-                                                app.history_index = None;
-                                                app.add_message(MessageRole::User, input_text.clone());
-                                                app.input = TextArea::default();
+                                            if key.modifiers.contains(event::KeyModifiers::ALT) || key.modifiers.contains(event::KeyModifiers::CONTROL) {
+                                                app.input.insert_newline();
+                                            } else {
+                                                let input_text = app.input.lines().join("\n");
+                                                let trimmed = input_text.trim();
+                                                if !trimmed.is_empty() {
+                                                    app.history.push(input_text.clone());
+                                                    let _ = App::save_history_entry(trimmed);
+                                                    app.history_index = None;
+                                                    app.add_message(MessageRole::User, input_text.clone());
+                                                    app.input = TextArea::default();
 
-                                                // Support Slash Commands in TUI
-                                                if trimmed.starts_with('/') {
-                                                    let registry = crate::modes::command_registry::CommandRegistry::load_from_config("config.toml")
-                                                        .unwrap_or(crate::modes::command_registry::CommandRegistry { commands: Default::default() });
+                                                    // Support Slash Commands in TUI
+                                                    if trimmed.starts_with('/') {
+                                                        let registry = crate::modes::command_registry::CommandRegistry::load_from_config("config.toml")
+                                                            .unwrap_or(crate::modes::command_registry::CommandRegistry { commands: Default::default() });
 
-                                                    match trimmed {
-                                                        "/exit" => return Ok(()),
-                                                        "/new" => {
-                                                            app.session_id = Uuid::new_v4().to_string();
-                                                            app.messages.clear();
-                                                            app.add_message(MessageRole::System, "Started a new session.".to_string());
-                                                            crate::modes::cli::ensure_session(&sessions, "tui", user_id, &app.session_id).await?;
-                                                            continue;
-                                                        }
-                                                        "/clear" => {
-                                                            app.messages.clear();
-                                                            app.list_state.select(None);
-                                                            continue;
-                                                        }
-                                                        "/?" => {
-                                                            let help = crate::modes::cli::render_help(&registry);
-                                                            app.add_message(MessageRole::System, help);
-                                                            continue;
-                                                        }
-                                                        cmd if cmd.starts_with('/') => {
-                                                            let cmd_name = &cmd[1..];
-                                                            if let Some(command) = registry.get_command(cmd_name) {
-                                                                let prompt = command.template.clone();
-                                                                app.add_message(MessageRole::User, format!("Running command: {}", cmd_name));
-                                                                app.add_message(MessageRole::Assistant, String::new());
-                                                                app.is_thinking = true;
-                                                                
-                                                                let content = Content::new("user").with_text(prompt);
-                                                                match runner.run_str(user_id, &app.session_id, content).await {
-                                                                    Ok(s) => { stream = Some(s); }
-                                                                    Err(e) => {
-                                                                        app.is_thinking = false;
-                                                                        app.add_message(MessageRole::System, format!("Error: {}", e));
-                                                                    }
-                                                                }
+                                                        match trimmed {
+                                                            "/exit" => return Ok(()),
+                                                            "/new" => {
+                                                                app.session_id = Uuid::new_v4().to_string();
+                                                                app.messages.clear();
+                                                                app.scroll_offset = 0;
+                                                                app.auto_scroll = true;
+                                                                app.add_message(MessageRole::System, "Started a new session.".to_string());
+                                                                crate::modes::cli::ensure_session(&sessions, "tui", user_id, &app.session_id).await?;
                                                                 continue;
                                                             }
+                                                            "/clear" => {
+                                                                app.messages.clear();
+                                                                app.scroll_offset = 0;
+                                                                app.auto_scroll = true;
+                                                                continue;
+                                                            }
+                                                            "/?" => {
+                                                                let help = crate::modes::cli::render_help(&registry);
+                                                                app.add_message(MessageRole::System, help);
+                                                                continue;
+                                                            }
+                                                            cmd if cmd.starts_with('/') => {
+                                                                let cmd_name = &cmd[1..];
+                                                                if let Some(command) = registry.get_command(cmd_name) {
+                                                                    let prompt = command.template.clone();
+                                                                    app.add_message(MessageRole::User, format!("Running command: {}", cmd_name));
+                                                                    app.add_message(MessageRole::Assistant, String::new());
+                                                                    app.is_thinking = true;
+                                                                    
+                                                                    let content = Content::new("user").with_text(prompt);
+                                                                    match runner.run_str(user_id, &app.session_id, content).await {
+                                                                        Ok(s) => { stream = Some(s); }
+                                                                        Err(e) => {
+                                                                            app.is_thinking = false;
+                                                                            app.add_message(MessageRole::System, format!("Error: {}", e));
+                                                                        }
+                                                                    }
+                                                                    continue;
+                                                                }
+                                                            }
+                                                            _ => {}
                                                         }
-                                                        _ => {}
                                                     }
-                                                }
 
-                                                app.add_message(MessageRole::Assistant, String::new());
-                                                app.is_thinking = true;
+                                                    app.add_message(MessageRole::Assistant, String::new());
+                                                    app.is_thinking = true;
 
-                                                let content = Content::new("user").with_text(input_text);
-                                                match runner.run_str(user_id, &app.session_id, content).await {
-                                                    Ok(s) => {
-                                                        stream = Some(s);
-                                                    }
-                                                    Err(e) => {
-                                                        app.is_thinking = false;
-                                                        app.add_message(MessageRole::System, format!("Error: {}", e));
+                                                    let content = Content::new("user").with_text(input_text);
+                                                    match runner.run_str(user_id, &app.session_id, content).await {
+                                                        Ok(s) => {
+                                                            stream = Some(s);
+                                                        }
+                                                        Err(e) => {
+                                                            app.is_thinking = false;
+                                                            app.add_message(MessageRole::System, format!("Error: {}", e));
+                                                        }
                                                     }
                                                 }
                                             }
+                                        }
+                                        KeyCode::Up if key.modifiers.contains(event::KeyModifiers::CONTROL) => {
+                                            app.scroll_up_by(1);
+                                        }
+                                        KeyCode::Down if key.modifiers.contains(event::KeyModifiers::CONTROL) => {
+                                            let viewport_height = terminal.size().map(|s| s.height.saturating_sub(9) as usize).unwrap_or(15);
+                                            app.scroll_down_by(1, viewport_height);
                                         }
                                         KeyCode::Up => {
                                             if !app.is_thinking {
@@ -579,10 +613,19 @@ async fn run_app<B: Backend>(
                                             }
                                         }
                                         KeyCode::PageUp => {
-                                            app.scroll_up();
+                                            let viewport_height = terminal.size().map(|s| s.height.saturating_sub(9) as usize).unwrap_or(15);
+                                            app.scroll_up_by(viewport_height.saturating_sub(1));
                                         }
                                         KeyCode::PageDown => {
-                                            app.scroll_down();
+                                            let viewport_height = terminal.size().map(|s| s.height.saturating_sub(9) as usize).unwrap_or(15);
+                                            app.scroll_down_by(viewport_height.saturating_sub(1), viewport_height);
+                                        }
+                                        KeyCode::Home => {
+                                            app.scroll_to_top();
+                                        }
+                                        KeyCode::End => {
+                                            let viewport_height = terminal.size().map(|s| s.height.saturating_sub(9) as usize).unwrap_or(15);
+                                            app.scroll_to_bottom(viewport_height);
                                         }
                                         _ => {
                                             if !app.is_thinking {
@@ -595,6 +638,18 @@ async fn run_app<B: Backend>(
                             Event::Paste(content) => {
                                 if !app.is_thinking {
                                     app.input.insert_str(content);
+                                }
+                            }
+                            Event::Mouse(mouse_event) => {
+                                let viewport_height = terminal.size().map(|s| s.height.saturating_sub(9) as usize).unwrap_or(15);
+                                match mouse_event.kind {
+                                    event::MouseEventKind::ScrollUp => {
+                                        app.scroll_up_by(3);
+                                    }
+                                    event::MouseEventKind::ScrollDown => {
+                                        app.scroll_down_by(3, viewport_height);
+                                    }
+                                    _ => {}
                                 }
                             }
                             _ => {}
@@ -613,7 +668,7 @@ fn ui(f: &mut Frame, app: &mut App, workspace: &str, branch: &str, model: &str) 
                 Constraint::Length(3), // Header + gap
                 Constraint::Min(1), // Messages
                 Constraint::Length(3), // Input
-                Constraint::Length(2), // Footer
+                Constraint::Length(3), // Footer (Shortcuts + Session info)
             ].as_ref()
         )
         .split(f.area());
@@ -649,20 +704,46 @@ fn ui(f: &mut Frame, app: &mut App, workspace: &str, branch: &str, model: &str) 
 
     // --- Messages ---
     let list_width = chunks[1].width as usize;
+    let viewport_height = chunks[1].height as usize;
     if app.last_width != list_width {
         app.re_render_all(list_width);
     }
 
-    let messages: Vec<ListItem> = app.messages
-        .iter()
-        .map(|m| ListItem::new(m.rendered_lines.clone()))
-        .collect();
+    let all_lines = app.get_all_lines();
+    let total_lines = all_lines.len();
 
-    let messages_list = List::new(messages).highlight_style(
-        Style::default().add_modifier(Modifier::BOLD)
-    );
+    // Clamp scroll_offset and handle auto-scroll
+    let max_scroll = total_lines.saturating_sub(viewport_height);
+    if app.auto_scroll {
+        app.scroll_offset = max_scroll;
+    } else {
+        app.scroll_offset = app.scroll_offset.min(max_scroll);
+    }
 
-    f.render_stateful_widget(messages_list, chunks[1], &mut app.list_state);
+    let paragraph = Paragraph::new(all_lines)
+        .block(Block::default().borders(Borders::NONE))
+        .scroll((app.scroll_offset as u16, 0));
+
+    f.render_widget(paragraph, chunks[1]);
+
+    // Render modern stateful scrollbar if history overflows viewport
+    if total_lines > viewport_height {
+        let scrollbar = Scrollbar::default()
+            .orientation(ScrollbarOrientation::VerticalRight)
+            .begin_symbol(Some("▲"))
+            .end_symbol(Some("▼"))
+            .track_symbol(Some("│"))
+            .thumb_symbol("█");
+
+        let mut scrollbar_state = ScrollbarState::new(max_scroll)
+            .position(app.scroll_offset);
+
+        f.render_stateful_widget(
+            scrollbar,
+            chunks[1],
+            &mut scrollbar_state,
+        );
+    }
 
     // --- Input Area ---
     let input_block = Block::default()
@@ -684,8 +765,25 @@ fn ui(f: &mut Frame, app: &mut App, workspace: &str, branch: &str, model: &str) 
     // --- Footer ---
     let footer_layout = Layout::default()
         .direction(Direction::Vertical)
-        .constraints([Constraint::Length(1), Constraint::Length(1)])
+        .constraints([
+            Constraint::Length(1), // Shortcuts Legend
+            Constraint::Length(1), // Labels
+            Constraint::Length(1), // Values
+        ])
         .split(chunks[3]);
+
+    let legend = Line::from(vec![
+        Span::styled(" Enter ", Style::default().bg(Color::DarkGray).fg(Color::White).bold()),
+        Span::raw(" Send  "),
+        Span::styled(" Alt+Enter / Ctrl+Enter ", Style::default().bg(Color::DarkGray).fg(Color::White).bold()),
+        Span::raw(" New Line  "),
+        Span::styled(" PgUp / PgDn / Mouse ", Style::default().bg(Color::DarkGray).fg(Color::White).bold()),
+        Span::raw(" Scroll  "),
+        Span::styled(" Esc ", Style::default().bg(Color::DarkGray).fg(Color::White).bold()),
+        Span::raw(" Interrupt  "),
+        Span::styled(" Ctrl+C ", Style::default().bg(Color::DarkGray).fg(Color::White).bold()),
+        Span::raw(" Quit"),
+    ]);
 
     let labels = Line::from(
         vec![
@@ -707,6 +805,7 @@ fn ui(f: &mut Frame, app: &mut App, workspace: &str, branch: &str, model: &str) 
         ]
     );
 
-    f.render_widget(Paragraph::new(labels), footer_layout[0]);
-    f.render_widget(Paragraph::new(values), footer_layout[1]);
+    f.render_widget(Paragraph::new(legend), footer_layout[0]);
+    f.render_widget(Paragraph::new(labels), footer_layout[1]);
+    f.render_widget(Paragraph::new(values), footer_layout[2]);
 }

@@ -25,3 +25,4 @@ xmcp.json
 persona/*
 mlflow.db
 *.log
+.antigravitycli
