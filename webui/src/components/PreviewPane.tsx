@@ -1,8 +1,15 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { X, FileText, Loader2, AlertCircle } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { api, getHeaders } from '../lib/api';
+import * as pdfjsLib from 'pdfjs-dist';
+// Import the worker script directly to allow Vite to bundle it
+import pdfWorker from 'pdfjs-dist/build/pdf.worker.min?url';
+import { Marp } from '@marp-team/marp-core';
+
+// Set worker path
+pdfjsLib.GlobalWorkerOptions.workerSrc = pdfWorker;
 
 const parseFrontmatter = (content: string) => {
     const match = content.match(/^---\r?\n([\s\S]+?)\r?\n---\r?\n([\s\S]*)$/);
@@ -28,6 +35,7 @@ export const PreviewPane: React.FC<PreviewPaneProps> = ({ path, onClose, isWiki 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [mediaUrl, setMediaUrl] = useState<string | null>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
 
   useEffect(() => {
     if (!path) {
@@ -40,7 +48,6 @@ export const PreviewPane: React.FC<PreviewPaneProps> = ({ path, onClose, isWiki 
       setLoading(true);
       setError(null);
       
-      // Cleanup previous media URL
       if (mediaUrl) {
         URL.revokeObjectURL(mediaUrl);
         setMediaUrl(null);
@@ -55,6 +62,7 @@ export const PreviewPane: React.FC<PreviewPaneProps> = ({ path, onClose, isWiki 
         const isImage = imageExtensions.includes(ext);
         const isVideo = videoExtensions.includes(ext);
         const isAudio = audioExtensions.includes(ext);
+        const isPdf = ext === 'pdf';
 
         if (isWiki) {
            const response = await fetch(`/api/wiki/pages/${path}`, {
@@ -63,6 +71,14 @@ export const PreviewPane: React.FC<PreviewPaneProps> = ({ path, onClose, isWiki 
            if (!response.ok) throw new Error('Failed to load wiki page');
            const data = await response.json();
            setContent(data.content);
+        } else if (isPdf) {
+           const response = await fetch(`/api/workspace/read-binary/${path}`, {
+               headers: getHeaders()
+           });
+           if (!response.ok) throw new Error('Failed to load PDF');
+           const blob = await response.blob();
+           renderPdf(blob);
+           setContent(null); 
         } else if (isImage || isVideo || isAudio) {
            const response = await fetch(`/api/workspace/read-binary/${path}`, {
                headers: getHeaders()
@@ -71,7 +87,7 @@ export const PreviewPane: React.FC<PreviewPaneProps> = ({ path, onClose, isWiki 
            const blob = await response.blob();
            const url = URL.createObjectURL(blob);
            setMediaUrl(url);
-           setContent(""); // Signal that we have media
+           setContent("");
         } else {
            const data = await api.readWorkspaceFile(path);
            setContent(data.content);
@@ -81,6 +97,21 @@ export const PreviewPane: React.FC<PreviewPaneProps> = ({ path, onClose, isWiki 
       } finally {
         setLoading(false);
       }
+    };
+
+    const renderPdf = async (blob: Blob) => {
+        const arrayBuffer = await blob.arrayBuffer();
+        const loadingTask = pdfjsLib.getDocument({ data: arrayBuffer });
+        const pdf = await loadingTask.promise;
+        const page = await pdf.getPage(1);
+        const viewport = page.getViewport({ scale: 1.5 });
+        const canvas = canvasRef.current;
+        if (!canvas) return;
+        const context = canvas.getContext('2d');
+        if (!context) return;
+        canvas.height = viewport.height;
+        canvas.width = viewport.width;
+        await page.render({ canvasContext: context, viewport }).promise;
     };
 
     fetchContent();
@@ -93,41 +124,22 @@ export const PreviewPane: React.FC<PreviewPaneProps> = ({ path, onClose, isWiki 
   if (!path) return null;
 
   const ext = path.split('.').pop()?.toLowerCase() || '';
-
-  const codeExtensions = ['rs', 'ts', 'tsx', 'js', 'jsx', 'json', 'toml', 'yml', 'yaml', 'txt', 'css', 'py', 'java', 'cpp', 'h', 'cs', 'xml', 'csv', 'sh', 'ps1', 'bat', 'sql'];
-  const imageExtensions = ['png', 'jpg', 'jpeg', 'gif', 'svg', 'webp'];
-  const videoExtensions = ['mp4', 'webm'];
-  const audioExtensions = ['mp3', 'wav', 'ogg', 'm4a'];
-  const htmlExtensions = ['html', 'htm'];
-
   const isMarkdown = ext === 'md';
-  const isCode = codeExtensions.includes(ext);
-  const isImage = imageExtensions.includes(ext);
-  const isVideo = videoExtensions.includes(ext);
-  const isAudio = audioExtensions.includes(ext);
-  const isHtml = htmlExtensions.includes(ext);
-
   const parsed = isMarkdown && content ? parseFrontmatter(content) : { data: {} as Record<string, string>, content: content || '' };
-  
-  const formattedContent = isCode 
-    ? `\`\`\`${ext}\n${content}\n\`\`\``
-    : parsed.content;
+  const isMarp = isMarkdown && parsed.data['marp'] === 'true';
 
-  const renderFrontmatter = () => {
-    if (Object.keys(parsed.data).length === 0) return null;
-    return (
-        <table className="min-w-full text-sm border-collapse mb-4">
-            <tbody>
-                {Object.entries(parsed.data).map(([key, value]) => (
-                    <tr key={key}>
-                        <td className="bg-gray-100 border p-2 font-medium text-gray-700">{key}</td>
-                        <td className="border p-2">{String(value)}</td>
-                    </tr>
-                ))}
-            </tbody>
-        </table>
-    );
-  };
+  let marpHtml = '';
+  if (isMarp && content) {
+      const marp = new Marp();
+      const { html, css } = marp.render(content);
+      marpHtml = `<style>${css}</style>${html}`;
+  }
+
+  const isImage = ['png', 'jpg', 'jpeg', 'gif', 'svg', 'webp'].includes(ext);
+  const isVideo = ['mp4', 'webm'].includes(ext);
+  const isAudio = ['mp3', 'wav', 'ogg', 'm4a'].includes(ext);
+  const isPdf = ext === 'pdf';
+  const isHtml = ['html', 'htm'].includes(ext);
 
   return (
     <div className="flex flex-col h-full bg-white border-l shadow-2xl z-10">
@@ -136,12 +148,7 @@ export const PreviewPane: React.FC<PreviewPaneProps> = ({ path, onClose, isWiki 
           <FileText size={18} className="text-blue-500 shrink-0" />
           <span className="font-medium text-sm truncate" title={path}>{path}</span>
         </div>
-        <button 
-          onClick={onClose}
-          className="p-1 hover:bg-gray-200 rounded-md transition-colors"
-        >
-          <X size={20} />
-        </button>
+        <button onClick={onClose} className="p-1 hover:bg-gray-200 rounded-md transition-colors"><X size={20} /></button>
       </div>
 
       <div className="flex-1 overflow-auto p-4">
@@ -158,9 +165,11 @@ export const PreviewPane: React.FC<PreviewPaneProps> = ({ path, onClose, isWiki 
               <p className="text-sm opacity-80">{error}</p>
             </div>
           </div>
-        ) : (content !== null || mediaUrl !== null) ? (
-          <div className="prose prose-sm max-w-none prose-pre:bg-gray-900 prose-pre:text-gray-100 h-full">
-            {isImage && mediaUrl ? (
+        ) : (
+          <div className="prose prose-sm max-w-none h-full">
+            {isPdf ? (
+              <canvas ref={canvasRef} className="max-w-full" />
+            ) : isImage && mediaUrl ? (
               <img src={mediaUrl} alt={path} className="max-w-full" />
             ) : isVideo && mediaUrl ? (
               <video controls src={mediaUrl} className="max-w-full" />
@@ -168,19 +177,11 @@ export const PreviewPane: React.FC<PreviewPaneProps> = ({ path, onClose, isWiki 
               <audio controls src={mediaUrl} className="w-full" />
             ) : isHtml ? (
               <iframe srcDoc={content || ''} title="HTML Preview" className="w-full h-full border-none" />
+            ) : isMarp ? (
+                <div dangerouslySetInnerHTML={{ __html: marpHtml }} />
             ) : (
-                <>
-                    {isMarkdown && renderFrontmatter()}
-                    <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                        {formattedContent || ''}
-                    </ReactMarkdown>
-                </>
+                <ReactMarkdown remarkPlugins={[remarkGfm]}>{parsed.content}</ReactMarkdown>
             )}
-          </div>
-
-        ) : (
-          <div className="h-full flex items-center justify-center text-gray-400 italic">
-            Select a file to preview
           </div>
         )}
       </div>
