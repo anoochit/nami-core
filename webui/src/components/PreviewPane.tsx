@@ -3,13 +3,6 @@ import { X, FileText, Loader2, AlertCircle } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { api, getHeaders } from '../lib/api';
-import * as pdfjsLib from 'pdfjs-dist';
-// Import the worker script directly to allow Vite to bundle it
-import pdfWorker from 'pdfjs-dist/build/pdf.worker.min?url';
-import { Marp } from '@marp-team/marp-core';
-
-// Set worker path
-pdfjsLib.GlobalWorkerOptions.workerSrc = pdfWorker;
 
 const parseFrontmatter = (content: string) => {
     const match = content.match(/^---\r?\n([\s\S]+?)\r?\n---\r?\n([\s\S]*)$/);
@@ -35,18 +28,21 @@ export const PreviewPane: React.FC<PreviewPaneProps> = ({ path, onClose, isWiki 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [mediaUrl, setMediaUrl] = useState<string | null>(null);
+  const [marpHtml, setMarpHtml] = useState<string>('');
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   useEffect(() => {
     if (!path) {
       setContent(null);
       setMediaUrl(null);
+      setMarpHtml('');
       return;
     }
 
     const fetchContent = async () => {
       setLoading(true);
       setError(null);
+      setMarpHtml('');
       
       if (mediaUrl) {
         URL.revokeObjectURL(mediaUrl);
@@ -100,6 +96,10 @@ export const PreviewPane: React.FC<PreviewPaneProps> = ({ path, onClose, isWiki 
     };
 
     const renderPdf = async (blob: Blob) => {
+        const pdfjsLib = await import('pdfjs-dist');
+        const pdfWorker = await import('pdfjs-dist/build/pdf.worker.min?url');
+        pdfjsLib.GlobalWorkerOptions.workerSrc = pdfWorker.default;
+
         const arrayBuffer = await blob.arrayBuffer();
         const loadingTask = pdfjsLib.getDocument({ data: arrayBuffer });
         const pdf = await loadingTask.promise;
@@ -121,19 +121,30 @@ export const PreviewPane: React.FC<PreviewPaneProps> = ({ path, onClose, isWiki 
     };
   }, [path, isWiki]);
 
+  useEffect(() => {
+    const processMarp = async () => {
+        if (!content) return;
+        const ext = path?.split('.').pop()?.toLowerCase() || '';
+        const isMarkdown = ext === 'md';
+        const parsed = isMarkdown ? parseFrontmatter(content) : { data: {} as Record<string, string>, content };
+        const isMarp = isMarkdown && parsed.data['marp'] === 'true';
+
+        if (isMarp) {
+            const { Marp } = await import('@marp-team/marp-core');
+            const marp = new Marp();
+            const { html, css } = marp.render(content);
+            setMarpHtml(`<style>${css}</style>${html}`);
+        }
+    };
+    processMarp();
+  }, [content, path]);
+
   if (!path) return null;
 
   const ext = path.split('.').pop()?.toLowerCase() || '';
   const isMarkdown = ext === 'md';
   const parsed = isMarkdown && content ? parseFrontmatter(content) : { data: {} as Record<string, string>, content: content || '' };
   const isMarp = isMarkdown && parsed.data['marp'] === 'true';
-
-  let marpHtml = '';
-  if (isMarp && content) {
-      const marp = new Marp();
-      const { html, css } = marp.render(content);
-      marpHtml = `<style>${css}</style>${html}`;
-  }
 
   const isImage = ['png', 'jpg', 'jpeg', 'gif', 'svg', 'webp'].includes(ext);
   const isVideo = ['mp4', 'webm'].includes(ext);

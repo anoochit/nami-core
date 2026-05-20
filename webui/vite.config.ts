@@ -1,10 +1,11 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import path from 'path'
+import { visualizer } from 'rollup-plugin-visualizer'
 
 // https://vite.dev/config/
 export default defineConfig({
-  plugins: [react()],
+  plugins: [react(), visualizer({ open: false, filename: 'stats.html' })],
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
@@ -53,18 +54,6 @@ export default defineConfig({
               id.includes('react-resizable-panels')
             ) {
               return 'ui-vendor';
-            }
-            if (id.includes('pdfjs-dist')) {
-              return 'pdfjs-vendor';
-            }
-            if (
-              id.includes('@marp-team') || 
-              id.includes('katex') || 
-              id.includes('mathjax-full') || 
-              id.includes('markdown-it') || 
-              id.includes('highlight.js')
-            ) {
-              return 'marp-vendor';
             }
             return 'vendor';
           }
