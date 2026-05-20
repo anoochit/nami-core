@@ -3380,7 +3380,7 @@ dependencies = [
 
 [[package]]
 name = "nami"
-version = "0.9.18"
+version = "0.9.19"
 dependencies = [
  "adk-core",
  "adk-memory",
