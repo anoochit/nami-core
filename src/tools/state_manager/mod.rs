@@ -87,7 +87,7 @@ struct InitTaskArgs {
 struct UpdateTaskArgs {
     /// The ID of the task to update.
     task_id: String,
-    /// New status: in_progress, blocked, completed, failed.
+    /// New status: backlog, todo, in_progress, in_review, blocked, done, cancelled.
     status: Option<String>,
     /// Summary of the last completed action.
     last_step: Option<String>,
@@ -148,7 +148,7 @@ impl Tool for InitTask {
                 "goal": { "type": "string", "description": "High-level objective of the task." },
                 "status": {
                     "type": "string",
-                    "enum": ["backlog", "todo", "in_progress", "in_review", "blocked", "done", "cancel"],
+                    "enum": ["backlog", "todo", "in_progress", "in_review", "blocked", "done", "cancelled"],
                     "description": "Initial status of the task (defaults to in_progress)."
                 },
                 "steps": {
@@ -253,7 +253,7 @@ impl Tool for UpdateTask {
                 "task_id": { "type": "string", "description": "The ID of the task to update." },
                 "status": {
                     "type": "string",
-                    "enum": ["backlog", "todo", "in_progress", "in_review", "blocked", "done", "cancel"],
+                    "enum": ["backlog", "todo", "in_progress", "in_review", "blocked", "done", "cancelled"],
                     "description": "New Kanban status for the task."
                 },
                 "last_step": { "type": "string", "description": "Summary of the last completed action." },

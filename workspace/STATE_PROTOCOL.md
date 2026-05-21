@@ -12,7 +12,7 @@
 
 ### 3. Suspend
 - Call `update_task` before turn end/switching goals.
-- **Status:** `in_progress`, `blocked`, `completed`, `failed`.
+- **Status:** `backlog`, `todo`, `in_progress`, `in_review`, `blocked`, `done`, `cancelled`.
 - **Payload:** Minimal/High-signal JSON only.
 
 ### 4. Best Practices
