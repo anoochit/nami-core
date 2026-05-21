@@ -98,7 +98,7 @@ jobs:
           cache: 'pnpm'
           cache-dependency-path: webui/pnpm-lock.yaml
 
-      - name: Install WebUI dependencies        # ← was missing entirely
+      - name: Install WebUI dependencies
         working-directory: webui
         run: pnpm install --frozen-lockfile
 
@@ -128,16 +128,22 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          projectPath: .                        # ← explicit; avoids action guessing wrong root
+          projectPath: .
           includeRelease: false
 
       - name: Stage Desktop Artifacts
-        shell: bash
-        run: |
-          mkdir -p desktop-artifacts
-          echo '${{ steps.tauri_build.outputs.artifactPaths }}' \
-            | jq -r '.[]' \
-            | while read -r f; do cp "$f" desktop-artifacts/; done
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const path = require('path');
+            const paths = JSON.parse('${{ steps.tauri_build.outputs.artifactPaths }}');
+            fs.mkdirSync('desktop-artifacts', { recursive: true });
+            for (const src of paths) {
+              const dest = path.join('desktop-artifacts', path.basename(src));
+              fs.copyFileSync(src, dest);
+              console.log(`Copied: ${src} -> ${dest}`);
+            }
 
       - name: Upload Desktop Artifacts
         uses: actions/upload-artifact@v4
@@ -176,10 +182,6 @@ jobs:
               fi
             done
           done
-          # Desktop files (installers from tauri-action are usually in tauri-apps/tauri-action's own logic, 
-          # but we can grab them if we upload them as artifacts in build-desktop)
-          # Note: tauri-action v0 by default handles release creation, but we want to merge them.
-          # Let's adjust build-desktop to upload artifacts so we can collect them here.
           find artifacts -name "tauri-artifacts-*" -type d | while read dir; do
              cp -r "$dir"/* release-files/
           done
@@ -205,3 +207,4 @@ jobs:
           files: release-files/**/*
           prerelease: true
           make_latest: true
+ENDOFFILE
