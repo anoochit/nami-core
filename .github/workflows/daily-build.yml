@@ -53,7 +53,7 @@ jobs:
         with:
           targets: ${{ matrix.target }}
 
-      - name: Install System Dependencies
+      - name: Install System Dependencies (Linux)
         if: runner.os == 'Linux'
         run: |
           sudo apt-get update
@@ -67,6 +67,7 @@ jobs:
         with:
           name: nami-cli-${{ matrix.target }}
           path: target/${{ matrix.target }}/release/nami${{ matrix.extension }}
+          if-no-files-found: error
 
   build-desktop:
     name: Build Desktop on ${{ matrix.os }}
@@ -118,6 +119,10 @@ jobs:
             libayatana-appindicator3-dev \
             librsvg2-dev
 
+      # Build the frontend first — tauri-action needs the dist output
+      - name: Build WebUI
+        run: make webui
+
       - name: Build Desktop
         uses: tauri-apps/tauri-action@v0
         id: tauri_build
@@ -125,33 +130,33 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           includeRelease: false
+          # Tells tauri-action the frontend is already built; skip its own build step
+          args: --target ${{ matrix.target }}
 
-      - name: Debug build output
+      # Debug step — remove once builds are stable
+      - name: Debug artifact paths
         if: always()
         shell: bash
         run: |
-          echo "=== tauri_build artifactPaths output ==="
+          echo "=== artifactPaths ==="
           echo '${{ steps.tauri_build.outputs.artifactPaths }}'
-
-          echo "=== Searching for .dmg/.app/.pkg files ==="
-          find . -type f \( -name "*.dmg" -o -name "*.app" -o -name "*.pkg" -o -name "*.deb" -o -name "*.AppImage" -o -name "*.msi" -o -name "*.exe" \) 2>/dev/null | grep -v "node_modules" | grep -v ".cargo"
-
-          echo "=== bundle dir (if exists) ==="
-          find . -type d -name "bundle" 2>/dev/null
-
-          echo "=== target dir structure (top 4 levels) ==="
-          find src-tauri/target -maxdepth 4 -type d 2>/dev/null || echo "src-tauri/target not found"
+          echo "=== bundle dir ==="
+          find src-tauri/target/${{ matrix.target }}/release/bundle -type f 2>/dev/null || \
+          find src-tauri/target/release/bundle -type f 2>/dev/null || \
+          echo "No bundle dir found"
 
       - name: Upload Desktop Artifacts
         uses: actions/upload-artifact@v4
         with:
           name: tauri-artifacts-${{ matrix.os }}
+          # Use target-specific path (cross-compile target goes in its own subdir)
           path: |
             src-tauri/target/${{ matrix.target }}/release/bundle/**/*.dmg
             src-tauri/target/${{ matrix.target }}/release/bundle/**/*.deb
             src-tauri/target/${{ matrix.target }}/release/bundle/**/*.AppImage
             src-tauri/target/${{ matrix.target }}/release/bundle/**/*.msi
             src-tauri/target/${{ matrix.target }}/release/bundle/**/*.exe
+            src-tauri/target/${{ matrix.target }}/release/bundle/**/*.rpm
           if-no-files-found: error
 
   release:
@@ -172,27 +177,30 @@ jobs:
 
       - name: Organize artifacts
         run: |
-          mkdir release-files
-          # CLI files
+          mkdir -p release-files
+
+          # CLI binaries — rename to include target triple
           find artifacts -name "nami-cli-*" -type d | while read dir; do
             target=$(basename "$dir" | sed 's/^nami-cli-//')
-            find "$dir" -type f -maxdepth 1 | while read file; do
-              ext="${file##*.}"
-              if [ "$ext" = "exe" ]; then
-                cp "$file" "release-files/nami-cli-${target}.exe"
+            find "$dir" -maxdepth 1 -type f | while read file; do
+              filename=$(basename "$file")
+              if [[ "$filename" == *.exe ]]; then
+                cp "$file" "release-files/nami-${target}.exe"
               else
-                cp "$file" "release-files/nami-cli-${target}"
+                cp "$file" "release-files/nami-${target}"
               fi
             done
           done
-          # Desktop files (installers from tauri-action are usually in tauri-apps/tauri-action's own logic, 
-          # but we can grab them if we upload them as artifacts in build-desktop)
-          # Note: tauri-action v0 by default handles release creation, but we want to merge them.
-          # Let's adjust build-desktop to upload artifacts so we can collect them here.
+
+          # Desktop installers — copy into per-os subdirs to avoid collisions
           find artifacts -name "tauri-artifacts-*" -type d | while read dir; do
-             cp -r "$dir"/* release-files/
+            os=$(basename "$dir" | sed 's/^tauri-artifacts-//')
+            mkdir -p "release-files/desktop-${os}"
+            cp -r "$dir"/. "release-files/desktop-${os}/"
           done
-          ls -R release-files/
+
+          echo "=== Release files ==="
+          find release-files -type f
 
       - name: Generate release tag
         id: tag
