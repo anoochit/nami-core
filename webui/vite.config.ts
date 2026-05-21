@@ -16,7 +16,13 @@ export default defineConfig({
       output: {
         manualChunks(id) {
           if (id.includes('node_modules')) {
-            if (id.includes('react-dom') || id.includes('react/') || id.includes('scheduler')) {
+            if (id.includes('pdfjs-dist')) {
+              return 'pdf-vendor';
+            }
+            if (id.includes('@marp-team')) {
+              return 'marp-vendor';
+            }
+            if (id.includes('react-dom') || id.includes('node_modules/react/') || id.includes('scheduler')) {
               return 'react-vendor';
             }
             if (id.includes('recharts') || id.includes('d3') || id.includes('victory-vendor')) {
@@ -55,7 +61,6 @@ export default defineConfig({
             ) {
               return 'ui-vendor';
             }
-            return 'vendor';
           }
         },
       },
