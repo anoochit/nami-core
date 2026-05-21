@@ -131,7 +131,13 @@ jobs:
         with:
           name: tauri-artifacts-${{ matrix.os }}
           path: |
-            ${{ steps.tauri_build.outputs.artifactPaths }}
+            src-tauri/target/release/bundle/**/*.dmg
+            src-tauri/target/release/bundle/**/*.deb
+            src-tauri/target/release/bundle/**/*.AppImage
+            src-tauri/target/release/bundle/**/*.msi
+            src-tauri/target/release/bundle/**/*.exe
+            src-tauri/target/release/bundle/**/*.rpm
+          if-no-files-found: error
 
   release:
     name: Publish Release
