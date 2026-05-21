@@ -131,13 +131,19 @@ jobs:
           projectPath: .                        # ← explicit; avoids action guessing wrong root
           includeRelease: false
 
-      - name: Upload Desktop Artifacts          # ← parse JSON array properly
+      - name: Stage Desktop Artifacts
+        shell: bash
+        run: |
+          mkdir -p desktop-artifacts
+          echo '${{ steps.tauri_build.outputs.artifactPaths }}' \
+            | jq -r '.[]' \
+            | while read -r f; do cp "$f" desktop-artifacts/; done
+
+      - name: Upload Desktop Artifacts
         uses: actions/upload-artifact@v4
         with:
           name: tauri-artifacts-${{ matrix.os }}
-          path: |
-            ${{ join(fromJSON(steps.tauri_build.outputs.artifactPaths), '
-            ') }}
+          path: desktop-artifacts/
 
   release:
     name: Publish Release
