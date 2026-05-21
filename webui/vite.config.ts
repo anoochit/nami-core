@@ -60,7 +60,7 @@ export default defineConfig({
         },
       },
     },
-    chunkSizeWarningLimit: 600,
+    chunkSizeWarningLimit: 2000,
   },
   server: {
     host: '127.0.0.1',
