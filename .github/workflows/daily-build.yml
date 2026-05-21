@@ -6,44 +6,50 @@ on:
   workflow_dispatch:
 
 jobs:
-  build-cli:
-    name: Build CLI on ${{ matrix.os }} (${{ matrix.target }})
+  build:
+    name: Build on ${{ matrix.os }} (${{ matrix.target }})
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
         include:
+          # Linux amd64 — native
           - os: ubuntu-latest
             target: x86_64-unknown-linux-gnu
+            use-cross: false
             extension: ""
+
+          # Linux arm64 — native arm64 runner, no cross needed!
           - os: ubuntu-24.04-arm
             target: aarch64-unknown-linux-gnu
+            use-cross: false
             extension: ""
+
           - os: macos-latest
             target: aarch64-apple-darwin
+            use-cross: false
             extension: ""
+
           - os: windows-latest
             target: x86_64-pc-windows-msvc
+            use-cross: false
             extension: ".exe"
+
           - os: windows-latest
             target: aarch64-pc-windows-msvc
+            use-cross: false
             extension: ".exe"
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Install pnpm
-        uses: pnpm/action-setup@v4
-        with:
-          version: 10
-
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '20'
-          cache: 'pnpm'
-          cache-dependency-path: webui/pnpm-lock.yaml
+          cache: 'npm'
+          cache-dependency-path: webui/package-lock.json
 
       - name: Build WebUI
         run: make webui
@@ -59,101 +65,19 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y libdbus-1-dev pkg-config libssl-dev
 
-      - name: Build CLI
+      - name: Build
         run: make build TARGET=${{ matrix.target }}
 
-      - name: Upload CLI Artifacts
+      - name: Upload Artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: nami-cli-${{ matrix.target }}
+          name: nami-${{ matrix.target }}
           path: target/${{ matrix.target }}/release/nami${{ matrix.extension }}
-
-  build-desktop:
-    name: Build Desktop on ${{ matrix.os }}
-    runs-on: ${{ matrix.os }}
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - os: ubuntu-22.04
-            target: x86_64-unknown-linux-gnu
-          - os: macos-latest
-            target: aarch64-apple-darwin
-          - os: windows-latest
-            target: x86_64-pc-windows-msvc
-
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Install pnpm
-        uses: pnpm/action-setup@v4
-        with:
-          version: 10
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-          cache: 'pnpm'
-          cache-dependency-path: webui/pnpm-lock.yaml
-
-      - name: Install WebUI dependencies
-        working-directory: webui
-        run: pnpm install --frozen-lockfile
-
-      - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
-        with:
-          targets: ${{ matrix.target }}
-
-      - name: Install System Dependencies (Linux)
-        if: runner.os == 'Linux'
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y \
-            libwebkit2gtk-4.1-dev \
-            build-essential \
-            curl \
-            wget \
-            file \
-            libxdo-dev \
-            libssl-dev \
-            libayatana-appindicator3-dev \
-            librsvg2-dev
-
-      - name: Build Desktop
-        uses: tauri-apps/tauri-action@v0
-        id: tauri_build
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          projectPath: .
-          includeRelease: false
-
-      - name: Stage Desktop Artifacts
-        uses: actions/github-script@v7
-        with:
-          script: |
-            const fs = require('fs');
-            const path = require('path');
-            const paths = JSON.parse('${{ steps.tauri_build.outputs.artifactPaths }}');
-            fs.mkdirSync('desktop-artifacts', { recursive: true });
-            for (const src of paths) {
-              const dest = path.join('desktop-artifacts', path.basename(src));
-              fs.copyFileSync(src, dest);
-              console.log(`Copied: ${src} -> ${dest}`);
-            }
-
-      - name: Upload Desktop Artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: tauri-artifacts-${{ matrix.os }}
-          path: desktop-artifacts/
+          if-no-files-found: error
 
   release:
     name: Publish Release
-    needs: [build-cli, build-desktop]
+    needs: build
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -167,43 +91,36 @@ jobs:
         with:
           path: artifacts/
 
-      - name: Organize artifacts
+      # Flatten and rename: artifacts/nami-<target>/nami[.exe] -> nami-<target>[.exe]
+      - name: Rename artifacts for release
         run: |
           mkdir release-files
-          # CLI files
-          find artifacts -name "nami-cli-*" -type d | while read dir; do
-            target=$(basename "$dir" | sed 's/^nami-cli-//')
-            find "$dir" -type f -maxdepth 1 | while read file; do
-              ext="${file##*.}"
-              if [ "$ext" = "exe" ]; then
-                cp "$file" "release-files/nami-cli-${target}.exe"
-              else
-                cp "$file" "release-files/nami-cli-${target}"
-              fi
+          for dir in artifacts/nami-*/; do
+            target=$(basename "$dir" | sed 's/^nami-//')
+            for file in "$dir"*; do
+              filename=$(basename "$file")
+              ext="${filename##nami}"          # "" or ".exe"
+              cp "$file" "release-files/nami-${target}${ext}"
             done
           done
-          find artifacts -name "tauri-artifacts-*" -type d | while read dir; do
-             cp -r "$dir"/* release-files/
-          done
-          ls -R release-files/
+          ls -lh release-files/
 
       - name: Generate release tag
         id: tag
         run: echo "tag=nightly-$(date -u +'%Y-%m-%d')" >> "$GITHUB_OUTPUT"
 
-      - name: Delete existing nightly release
+      - name: Delete existing nightly release (if any)
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           gh release delete "${{ steps.tag.outputs.tag }}" --yes --cleanup-tag 2>/dev/null || true
 
-      - name: Create Nightly Release
-        uses: softprops/action-gh-release@v2
+      - name: Create GitHub Release and upload binaries
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          tag_name: ${{ steps.tag.outputs.tag }}
-          name: "Nightly Build ${{ steps.tag.outputs.tag }}"
-          files: release-files/**/*
-          prerelease: true
-          make_latest: true
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release create "${{ steps.tag.outputs.tag }}" \
+            release-files/* \
+            --title "Nightly Build ${{ steps.tag.outputs.tag }}" \
+            --notes "Automated nightly build. Commit: ${{ github.sha }}" \
+            --prerelease
