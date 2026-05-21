@@ -145,6 +145,22 @@ pub fn load_config_sync() -> anyhow::Result<AppConfig> {
     Ok(config)
 }
 
+/// Counts the number of skills in the `.skills` directory within the workspace.
+async fn count_skills() -> usize {
+    if let Ok(workspace_dir) = get_workspace_dir().await {
+        let skills_dir = workspace_dir.join(".skills");
+        if skills_dir.exists() && skills_dir.is_dir() {
+            if let Ok(entries) = std::fs::read_dir(skills_dir) {
+                return entries
+                    .filter_map(|e| e.ok())
+                    .filter(|e| e.file_type().map(|ft| ft.is_dir()).unwrap_or(false))
+                    .count();
+            }
+        }
+    }
+    0
+}
+
 /// Generates the compaction configuration for managing agent history events.
 pub fn get_compaction_config(model: Arc<dyn Llm>) -> EventsCompactionConfig {
     EventsCompactionConfig {
@@ -156,11 +172,10 @@ pub fn get_compaction_config(model: Arc<dyn Llm>) -> EventsCompactionConfig {
 
 /// Orchestrates the building of the main AI agent, loading configuration, persona context, and setting up tools, skills, and MCP servers.
 ///
-/// Returns a tuple containing the built agent, the model instance, the provider name, the model name, and the config receiver.
-/// Factory function to build the agent and model.
+/// Returns a tuple containing the built agent, the model instance, MCP count, and skill count.
 pub async fn create_agent(
     app_config: &AppConfig,
-) -> anyhow::Result<(Arc<dyn Agent>, Arc<dyn Llm>)> {
+) -> anyhow::Result<(Arc<dyn Agent>, Arc<dyn Llm>, usize, usize)> {
     let model = load_model(&app_config.model).await?;
     let context = load_persona_context().await?;
     let workspace_dir = get_workspace_dir().await?;
@@ -236,14 +251,16 @@ pub async fn create_agent(
 
     builder = configure_agent_tools(builder, specialists, core_tools);
     builder = builder.with_skills_from_root(workspace_dir)?;
-    builder = mcp::load_mcp_tools(builder).await?;
+    
+    let (builder_with_mcp, mcp_count) = mcp::load_mcp_tools(builder).await?;
+    let skill_count = count_skills().await;
 
-    let agent = builder.build()?;
+    let agent = builder_with_mcp.build()?;
 
-    Ok((Arc::new(agent), model))
+    Ok((Arc::new(agent), model, mcp_count, skill_count))
 }
 
-pub async fn build_agent() -> anyhow::Result<(Arc<dyn Agent>, Arc<dyn Llm>, String, String)> {
+pub async fn build_agent() -> anyhow::Result<(Arc<dyn Agent>, Arc<dyn Llm>, String, String, usize, usize)> {
     let app_config = load_config_sync().unwrap_or_else(|e| {
         log::warn!("Failed to load config.toml: {}. Using defaults.", e);
         AppConfig {
@@ -270,9 +287,9 @@ pub async fn build_agent() -> anyhow::Result<(Arc<dyn Agent>, Arc<dyn Llm>, Stri
             .unwrap_or_else(|| "gemini".to_string()),
         app_config.model.model_name.clone(),
     );
-    let (agent, model) = create_agent(&app_config).await?;
+    let (agent, model, mcp_count, skill_count) = create_agent(&app_config).await?;
 
-    Ok((agent, model, provider, model_name))
+    Ok((agent, model, provider, model_name, mcp_count, skill_count))
 }
 
 /// Loads and initializes an LLM instance based on the provided configuration.

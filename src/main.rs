@@ -131,8 +131,12 @@ async fn main() -> anyhow::Result<()> {
         }
     });
 
-    let (agent, model, provider, model_name) = agent::build_agent().await?;
-    log::info!("Agent built successfully.");
+    let (agent, model, provider, model_name, mcp_count, skill_count) = agent::build_agent().await?;
+    log::info!(
+        "Agent built successfully with {} MCP servers and {} skills.",
+        mcp_count,
+        skill_count
+    );
 
     let deps = setup_dependencies().await?;
 
@@ -192,7 +196,7 @@ async fn main() -> anyhow::Result<()> {
         }
         Commands::Cli => {
             unsafe { std::env::set_var("RUST_LOG", "error") };
-            modes::cli::run_cli(agent, deps.sessions, model, provider, model_name).await?;
+            modes::cli::run_cli(agent, deps.sessions, model, provider, model_name, mcp_count, skill_count).await?;
         }
         Commands::Tui => {
             unsafe { std::env::set_var("RUST_LOG", "error") };
@@ -203,6 +207,8 @@ async fn main() -> anyhow::Result<()> {
                 model,
                 provider,
                 model_name,
+                mcp_count,
+                skill_count,
             )
             .await?;
         }

@@ -330,7 +330,9 @@ pub async fn run_tui(
     memory: Arc<dyn adk_rust::Memory>,
     model: Arc<dyn Llm>,
     provider: String,
-    model_name: String
+    model_name: String,
+    mcp_count: usize,
+    skill_count: usize,
 ) -> anyhow::Result<()> {
     // Set panic hook to restore terminal on panic
     let original_hook = std::panic::take_hook();
@@ -393,7 +395,9 @@ pub async fn run_tui(
         provider,
         model_name,
         &workspace,
-        &branch
+        &branch,
+        mcp_count,
+        skill_count
     ).await;
 
     // Restore terminal
@@ -422,7 +426,9 @@ async fn run_app<B: Backend>(
     _provider: String,
     model_name: String,
     workspace: &str,
-    branch: &str
+    branch: &str,
+    mcp_count: usize,
+    skill_count: usize,
 ) -> anyhow::Result<()> {
     // Background thread for terminal events
     let tx_event = tx.clone();
@@ -442,7 +448,7 @@ async fn run_app<B: Backend>(
 
     loop {
         terminal
-            .draw(|f| ui(f, &mut app, workspace, branch, &model_name))
+            .draw(|f| ui(f, &mut app, workspace, branch, &model_name, mcp_count, skill_count))
             .map_err(|e| anyhow::anyhow!("Draw error: {}", e))?;
 
         tokio::select! {
@@ -660,7 +666,7 @@ async fn run_app<B: Backend>(
     }
 }
 
-fn ui(f: &mut Frame, app: &mut App, workspace: &str, branch: &str, model: &str) {
+fn ui(f: &mut Frame, app: &mut App, workspace: &str, branch: &str, model: &str, mcp_count: usize, skill_count: usize) {
     let chunks = Layout::default()
         .direction(Direction::Vertical)
         .constraints(
@@ -791,7 +797,11 @@ fn ui(f: &mut Frame, app: &mut App, workspace: &str, branch: &str, model: &str) 
             Span::raw(" ".repeat(2)),
             Span::styled("branch", Style::default().fg(Color::DarkGray)),
             Span::raw(" ".repeat(2)),
-            Span::styled("model", Style::default().fg(Color::DarkGray))
+            Span::styled("model", Style::default().fg(Color::DarkGray)),
+            Span::raw(" ".repeat(2)),
+            Span::styled("mcp", Style::default().fg(Color::DarkGray)),
+            Span::raw(" ".repeat(2)),
+            Span::styled("skills", Style::default().fg(Color::DarkGray))
         ]
     );
 
@@ -801,7 +811,11 @@ fn ui(f: &mut Frame, app: &mut App, workspace: &str, branch: &str, model: &str) 
             Span::raw(" | "),
             Span::styled(branch, Style::default()),
             Span::raw(" | "),
-            Span::styled(model, Style::default())
+            Span::styled(model, Style::default()),
+            Span::raw(" | "),
+            Span::styled(mcp_count.to_string(), Style::default()),
+            Span::raw(" | "),
+            Span::styled(skill_count.to_string(), Style::default())
         ]
     );
 

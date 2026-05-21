@@ -339,7 +339,7 @@ async fn run_system_prompt(
     Ok(())
 }
 
-fn render_banner(provider: &str, model_name: &str, session_id: &str) {
+fn render_banner(provider: &str, model_name: &str, session_id: &str, mcp_count: usize, skill_count: usize) {
     println!(
         "{}",
         style::style(
@@ -360,6 +360,12 @@ fn render_banner(provider: &str, model_name: &str, session_id: &str) {
             .bold()
             .magenta(),
         style::style(format!("({}) using {}", provider, model_name)).dim()
+    );
+
+    println!(
+        "{} {}",
+        style::style("Capabilities:").bold().magenta(),
+        style::style(format!("{} MCP servers, {} skills", mcp_count, skill_count)).dim()
     );
 
     println!(
@@ -442,6 +448,8 @@ pub async fn handle_slash_command(
     provider: &mut String,
     model_name: &mut String,
     registry: &CommandRegistry,
+    mcp_count: usize,
+    skill_count: usize,
 ) -> anyhow::Result<bool> {
     let parts: Vec<&str> = trimmed.splitn(2, ' ').collect();
     let command_name = parts[0];
@@ -470,7 +478,7 @@ pub async fn handle_slash_command(
                 cursor::MoveTo(0, 0)
             )?;
 
-            render_banner(provider, model_name, session_id);
+            render_banner(provider, model_name, session_id, mcp_count, skill_count);
         }
 
         "/new" => {
@@ -483,7 +491,7 @@ pub async fn handle_slash_command(
                 cursor::MoveTo(0, 0)
             )?;
 
-            render_banner(provider, model_name, &session_id_new);
+            render_banner(provider, model_name, &session_id_new, mcp_count, skill_count);
 
             println!(
                 "{}\n",
@@ -522,6 +530,8 @@ pub async fn run_cli(
     model: Arc<dyn Llm>,
     mut provider: String,
     mut model_name: String,
+    mcp_count: usize,
+    skill_count: usize,
 ) -> anyhow::Result<()> {
     execute!(
         io::stdout(),
@@ -534,7 +544,7 @@ pub async fn run_cli(
 
     let mut session_id = Uuid::new_v4().to_string();
 
-    render_banner(&provider, &model_name, &session_id);
+    render_banner(&provider, &model_name, &session_id, mcp_count, skill_count);
 
     ensure_session(&sessions, app_name, user_id, &session_id).await?;
 
@@ -627,6 +637,8 @@ pub async fn run_cli(
                         &mut provider,
                         &mut model_name,
                         &registry,
+                        mcp_count,
+                        skill_count,
                     )
                     .await?
                     {

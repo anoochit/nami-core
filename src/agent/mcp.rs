@@ -138,7 +138,8 @@ impl Toolset for SanitizedToolset {
 ///
 /// It supports both `stdio` (local processes) and `http` (remote streamable HTTP) transports.
 /// It checks the workspace directory first, then the current directory.
-pub async fn load_mcp_tools(mut builder: LlmAgentBuilder) -> anyhow::Result<LlmAgentBuilder> {
+pub async fn load_mcp_tools(mut builder: LlmAgentBuilder) -> anyhow::Result<(LlmAgentBuilder, usize)> {
+    let mut mcp_count = 0;
     // Determine the path to the configuration file
     let workspace_root: std::path::PathBuf = utils::get_workspace_dir().await?;
     let workspace_mcp = workspace_root.join("mcp.json");
@@ -173,6 +174,7 @@ pub async fn load_mcp_tools(mut builder: LlmAgentBuilder) -> anyhow::Result<LlmA
                             // Wrap with name prefix for consistency
                             http_toolsets
                                 .push(Arc::new(PrefixedToolset::new(Arc::new(toolset), &name)));
+                            mcp_count += 1;
                         }
                         Err(e) => {
                             log::error!("Failed to connect to remote MCP server '{}': {}", name, e);
@@ -196,6 +198,7 @@ pub async fn load_mcp_tools(mut builder: LlmAgentBuilder) -> anyhow::Result<LlmA
                     log::error!("Failed to start MCP server '{}': {}", name, e);
                 } else {
                     log::info!("Started MCP server '{}'", name);
+                    mcp_count += 1;
                 }
             }
             all_toolsets.push(Arc::new(mcp_manager));
@@ -215,5 +218,5 @@ pub async fn load_mcp_tools(mut builder: LlmAgentBuilder) -> anyhow::Result<LlmA
         }
     }
 
-    Ok(builder)
+    Ok((builder, mcp_count))
 }
