@@ -207,4 +207,3 @@ jobs:
           files: release-files/**/*
           prerelease: true
           make_latest: true
-ENDOFFILE
