@@ -2,6 +2,21 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.9.21] - 2026-05-21
+
+### Added
+
+- **Startup Visibility**: Enhanced CLI and TUI initialization to display the total count of loaded MCP servers and workspace skills, providing better feedback during the startup sequence.
+
+### Changed
+
+- **WebUI Optimization**: Optimized build chunking strategies in Vite to significantly improve initial load times and cache efficiency.
+- **TypeScript**: Resolved deprecation warnings in `tsconfig` and updated configuration for compatibility with the latest TypeScript version.
+
+### Fixed
+
+- **Repository Hygiene**: Removed and ignored build statistics files (`stats.html`) in the WebUI to maintain a clean source tree.
+
 ## [0.9.20] - 2026-05-20
 
 ### Added
