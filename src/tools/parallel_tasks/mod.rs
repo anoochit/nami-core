@@ -116,3 +116,49 @@ impl Tool for ParallelTasks {
 pub fn parallel_tasks_tool(specialists: HashMap<String, Arc<dyn Tool>>) -> Vec<Arc<dyn Tool>> {
     vec![Arc::new(ParallelTasks::new(specialists))]
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use adk_rust::{Tool, ToolContext};
+    use std::collections::HashMap;
+    use std::sync::Arc;
+
+    struct MockTool;
+    #[async_trait::async_trait]
+    impl Tool for MockTool {
+        fn name(&self) -> &str { "mock" }
+        fn description(&self) -> &str { "mock" }
+        async fn execute(&self, _ctx: Arc<dyn ToolContext>, args: Value) -> std::result::Result<Value, AdkError> {
+            Ok(json!({ "output": format!("Processed: {}", args["input"]) }))
+        }
+    }
+
+    #[tokio::test]
+    async fn test_parallel_tasks() {
+        let mut specialists: HashMap<String, Arc<dyn Tool>> = HashMap::new();
+        specialists.insert("coder".to_string(), Arc::new(MockTool) as Arc<dyn Tool>);
+        specialists.insert("writer".to_string(), Arc::new(MockTool) as Arc<dyn Tool>);
+
+        let parallel_tool = ParallelTasks::new(specialists);
+        
+        // Use a simple tool context for testing
+        let ctx = Arc::new(adk_tool::SimpleToolContext::new("test_caller"));
+
+        let args = json!({
+            "tasks": [
+                { "prompt": "Write code", "specialist": "coder" },
+                { "prompt": "Write docs", "specialist": "writer" }
+            ]
+        });
+
+        let result = parallel_tool.execute(ctx, args).await.unwrap();
+        
+        assert_eq!(result["status"], "success");
+        assert_eq!(result["tasks_executed"], 2);
+        
+        let outputs = result["outputs"].as_array().unwrap();
+        assert!(outputs[0].as_str().unwrap().contains("success"));
+        assert!(outputs[1].as_str().unwrap().contains("success"));
+    }
+}

@@ -79,3 +79,41 @@ async fn add_memory(args: AddMemoryArgs) -> std::result::Result<Value, AdkError>
 pub fn memory_tools() -> Vec<Arc<dyn adk_rust::Tool>> {
     vec![Arc::new(RecallMemory), Arc::new(AddMemory)]
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // Helper to initialize memory for tests
+    async fn init_test_memory() {
+        let db_path = "test_memory.db";
+        // Attempt to delete old DB to ensure clean state
+        let _ = tokio::fs::remove_file(db_path).await;
+        
+        let svc = SqliteMemoryService::new(db_path).await.expect("Failed to create memory service");
+        // Attempt to migrate, which should create the tables
+        svc.migrate().await.expect("Failed to migrate memory database");
+        let _ = MEMORY_SVC.set(Arc::new(svc));
+    }
+
+    #[tokio::test]
+    async fn test_memory_lifecycle() {
+        init_test_memory().await;
+        
+        // Add a memory
+        let add_args = AddMemoryArgs {
+            text: "The user prefers to work in a dark theme.".to_string(),
+        };
+        let add_result = add_memory(add_args).await.unwrap();
+        assert_eq!(add_result["status"], "success");
+
+        // Recall the memory
+        let recall_args = RecallArgs {
+            query: "theme".to_string(),
+        };
+        let recall_result = recall_memory(recall_args).await.unwrap();
+        
+        assert_eq!(recall_result["found"], 1);
+        assert!(recall_result["memories"][0]["text"].as_str().unwrap().contains("dark theme"));
+    }
+}

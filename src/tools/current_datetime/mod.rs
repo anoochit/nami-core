@@ -113,3 +113,30 @@ fn unix_to_datetime(ts: i64) -> (i32, u32, u32, u32, u32, u32) {
 pub fn datetime_tools() -> Vec<Arc<dyn Tool>> {
     vec![Arc::new(GetCurrentDatetime)]
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn test_get_current_datetime() {
+        let args = DateTimeArgs {
+            timezone_offset_hours: Some(0.0),
+        };
+        let result = get_current_datetime(args).await.unwrap();
+        
+        assert!(result["iso8601"].is_string());
+        assert!(result["unix_timestamp"].is_i64());
+        assert_eq!(result["timezone"], "UTC");
+    }
+
+    #[tokio::test]
+    async fn test_get_current_datetime_with_offset() {
+        let args = DateTimeArgs {
+            timezone_offset_hours: Some(5.5),
+        };
+        let result = get_current_datetime(args).await.unwrap();
+        
+        assert_eq!(result["timezone"], "UTC+5.5");
+    }
+}

@@ -280,8 +280,45 @@ pub fn filesystem_tools() -> Vec<Arc<dyn Tool>> {
         Arc::new(ListDir),
         Arc::new(ExecCommand),
         Arc::new(ReplaceText),
-        Arc::new(GrepSearch),
+        Arc::new(GrepSearch),  
         Arc::new(GlobFind),
         Arc::new(MergeFiles),
     ]
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn test_filesystem_rw_operations() {
+        // Write to a temporary file in the workspace
+        let write_args = WriteFileArgs {
+            path: "test_file.txt".to_string(),
+            content: "hello world".to_string(),
+        };
+        write_file(write_args).await.unwrap();
+
+        // Read the file back
+        let read_args = PathArgs {
+            path: "test_file.txt".to_string(),
+        };
+        let read_result = read_file(read_args).await.unwrap();
+        assert_eq!(read_result["content"], "hello world");
+
+        // Replace text
+        let replace_args = ReplaceArgs {
+            path: "test_file.txt".to_string(),
+            old_string: "world".to_string(),
+            new_string: "gemini".to_string(),
+        };
+        replace_text(replace_args).await.unwrap();
+
+        // Verify replacement
+        let read_args_after = PathArgs {
+            path: "test_file.txt".to_string(),
+        };
+        let read_result_after = read_file(read_args_after).await.unwrap();
+        assert_eq!(read_result_after["content"], "hello gemini");
+    }
 }
