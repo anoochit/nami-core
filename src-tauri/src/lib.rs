@@ -31,7 +31,7 @@ async fn start_nami_server() -> anyhow::Result<()> {
     dotenvy::dotenv().ok();
     
     println!(">>> Building agent...");
-    let (agent, model, _provider, _model_name) = agent::build_agent().await?;
+    let (agent, model, _provider, _model_name, _mcp_count, _skill_count) = agent::build_agent().await?;
     println!(">>> Setting up dependencies...");
     let deps = setup_dependencies().await?;
 
