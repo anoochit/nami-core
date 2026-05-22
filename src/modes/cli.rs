@@ -758,7 +758,10 @@ pub async fn run_cli(
 
                 // Flush collected function responses if any were gathered
                 if !function_response_buffer.is_empty() {
-                    let response_content = Content::new("function").with_parts(function_response_buffer);
+                    let response_content = Content {
+                        role: "function".to_string(),
+                        parts: function_response_buffer,
+                    };
                     let mut response_stream = runner.run_str(user_id, &session_id, response_content).await?;
                     // Consume the stream to complete the turn
                     while let Some(_) = response_stream.next().await {}
