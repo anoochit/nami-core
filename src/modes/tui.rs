@@ -451,6 +451,8 @@ async fn run_app<B: Backend>(
             .draw(|f| ui(f, &mut app, workspace, branch, &model_name, mcp_count, skill_count))
             .map_err(|e| anyhow::anyhow!("Draw error: {}", e))?;
 
+        let mut function_response_buffer: Vec<Part> = Vec::new();
+
         tokio::select! {
             // Handle agent stream if active
             maybe_result = async {
@@ -473,8 +475,8 @@ async fn run_app<B: Backend>(
                                     app.add_message(MessageRole::ToolCall, format!("{}({})", name, args_str));
                                 }
 
-                                if let Part::FunctionResponse { function_response, .. } = part {
-                                    app.add_message(MessageRole::ToolResponse, format!("{}: {}", function_response.name, function_response.response));
+                                if let Part::FunctionResponse { .. } = part {
+                                    function_response_buffer.push(part.clone());
                                 }
                             }
                         }
@@ -485,7 +487,17 @@ async fn run_app<B: Backend>(
                         stream = None;
                     }
                     None => {
-                        // Stream finished
+                        // Stream finished. Flush batched responses if any.
+                        if !function_response_buffer.is_empty() {
+                            let response_content = Content {
+                                role: "function".to_string(),
+                                parts: function_response_buffer.drain(..).collect(),
+                            };
+                            if let Ok(mut response_stream) = runner.run_str(user_id, &app.session_id, response_content).await {
+                                while let Some(_) = response_stream.next().await {}
+                            }
+                        }
+                        
                         app.is_thinking = false;
                         stream = None;
                     }
