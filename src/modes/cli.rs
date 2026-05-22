@@ -673,6 +673,7 @@ pub async fn run_cli(
                 let content = Content::new("user").with_text(enriched_prompt);
                 let mut stream = runner.run_str(user_id, &session_id, content).await?;
                 let mut response_buffer = String::new();
+                let mut function_response_buffer: Vec<Part> = Vec::new();
                 let mut cancelled = false;
                 let mut cancelled_by_esc = false;
                 let mut event_reader = EventStream::new();
@@ -697,11 +698,6 @@ pub async fn run_cli(
 
                                             if let Part::FunctionCall { name, args, .. } = part {
                                                 let args_str = args.to_string().replace('\n', " ").replace("  ", " ");
-                                                // let compact_args = if args_str.chars().count() > 80 {
-                                                //     format!("{}...", args_str.chars().take(77).collect::<String>())
-                                                // } else {
-                                                //     args_str
-                                                // };
                                                 
                                                 clear_current_line(&mut io::stdout())?;
                                                 println!("{} {} {}({})\r", 
@@ -712,21 +708,8 @@ pub async fn run_cli(
                                                 );
                                                 io::stdout().flush()?;
                                             }
-                                            if let Part::FunctionResponse { function_response, .. } = part {
-                                                let resp_str = function_response.response.to_string().replace('\n', " ");
-                                                // let compact_resp = if resp_str.chars().count() > 100 {
-                                                //     format!("{}...", resp_str.chars().take(97).collect::<String>())
-                                                // } else {
-                                                //     resp_str
-                                                // };
-                                                
-                                                clear_current_line(&mut io::stdout())?;
-                                                println!("{} {} {}\r", 
-                                                    style::style("✅").green(),
-                                                    style::style("Tool Result:").dim().bold(),
-                                                    style::style(resp_str).dim()
-                                                );
-                                                io::stdout().flush()?;
+                                            if let Part::FunctionResponse { .. } = part {
+                                                function_response_buffer.push(part.clone());
                                             }
                                         }
                                     }
@@ -771,6 +754,14 @@ pub async fn run_cli(
                             }
                         }
                     }
+                }
+
+                // Flush collected function responses if any were gathered
+                if !function_response_buffer.is_empty() {
+                    let response_content = Content::new("function").with_parts(function_response_buffer);
+                    let mut response_stream = runner.run_str(user_id, &session_id, response_content).await?;
+                    // Consume the stream to complete the turn
+                    while let Some(_) = response_stream.next().await {}
                 }
 
                 terminal::disable_raw_mode()?;
