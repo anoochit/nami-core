@@ -32,6 +32,7 @@ enum MessageRole {
     Assistant,
     System,
     ToolCall,
+    ToolResponse,
 }
 
 #[derive(Debug, Clone)]
@@ -140,6 +141,7 @@ impl<'a> App<'a> {
                 MessageRole::Assistant => ("\n🤖 Nami > ", Color::Magenta),
                 MessageRole::System => ("\n📢 System > ", Color::Yellow),
                 MessageRole::ToolCall => ("\n🔨 Calling > ", Color::Blue),
+                MessageRole::ToolResponse => ("\n✅ Response > ", Color::DarkGray),
             };
 
             let mut lines = Vec::new();
@@ -487,6 +489,13 @@ async fn run_app<B: Backend>(
                     None => {
                         // Stream finished. Flush batched responses if any.
                         if !function_response_buffer.is_empty() {
+                            // Display responses in TUI
+                            for part in &function_response_buffer {
+                                if let Part::FunctionResponse { function_response, .. } = part {
+                                    app.add_message(MessageRole::ToolResponse, format!("{}: {}", function_response.name, function_response.response));
+                                }
+                            }
+                            
                             let response_content = Content {
                                 role: "function".to_string(),
                                 parts: function_response_buffer.drain(..).collect(),
