@@ -32,7 +32,6 @@ enum MessageRole {
     Assistant,
     System,
     ToolCall,
-    ToolResponse,
 }
 
 #[derive(Debug, Clone)]
@@ -141,7 +140,6 @@ impl<'a> App<'a> {
                 MessageRole::Assistant => ("\n🤖 Nami > ", Color::Magenta),
                 MessageRole::System => ("\n📢 System > ", Color::Yellow),
                 MessageRole::ToolCall => ("\n🔨 Calling > ", Color::Blue),
-                MessageRole::ToolResponse => ("\n✅ Response > ", Color::DarkGray),
             };
 
             let mut lines = Vec::new();
