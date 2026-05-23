@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.9.22] - 2026-05-23
+
+### Added
+
+- **Retrospective Protocol**: Formalized a new task retrospective reporting workflow to maintain the project's "Wiki-First" culture.
+  - Added `Task_Retrospective.md` template to `workspace/wiki/Templates/`.
+  - Created `workspace/wiki/Reports/` directory for task documentation.
+  - Updated `workspace/AGENT.md` to mandate the use of retrospectives for complex tasks.
+  - Added "Retrospective Reporting" guidelines to `docs/DEVELOPMENT.md`.
+
 ## [0.9.21] - 2026-05-21
 
 ### Added
