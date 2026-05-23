@@ -34,9 +34,11 @@ Refer to [HARNESS.md](./HARNESS.md) for a deep dive into the testing infrastruct
 3.  Register the tool in `src/agent/agent.rs` within the `build_agent` function.
 4.  Add unit tests to verify the tool's execution logic.
 
-## 🚀 Build & Run
+## 📝 Retrospective Reporting
 
--   **Debug**: `cargo run -- cli`
--   **Release**: `make build`
--   **WebUI**: `make webui`
--   **All Tests**: `make test`
+To maintain our "Wiki-First" culture, all complex or non-trivial tasks should include a retrospective report.
+
+1.  After completing a task, draft a report in `workspace/wiki/Reports/`.
+2.  Use the `workspace/wiki/Templates/Task_Retrospective.md` template.
+3.  Ensure the retrospective includes documented insights and links to updated project documentation.
+

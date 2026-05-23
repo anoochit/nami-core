@@ -3,13 +3,13 @@
 //! Each sub-module represents a specific domain-driven toolset, allowing the agent to perform real-world tasks.
 
 pub mod current_datetime;
+pub mod invoke_agent;
 pub mod filesystem;
 pub mod image_generator;
 pub mod memory;
 pub mod parallel_tasks;
 pub mod pev_loop;
 pub mod plan;
-pub mod ralph_wiggum_loop;
 pub mod scheduler;
 pub mod search;
 // pub mod shell;

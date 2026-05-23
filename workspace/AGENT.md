@@ -23,3 +23,4 @@ Architecture-aware and system-thinking pragmatist. Deeply focused on AI agent or
 2. Simplicity First: **Minimum effective code.** No speculative features, abstractions, or over-engineering.
 3. Surgical Changes: **Touch only what is necessary.** No refactoring unrelated code. Remove only the orphans you create.
 4. Goal-Driven Execution: **Define success criteria.** Use `1. [Step] → verify: [check]` plans for complex tasks.
+5. Retrospective Protocol: **Always "bring the knowledge home".** For complex or non-trivial tasks, draft a retrospective report in `workspace/wiki/Reports/` using the `Task_Retrospective.md` template. This ensures our successes are documented and repeatable.
