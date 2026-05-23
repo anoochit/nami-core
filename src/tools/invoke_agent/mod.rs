@@ -111,6 +111,23 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn test_invoke_missing_fields() {
+        let specialists: HashMap<String, Arc<dyn Tool>> = HashMap::new();
+        let tool = InvokeAgent::new(specialists);
+        let ctx = Arc::new(adk_tool::SimpleToolContext::new("test_caller"));
+
+        // Missing prompt
+        let args_missing_prompt = json!({ "specialist": "coder" });
+        let result = tool.execute(ctx.clone(), args_missing_prompt).await;
+        assert!(result.is_err());
+
+        // Missing specialist
+        let args_missing_specialist = json!({ "prompt": "Hello" });
+        let result = tool.execute(ctx, args_missing_specialist).await;
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
     async fn test_invoke_known_specialist() {
         let mut specialists: HashMap<String, Arc<dyn Tool>> = HashMap::new();
         specialists.insert("coder".to_string(), Arc::new(MockSpecialist));
