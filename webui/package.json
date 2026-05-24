@@ -54,7 +54,10 @@
   },
   "pnpm": {
     "onlyBuiltDependencies": [
-      "esbuild"
+      "esbuild",
+      "@esbuild/linux-x64",
+      "@esbuild/win32-x64",
+      "@esbuild/darwin-x64"
     ]
   }
 }
