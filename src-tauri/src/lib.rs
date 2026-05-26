@@ -5,6 +5,10 @@ use std::path::{PathBuf};
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+  // Install rustls crypto provider
+  let _ = rustls::crypto::ring::default_provider()
+      .install_default();
+
   // Try to find the project root dynamically
   if let Some(root) = find_project_root() {
       println!(">>> Found project root at: {:?}", root);
@@ -14,7 +18,7 @@ pub fn run() {
   }
 
   tauri::Builder::default()
-    .plugin(tauri_plugin_log::Builder::new().build())
+    // .plugin(tauri_plugin_log::Builder::new().build())
     .setup(|_app| {
       // Start Nami API server in a dedicated thread to avoid lifetime/runtime issues
       std::thread::spawn(|| {
@@ -56,13 +60,13 @@ async fn start_nami_server() -> anyhow::Result<()> {
     let deps = setup_dependencies().await?;
 
     log::info!("Starting server on 127.0.0.1:8080...");
-    let _ = run_serve(
+    run_serve(
         agent,
         model,
         deps.sessions,
         deps.memory_adapter,
         "127.0.0.1".to_string(),
         8080,
-    ).await;
+    ).await?;
     Ok(())
 }

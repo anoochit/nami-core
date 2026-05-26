@@ -94,21 +94,21 @@ async fn main() -> anyhow::Result<()> {
     println!("Initializing telemetry...");
 
     // If we are running under Tauri, let Tauri's plugin manage logging
-    let is_tauri = std::env::var("TAURI_ENV").is_ok();
+    // let is_tauri = std::env::var("TAURI_ENV").is_ok();
 
-    if !is_tauri {
-        // If in CLI/TUI mode, log to file, otherwise stdout
-        let is_interactive = matches!(cli.command, Commands::Cli | Commands::Tui);
+    // if !is_tauri {
+    //     // If in CLI/TUI mode, log to file, otherwise stdout
+    //     let is_interactive = matches!(cli.command, Commands::Cli | Commands::Tui);
 
-        if is_interactive {
-            let log_file = File::create("nami.log").expect("Failed to create log file");
-            let _ = tracing_subscriber::registry()
-                .with(fmt::layer().with_writer(log_file))
-                .try_init();
-        } else if use_telemetry {
-            init_with_otlp("nami", &otel_endpoint).expect("Failed to initialize telemetry");
-        }
-    }
+    //     if is_interactive {
+    //         let log_file = File::create("nami.log").expect("Failed to create log file");
+    //         let _ = tracing_subscriber::registry()
+    //             .with(fmt::layer().with_writer(log_file))
+    //             .try_init();
+    //     } else if use_telemetry {
+    //         init_with_otlp("nami", &otel_endpoint).expect("Failed to initialize telemetry");
+    //     }
+    // }
 
     println!("Telemetry initialized. Starting app...");
     log::info!("Application starting with telemetry: {}", use_telemetry);

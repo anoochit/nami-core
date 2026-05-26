@@ -526,6 +526,7 @@ dependencies = [
  "dotenvy",
  "log",
  "nami",
+ "rustls",
  "serde",
  "serde_json",
  "tauri",
