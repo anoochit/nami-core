@@ -1,4 +1,6 @@
-use adk_memory::{MemoryEntry, MemoryService, SearchRequest, SqliteMemoryService};
+use adk_memory::{MemoryEntry, MemoryService, SearchRequest};
+#[cfg(test)]
+use adk_memory::SqliteMemoryService;
 use adk_rust::Content;
 use adk_tool::{AdkError, tool};
 use schemars::JsonSchema;
@@ -6,7 +8,7 @@ use serde::Deserialize;
 use serde_json::{Value, json};
 use std::sync::{Arc, OnceLock};
 
-pub static MEMORY_SVC: OnceLock<Arc<SqliteMemoryService>> = OnceLock::new();
+pub static MEMORY_SVC: OnceLock<Arc<dyn MemoryService>> = OnceLock::new();
 
 #[derive(Deserialize, JsonSchema)]
 pub struct RecallArgs {
