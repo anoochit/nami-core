@@ -2,6 +2,25 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.9.23] - 2026-05-26
+
+### Added
+
+- **Robustness Testing**: Added automated unit tests for the `InvokeAgent` tool to handle and gracefully reject inputs with missing fields (such as `prompt` or `specialist`).
+
+### Fixed
+
+- **Tauri Integration & Stability**:
+  - Resolved a critical startup panic by registering the default `rustls` ring crypto provider for making secure API calls under Tauri.
+  - Migrated logging to the standard `log` crate in the Tauri wrapper and resolved logger conflicts by restoring the `TAURI_ENV` check in the CLI entry point.
+  - Improved workspace path detection in Tauri using a dynamic `find_project_root` mechanism to traverse upwards and locate `config.toml`, eliminating hardcoded relative path assumptions.
+
+### Changed
+
+- **Build & Dependency Hygiene**:
+  - Configured `webui/package.json` to support cross-platform `esbuild` binary builds (`@esbuild/linux-x64`, `@esbuild/win32-x64`, `@esbuild/darwin-x64`) in `onlyBuiltDependencies` to ensure smooth multi-platform builds.
+  - Updated `webui/.gitignore` to ignore `pnpm-workspace.yaml`.
+
 ## [0.9.22] - 2026-05-23
 
 ### Added

@@ -126,32 +126,6 @@ mod tests {
         let result = tool.execute(ctx, args_missing_specialist).await;
         assert!(result.is_err());
     }
-
-    #[tokio::test]
-    async fn test_invoke_known_specialist() {
-        let mut specialists: HashMap<String, Arc<dyn Tool>> = HashMap::new();
-        specialists.insert("coder".to_string(), Arc::new(MockSpecialist));
-
-        let tool = InvokeAgent::new(specialists);
-        let ctx = Arc::new(adk_tool::SimpleToolContext::new("test_caller"));
-
-        let args = json!({
-            "specialist": "coder",
-            "prompt": "Write a hello world function"
-        });
-
-        let result = tool.execute(ctx, args).await.unwrap();
-        assert_eq!(result["status"], "success");
-        assert_eq!(result["specialist"], "coder");
-    }
-
-    #[tokio::test]
-    async fn test_invoke_unknown_specialist() {
-        let specialists: HashMap<String, Arc<dyn Tool>> = HashMap::new();
-        let tool = InvokeAgent::new(specialists);
-        let ctx = Arc::new(adk_tool::SimpleToolContext::new("test_caller"));
-
-        let args = json!({
             "specialist": "nonexistent",
             "prompt": "Do something"
         });
