@@ -95,8 +95,12 @@ export const FilePreview: React.FC<FilePreviewProps> = ({ path, onClose, isWiki 
            const data = await response.json();
            setContent(data.content);
         } else if (isPdf) {
-           const url = `/api/workspace/read-binary/${path}`;
-           setMediaUrl(url);
+           const response = await fetch(`/api/workspace/read-binary/${path}`, {
+               headers: getHeaders()
+           });
+           if (!response.ok) throw new Error('Failed to load PDF');
+           const blob = await response.blob();
+           await renderPdf(blob);
            setContent("");
         } else if (isImage || isVideo || isAudio) {
            const response = await fetch(`/api/workspace/read-binary/${path}`, {
@@ -213,7 +217,7 @@ export const FilePreview: React.FC<FilePreviewProps> = ({ path, onClose, isWiki 
         ) : (
           <div className="prose prose-sm max-w-none h-full">
             {isPdf ? (
-              <iframe src={mediaUrl || ''} className="w-full h-full border-none" />
+              <canvas ref={canvasRef} className="w-full h-auto" />
             ) : isImage && mediaUrl ? (
               <img src={mediaUrl} alt={path} className="max-w-full" />
             ) : isVideo && mediaUrl ? (
