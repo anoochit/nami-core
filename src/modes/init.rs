@@ -113,7 +113,7 @@ pub async fn run_init() -> anyhow::Result<()> {
         "thaillm" => "THAILLM_API_KEY",
         "openrouter" => "OPENROUTER_API_KEY",
         "ollama" => "OLLAMA_API_KEY",
-        _ => "API_KEY",
+        _ => "GOOGLE_API_KEY",
     };
 
     // --- 2. Search Configuration ---
@@ -165,76 +165,67 @@ provider = "{provider}"
 model_name = "{model_name}"
 # The environment variable name that holds the API key
 api_key_env = "{api_key_env}"
+
 # Vertex AI settings
 project_id = "{project_id_str}"
 location = "{location_str}"
 
-# --- Custom command definitions ---
+# Optional settings for OpenAI-compatible providers
+# base_url = "https://api.openai.com/v1"
+
 [commands]
 # Custom command definitions
 [commands."/plan"]
-template = "plan_create(name='auto', objective='{{args}}')"
+template = "plan_create(name='auto', objective='{args}')"
 help = "Create an AI research plan"
 
 [commands."/wiki"]
-template = "wiki_search: {{args}}"
+template = "wiki_search: {args}"
 help = "Search the project wiki"
 
 [commands."/memo"]
-template = "add_memory: {{args}}"
+template = "add_memory: {args}"
 help = "Save information to memory"
 
 [commands."/parallel"]
-template = "Execute the following tasks in parallel using the most appropriate specialized agents: {{args}}"
+template = "Execute the following tasks in parallel using the most appropriate specialized agents: {args}"
 help = "Run tasks in parallel"
 
 [commands."/goal"]
-template = "ralph_wiggum_loop: goal='{{goal}}', stop_condition='{{stop}}'"
+template = "ralph_wiggum_loop: goal='{goal}', stop_condition='{stop}'"
 help = "Set a goal with a stop condition (goal | stop)"
 
 [commands."/schedule"]
-template = "schedule_task: goal='{{goal}}', cron_expr='{{cron}}', id='{{uuid}}'"
+template = "schedule_task: goal='{goal}', cron_expr='{cron}', id='{uuid}'"
 help = "Schedule a repeating task (goal | cron)"
 
 [commands."/recall"]
-template = "recall_memory: {{args}}"
+template = "recall_memory: {args}"
 help = "Recall information from memory"
 
 [commands."/pev"]
-template = "Please use PEV mode for this objective: {{args}}. First, use pev_init(goal='{{args}}', task_id='pev-{{uuid}}') to plan it, then use pev_run(task_id='pev-{{uuid}}') to execute and verify it."
+template = "Please use PEV mode for this objective: {args}. First, use pev_init(goal='{args}', task_id='pev-{uuid}') to plan it, then use pev_run(task_id='pev-{uuid}') to execute and verify it."
 help = "Run the Planner-Executor-Verifier loop for a goal"
 
-# --- Granular Service Configurations (Optional) ---
-# If a section is missing, it falls back to the default [model] settings.
+[commands."/test"]
+template = "Analyze the code in {args} and generate a unit test file in tests/."
+help = "Generate tests for a specific file or module"
 
-[specialists.coder]
-# provider = "anthropic"
-# model_name = "claude-3-5-sonnet-latest"
-# api_key_env = "ANTHROPIC_API_KEY"
+[commands."/doc"]
+template = "Examine {args} and update the corresponding documentation in docs/."
+help = "Update documentation for a specific feature"
 
-[specialists.researcher]
-# model_name = "gemini-2.5-pro"
+[commands."/refactor"]
+template = "Perform a code review and suggest refactorings for {args} to improve maintainability."
+help = "Request refactoring suggestions for a module"
 
-[specialists.writer]
+[commands."/skill"]
+template = "Activate and execute the skill: {args}"
+help = "Invoke a specific skill by name"
 
-[specialists.ralph]
-
-[specialists.generalist]
-
-[image_generation]
-# Image generation is optimized for Gemini providers.
-provider = "gemini"
-model_name = "models/gemini-2.5-flash-image-preview"
-api_key_env = "GOOGLE_API_KEY"
-
-[reflection]
-# Reflection service synthesizes memories in the background.
-enabled = false
-# model_name = "gemini-2.5-flash"
-
-[embedding]
-# Configuration for vector embeddings used in long-term memory.
-# model_name = "text-embedding-004"
+[commands."/mcp"]
+template = "Query the connected MCP servers with: {args}"
+help = "Execute a query against connected MCP servers"
 
 "#
     );
