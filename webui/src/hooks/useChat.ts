@@ -23,6 +23,89 @@ export const useChat = () => {
   const [activePreviewWikiPath, setActivePreviewWikiPath] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [sessionHistory, setSessionHistory] = useState<Array<{session_id: string, app_name: string, user_id: string, created_at: string}>>([]);
+
+  const fetchSessions = useCallback(async () => {
+    try {
+      const sessions = await api.listSessions();
+      setSessionHistory(sessions);
+    } catch (e) {
+      console.error("Failed to fetch sessions", e);
+    }
+  }, []);
+
+  const loadSession = useCallback(async (sessionId: string) => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      const messagesFromApi = await api.getSessionMessages(sessionId);
+      const formattedMessages: Message[] = messagesFromApi.map(m => {
+          let text = '';
+          let toolCall: Message['toolCall'] = undefined;
+          
+          try {
+              const parsed = JSON.parse(m.llm_response);
+              const content = parsed.content || {};
+              const parts = content.parts || [];
+
+              if (content.role === 'user') {
+                  // Handle user message (might be double-stringified)
+                  let userText = parts[0]?.text || '';
+                  try {
+                      const nested = JSON.parse(userText);
+                      if (nested.parts && nested.parts[0]?.text) userText = nested.parts[0].text;
+                  } catch {}
+                  text = userText;
+              } else if (content.role === 'model') {
+                  // Handle model message (might contain tool calls)
+                  const part = parts[0];
+                  if (part?.text) {
+                      text = part.text;
+                  } else if (part?.name) {
+                      toolCall = { name: part.name, args: part.args, status: 'pending' };
+                      text = `Called tool: ${part.name}`;
+                  }
+              } else if (content.role === 'function') {
+                  // Handle function response
+                  const part = parts[0];
+                  if (part?.functionResponse) {
+                      text = `Function result: ${part.functionResponse.name}`;
+                      toolCall = { name: part.functionResponse.name, status: 'complete', result: part.functionResponse.response };
+                  }
+              } else {
+                  text = JSON.stringify(parsed);
+              }
+          } catch (e) {
+              console.error("JSON parse error:", e);
+              text = m.llm_response;
+          }
+          
+          return {
+              id: Date.now().toString() + Math.random(),
+              sender: m.author === 'user' ? 'user' : 'agent',
+              text: text,
+              toolCall,
+          };
+      });
+      const newThread: Thread = {
+          id: Date.now().toString(),
+          title: 'Loaded Conversation',
+          messages: formattedMessages,
+          sessionId: sessionId
+      };
+      setThreads(prev => [newThread, ...prev]);
+      setActiveThreadId(newThread.id);
+    } catch (e) {
+      console.error("Failed to load session", e);
+      setError("Failed to load session");
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchSessions();
+  }, [fetchSessions]);
 
   const threadsRef = useRef(threads);
   useEffect(() => {
@@ -289,6 +372,9 @@ const updateActiveThread = useCallback((updater: (thread: Thread) => Thread) => 
     activePreviewWikiPath,
     isLoading,
     error,
+    sessionHistory,
+    fetchSessions,
+    loadSession,
     setActiveThreadId,
     setInput,
     setSidebarOpen,

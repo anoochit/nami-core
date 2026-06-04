@@ -109,10 +109,10 @@ export const MessageItem: React.FC<MessageItemProps> = ({
     <div
       className={cn(
         "flex gap-3 animate-in fade-in duration-300",
-        isAgent ? "justify-start" : "justify-end",
+        message.sender === "agent" ? "justify-start" : "justify-end",
       )}
     >
-      {isAgent && (
+      {message.sender === "agent" && (
         <div className="w-8 h-8 flex items-center justify-center bg-gray-800 text-white rounded-full shrink-0 shadow-sm">
           <Bot size={16} />
         </div>
@@ -121,7 +121,7 @@ export const MessageItem: React.FC<MessageItemProps> = ({
       <div
         className={cn(
           "p-3 rounded-2xl max-w-[85%] sm:max-w-[75%] flex flex-col gap-2",
-          isAgent
+          message.sender === "agent"
             ? "bg-gray-100 text-gray-800 rounded-tl-sm"
             : "bg-black text-white rounded-tr-sm shadow-sm",
         )}

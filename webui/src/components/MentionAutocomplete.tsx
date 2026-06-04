@@ -6,6 +6,7 @@ import {
   CommandList,
 } from '@/components/ui/command';
 import { api } from '../lib/api';
+import { File, Folder } from 'lucide-react';
 
 interface MentionAutocompleteProps {
   input: string;
@@ -20,7 +21,7 @@ export const MentionAutocomplete: React.FC<MentionAutocompleteProps> = ({
   isOpen,
   setIsOpen,
 }) => {
-  const [files, setFiles] = useState<string[]>([]);
+  const [entries, setEntries] = useState<Array<{ name: string, type: string }>>([]);
   const [wikiPages, setWikiPages] = useState<string[]>([]);
 
   useEffect(() => {
@@ -30,7 +31,7 @@ export const MentionAutocomplete: React.FC<MentionAutocompleteProps> = ({
                api.listWorkspaceFiles(),
                api.listWikiPages()
            ]);
-           setFiles(fileData.entries.filter(e => e.type === 'file').map(e => e.name));
+           setEntries(fileData.entries);
            setWikiPages(wikiData.pages);
        } catch (e) {
            console.error("Failed to fetch autocomplete data", e);
@@ -47,10 +48,10 @@ export const MentionAutocomplete: React.FC<MentionAutocompleteProps> = ({
     return null;
   }, [input]);
 
-  const filteredFiles = useMemo(() => {
+  const filteredEntries = useMemo(() => {
     if (searchTerm === null) return [];
-    return files.filter(f => f.toLowerCase().includes(searchTerm)).slice(0, 50);
-  }, [files, searchTerm]);
+    return entries.filter(e => e.name.toLowerCase().includes(searchTerm)).slice(0, 50);
+  }, [entries, searchTerm]);
 
   const filteredWiki = useMemo(() => {
     if (searchTerm === null) return [];
@@ -58,11 +59,11 @@ export const MentionAutocomplete: React.FC<MentionAutocompleteProps> = ({
   }, [wikiPages, searchTerm]);
 
   useEffect(() => {
-    const shouldBeOpen = searchTerm !== null && (filteredFiles.length > 0 || filteredWiki.length > 0);
+    const shouldBeOpen = searchTerm !== null && (filteredEntries.length > 0 || filteredWiki.length > 0);
     if (isOpen !== shouldBeOpen) {
         setIsOpen(shouldBeOpen);
     }
-  }, [filteredFiles, filteredWiki, searchTerm, isOpen, setIsOpen]);
+  }, [filteredEntries, filteredWiki, searchTerm, isOpen, setIsOpen]);
 
   if (!isOpen) return null;
 
@@ -71,15 +72,16 @@ export const MentionAutocomplete: React.FC<MentionAutocompleteProps> = ({
       <div className="max-w-3xl mx-auto bg-white rounded-lg shadow-lg border border-input overflow-hidden">
         <Command>
           <CommandList className="max-h-60 overflow-y-auto">
-            {filteredFiles.length > 0 && (
-              <CommandGroup heading="Workspace Files">
-                {filteredFiles.map((f) => (
+            {filteredEntries.length > 0 && (
+              <CommandGroup heading="Workspace Files & Folders">
+                {filteredEntries.map((e) => (
                   <CommandItem
-                    key={f}
-                    onSelect={() => onSelect(`@${f}`)}
+                    key={e.name}
+                    onSelect={() => onSelect(`@${e.name}`)}
                     className="cursor-pointer"
                   >
-                    <span className="font-mono text-xs">{f}</span>
+                    {e.type === 'folder' ? <Folder size={14} className="text-blue-500" /> : <File size={14} className="text-gray-500" />}
+                    <span className="font-mono text-xs">{e.name}</span>
                   </CommandItem>
                 ))}
               </CommandGroup>

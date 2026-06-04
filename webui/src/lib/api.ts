@@ -46,7 +46,7 @@ export const api = {
 
   createSession: async (appName: string, userId: string): Promise<Session> => {
     const sessionId = crypto.randomUUID();
-    const response = await fetch(`${BASE_URL}/api/sessions`, {
+    const response = await fetch(`${BASE_URL}/api/sessions/create`, {
       method: "POST",
       headers: getHeaders({ "Content-Type": "application/json" }),
       body: JSON.stringify({
@@ -219,14 +219,27 @@ export const api = {
     return response.json();
   },
 
-  // listSessions: async (): Promise<Array<{session_id: string, app_name: string, user_id: string, created_at: string, updated_at: string}>> => {
-  //   const response = await fetch(`${BASE_URL}/api/sessions`, {
-  //       headers: getHeaders()
-  //   });
-  //   if (!response.ok) {
-  //     const errorData = await response.json().catch(() => ({}));
-  //     throw new Error(errorData.message || errorData.error || `Failed to list sessions (${response.status})`);
-  //   }
-  //   return response.json();
-  // },
+  listSessions: async (): Promise<Array<{session_id: string, app_name: string, user_id: string, created_at: string}>> => {
+    const response = await fetch(`${BASE_URL}/api/sessions/list`, {
+        headers: getHeaders()
+    });
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.message || errorData.error || `Failed to list sessions (${response.status})`);
+    }
+    const data = await response.json();
+    return data.sessions;
+  },
+
+  getSessionMessages: async (sessionId: string): Promise<Array<{llm_response: string, author: string, timestamp: string}>> => {
+      const response = await fetch(`${BASE_URL}/api/sessions/${sessionId}/messages`, {
+          headers: getHeaders()
+      });
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.message || errorData.error || `Failed to fetch session messages (${response.status})`);
+      }
+      const data = await response.json();
+      return data.messages;
+  },
 };

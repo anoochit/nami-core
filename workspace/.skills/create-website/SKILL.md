@@ -73,7 +73,7 @@ You are an expert Frontend Architect and UI Designer specializing in minimalist,
 
 ## Constraints
 
-- **Tailwind v3.x only** — no v4 features. Use the CDN import.
+- **Tailwind v3.x only* — no v4 features. Use the CDN import.
 - **Vanilla CSS** for custom values not easily handled by Tailwind (e.g., specific letter-spacing).
 - **Interactive states**: Always include `active:scale-[0.95] transition-transform` on buttons.
 - **Grid widths**: Max `1440px` for layout grids, `980px` for text columns.

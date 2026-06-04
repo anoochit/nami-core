@@ -11,8 +11,107 @@ use tokio::fs;
 use walkdir::WalkDir;
 use crate::utils::{get_wiki_dir, get_workspace_dir, sandbox, ignore::NamiIgnore};
 
+#[tracing::instrument]
+async fn list_sessions() -> impl IntoResponse {
+    use sqlx::{SqlitePool, Row};
+
+    let db_path = "sessions.db";
+    let pool = match SqlitePool::connect(&format!("sqlite:{}?mode=ro", db_path)).await {
+        Ok(p) => p,
+        Err(e) => return (StatusCode::INTERNAL_SERVER_ERROR, format!("Failed to connect to database: {}", e)).into_response(),
+    };
+
+    let sessions = match sqlx::query("SELECT session_id, app_name, user_id, created_at FROM sessions ORDER BY created_at DESC")
+        .fetch_all(&pool)
+        .await
+    {
+        Ok(rows) => {
+            let mut results = Vec::new();
+            for row in rows {
+                results.push(json!({
+                    "session_id": row.get::<String, _>("session_id"),
+                    "app_name": row.get::<String, _>("app_name"),
+                    "user_id": row.get::<String, _>("user_id"),
+                    "created_at": row.get::<String, _>("created_at"),
+                }));
+            }
+            results
+        },
+        Err(e) => return (StatusCode::INTERNAL_SERVER_ERROR, format!("Failed to query sessions: {}", e)).into_response(),
+    };
+
+    Json(json!({ "sessions": sessions })).into_response()
+}
+
 /// Returns the Axum Router for the API.
 use crate::modes::command_registry::CommandRegistry;
+
+#[tracing::instrument]
+async fn get_session_messages(Path(session_id): Path<String>) -> impl IntoResponse {
+    use sqlx::{SqlitePool, Row};
+
+    let db_path = "sessions.db";
+    let pool = match SqlitePool::connect(&format!("sqlite:{}?mode=ro", db_path)).await {
+        Ok(p) => p,
+        Err(e) => return (StatusCode::INTERNAL_SERVER_ERROR, format!("Failed to connect to database: {}", e)).into_response(),
+    };
+
+    let messages = match sqlx::query("SELECT llm_response, author, timestamp FROM events WHERE session_id = ? ORDER BY timestamp ASC")
+        .bind(session_id)
+        .fetch_all(&pool)
+        .await
+    {
+        Ok(rows) => {
+            let mut results = Vec::new();
+            for row in rows {
+                results.push(json!({
+                    "llm_response": row.get::<String, _>("llm_response"),
+                    "author": row.get::<String, _>("author"),
+                    "timestamp": row.get::<String, _>("timestamp"),
+                }));
+            }
+            results
+        },
+        Err(e) => return (StatusCode::INTERNAL_SERVER_ERROR, format!("Failed to query messages: {}", e)).into_response(),
+    };
+
+    Json(json!({ "messages": messages })).into_response()
+}
+
+#[tracing::instrument]
+async fn create_session_handler(Json(payload): Json<serde_json::Value>) -> impl IntoResponse {
+    use sqlx::SqlitePool;
+    
+    let app_name = payload["appName"].as_str().unwrap_or("nami");
+    let user_id = payload["userId"].as_str().unwrap_or("user1");
+    let session_id = payload["sessionId"].as_str().unwrap_or("");
+    
+    if session_id.is_empty() {
+        return (StatusCode::BAD_REQUEST, "Missing sessionId").into_response();
+    }
+
+    let db_path = "sessions.db";
+    let pool = match SqlitePool::connect(&format!("sqlite:{}?mode=rwc", db_path)).await {
+        Ok(p) => p,
+        Err(e) => return (StatusCode::INTERNAL_SERVER_ERROR, format!("Failed to connect to database: {}", e)).into_response(),
+    };
+
+    let now = chrono::Utc::now().to_rfc3339();
+
+    match sqlx::query("INSERT INTO sessions (app_name, user_id, session_id, state, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)")
+        .bind(app_name)
+        .bind(user_id)
+        .bind(session_id)
+        .bind("{}") // Empty state
+        .bind(&now)
+        .bind(&now)
+        .execute(&pool)
+        .await
+    {
+        Ok(_) => Json(json!({ "session_id": session_id })).into_response(),
+        Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, format!("Failed to create session: {}", e)).into_response(),
+    }
+}
 
 pub fn api_router() -> Router {
     Router::new()
@@ -24,6 +123,9 @@ pub fn api_router() -> Router {
         .route("/api/wiki/pages", get(list_wiki_pages))
         .route("/api/wiki/pages/{*title}", get(read_wiki_page))
         .route("/api/commands", get(get_commands))
+        .route("/api/sessions/create", post(create_session_handler))
+        .route("/api/sessions/list", get(list_sessions))
+        .route("/api/sessions/{session_id}/messages", get(get_session_messages))
         .layer(middleware::from_fn(auth_middleware))
         .layer(middleware::from_fn(secure_headers))
 }
