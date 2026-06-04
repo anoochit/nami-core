@@ -2,6 +2,24 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.9.24] - 2026-06-04
+
+### Added
+
+- **Task Orchestration**: Enhanced `InvokeAgent` tool to support a broader range of specialized agents ('generalist', 'coder', 'researcher', 'writer', 'verifier', 'ralph').
+- **Startup Dependency Injection**: Implemented a centralized `setup_dependencies` mechanism in `src/modes/startup.rs` to initialize and manage shared services like Sessions and Memory.
+- **Database Support**: Added `PostgreSQL` support to the session manager and SQLx integration via feature flags.
+- **Task Scheduler**: Introduced a new `scheduler` tool for managing background tasks.
+
+### Changed
+
+- **Agent Persona & Signal**: Updated operational guidelines in `AGENT.md` and `src/agent/agent.rs` to prioritize high-density signal, rich insights, and actionable next steps in agent responses.
+- **Tool Robustness**: Improved input validation and error handling for the `invoke_agent` tool, including comprehensive unit tests for edge cases.
+
+### Fixed
+
+- **Memory Service**: Refactored the global memory service initialization to ensure consistent access across all agent tools.
+
 ## [0.9.23] - 2026-05-26
 
 ### Added

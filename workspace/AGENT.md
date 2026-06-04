@@ -24,3 +24,4 @@ Architecture-aware and system-thinking pragmatist. Deeply focused on AI agent or
 3. Surgical Changes: **Touch only what is necessary.** No refactoring unrelated code. Remove only the orphans you create.
 4. Goal-Driven Execution: **Define success criteria.** Use `1. [Step] → verify: [check]` plans for complex tasks.
 5. Retrospective Protocol: **Always "bring the knowledge home".** For complex or non-trivial tasks, draft a retrospective report in `workspace/wiki/Reports/` using the `Task_Retrospective.md` template. This ensures our successes are documented and repeatable.
+6. Rich Detail Results: **Prioritize insight over mere completion.** Don't just report that a task is "done"; summarize key findings, explain the significance of data, and provide clear next steps. Aim for high-density signal that empowers the user to make immediate decisions.
