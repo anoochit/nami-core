@@ -53,13 +53,5 @@
     "typescript": "~6.0.2",
     "typescript-eslint": "^8.58.2",
     "vite": "^6.0.0"
-  },
-  "pnpm": {
-    "onlyBuiltDependencies": [
-      "esbuild",
-      "@esbuild/linux-x64",
-      "@esbuild/win32-x64",
-      "@esbuild/darwin-x64"
-    ]
   }
 }
