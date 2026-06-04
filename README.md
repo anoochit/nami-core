@@ -15,7 +15,9 @@ A modular, extensible AI-powered `Nami` built on top of [adk-rust](https://githu
 * **Agent Reflection Service**: A background service that periodically analyzes session logs to synthesize "Learnings" (facts, preferences, project context) and automatically update `MEMORIES.md` and searchable memory.
 * **AI Gateway Integration**: Support for high-availability routing via **MLflow Deployments**, enabling load balancing and fallback strategies across multiple LLM providers.
 * **Native PDF & Marp Slides Rendering**: Directly view PDF documents and render Marp Markdown presentations (using `marp: true` frontmatter) within the WebUI preview canvas.
-* **Specialist Agents**: Ecosystem of specialized agents (`coder`, `researcher`, `writer`, `generalist`, `ralph`) with full access to core tools (filesystem, search, wiki), allowing for autonomous complex task execution.
+* **Specialist Agents**: Ecosystem of specialized agents (`coder`, `researcher`, `writer`, `generalist`, `verifier`, `ralph`) with full access to core tools (filesystem, search, wiki), allowing for autonomous complex task execution.
+* **PEV (Planner-Executor-Verifier) Loop**: A sophisticated autonomous loop that plans tasks, executes steps using specialized agents, and rigorously verifies results using a critic agent to ensure correctness.
+* **Structured Implementation Planning**: Dedicated `plan` tools and `/plan` command to create, track, and sync multi-step implementation plans with the state manager.
 * **Native Image Generation**: Implemented a native image generation tool using `gemini-2.5-flash-image-preview`, providing high-quality, efficient visuals directly within the agent's workflow without external script dependencies.
 * **Parallel Task Execution**: A custom `parallel_tasks` tool that orchestrates multiple specialists simultaneously for high-speed multi-tasking.
 * **Autonomous Goal Loops**: A "Ralph Wiggum" loop agent that persists through multiple iterations to achieve complex goals, triggered via `/goal`.
@@ -30,13 +32,16 @@ A modular, extensible AI-powered `Nami` built on top of [adk-rust](https://githu
 * **Silent Cancellation**: Support for both `Ctrl+C` and silent `ESC` interruption, allowing users to cancel requests without terminal clutter.
 * **Slash Commands**: Quick access to system functions:
   * `/new`: Reset current session.
-  * `/parallel`: Run tasks in parallel.
-  * `/goal`: Run autonomous loops.
-  * `/schedule`: Manage automated tasks with cron.
-  * `/plan`: Initialize structured tasks.
-  * `/wiki`: Search the project wiki.
-  * `/memo`: Save information to memory.
-  * `/recall`: Recall information from memory.
+  * `/clear`: Reset message history (TUI).
+  * `/parallel`: Run tasks in parallel using specialists.
+  * `/goal`: Run autonomous loops to achieve goals.
+  * `/schedule`: Manage automated tasks with cron expressions.
+  * `/plan`: Initialize structured implementation plans.
+  * `/tasks`: List and manage active system tasks.
+  * `/status`: View real-time agent and system status.
+  * `/wiki`: Search the project wiki vault.
+  * `/memo`: Save information to long-term memory.
+  * `/recall`: Search and recall facts from memory.
 * **@ File Context References**: Reference files from the `workspace/` directly in the CLI using `@path/to/file` with built-in Tab-completion.
 * **Dynamic Persona & Soul**: Configure the bot's personality and user context via `workspace/AGENT.md` and `workspace/USER.md`. Automatically updated `workspace/MEMORIES.md` tracks personal user facts.
 
@@ -200,8 +205,8 @@ graph TD
     Runner --> Reflection[Reflection Service]
     
     Agent --> LLM[ThaiLLM/Gemini/OpenAI]
-    Agent --> SubAgents[Sub-Agents: Coder, Researcher, Writer, Ralph]
-    Agent --> Tools[Tools: Filesystem, Memory, Soul, etc.]
+    Agent --> SubAgents[Sub-Agents: Coder, Researcher, Writer, Verifier, Ralph]
+    Agent --> Tools[Tools: Filesystem, Memory, PEV, Plans, etc.]
     Agent --> Wiki[Obsidian-Style Wiki: Graph, Tags, Daily Notes]
     Agent --> Persona[AGENT.md & USER.md]
 

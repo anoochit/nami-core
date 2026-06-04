@@ -6,6 +6,8 @@ All notable changes to this project will be documented in this file.
 
 ### Added
 
+- **PEV Loop**: Introduced the `pev_loop` toolset (`pev_init`, `pev_run`) for autonomous task execution with a Planner-Executor-Verifier architecture.
+- **Implementation Planning**: Added `plan` tools (`plan_create`, `plan_show`, `plan_list`, `plan_delete`, `plan_update`) to manage structured plans synced with the task state manager.
 - **Task Orchestration**: Enhanced `InvokeAgent` tool to support a broader range of specialized agents ('generalist', 'coder', 'researcher', 'writer', 'verifier', 'ralph').
 - **Startup Dependency Injection**: Implemented a centralized `setup_dependencies` mechanism in `src/modes/startup.rs` to initialize and manage shared services like Sessions and Memory.
 - **Database Support**: Added `PostgreSQL` support to the session manager and SQLx integration via feature flags.
