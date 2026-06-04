@@ -1,6 +1,6 @@
 import { cn } from './lib/utils';
 import { ThreadView } from './components/ThreadView';
-import { PreviewPane } from './components/PreviewPane';
+import { FilePreview } from './components/FilePreview';
 import { FileExplorer } from './components/FileExplorer';
 import { useChat } from './hooks/useChat';
 import { ServerStatusIndicator } from './components/ServerStatusIndicator';
@@ -13,14 +13,14 @@ export default function App() {
     activeThread,
     input,
     sidebarOpen,
-    previewPath,
-    previewWikiPath,
+    activePreviewPath,
+    activePreviewWikiPath,
     isLoading,
     error,
     setInput,
     setSidebarOpen,
-    setPreviewPath,
-    setPreviewWikiPath,
+    setActivePreviewPath,
+    setActivePreviewWikiPath,
     sendMessage,
     createNewThread,
     navigateHistory,
@@ -31,7 +31,7 @@ export default function App() {
     messageQueue
   } = useChat();
 
-  const activePreview = previewPath || previewWikiPath;
+  const activePreview = activePreviewPath || activePreviewWikiPath;
 
   return (
     <div className="flex h-screen bg-white overflow-hidden">
@@ -41,7 +41,7 @@ export default function App() {
             <TabsTrigger value="files" className="flex-1 justify-start pb-4 pt-4"><FolderTreeIcon/>Files</TabsTrigger>
           </TabsList>
           <TabsContent value="files" className="flex-1 overflow-hidden">
-             <FileExplorer onOpenFile={setPreviewPath} />
+             <FileExplorer onOpenFile={setActivePreviewPath} />
           </TabsContent>
         </Tabs>
         <div className="p-2 border-t flex justify-between items-center">
@@ -61,8 +61,8 @@ export default function App() {
               onInputChange={setInput}
               onSendMessage={sendMessage}
               onNavigateHistory={navigateHistory}
-              onPreviewFile={setPreviewPath}
-              onPreviewWiki={setPreviewWikiPath}
+              onPreviewFile={setActivePreviewPath}
+              onPreviewWiki={setActivePreviewWikiPath}
               onClear={clearMessages}
               onNewThread={createNewThread}
               isLoading={isLoading}
@@ -78,12 +78,12 @@ export default function App() {
             <>
               <Separator className="w-1 bg-gray-100 hover:bg-blue-400 transition-colors cursor-col-resize" />
               <Panel minSize={25} defaultSize={40}>
-                <PreviewPane 
+                <FilePreview 
                   path={activePreview} 
-                  isWiki={!!previewWikiPath}
+                  isWiki={!!activePreviewWikiPath}
                   onClose={() => {
-                    setPreviewPath(null);
-                    setPreviewWikiPath(null);
+                    setActivePreviewPath(null);
+                    setActivePreviewWikiPath(null);
                   }} 
                 />
               </Panel>

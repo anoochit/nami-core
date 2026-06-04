@@ -19,8 +19,8 @@ export const useChat = () => {
   const [promptHistory, setPromptHistory] = useState<string[]>([]);
   const [historyIndex, setHistoryIndex] = useState(-1);
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [previewPath, setPreviewPath] = useState<string | null>(null);
-  const [previewWikiPath, setPreviewWikiPath] = useState<string | null>(null);
+  const [activePreviewPath, setActivePreviewPath] = useState<string | null>(null);
+  const [activePreviewWikiPath, setActivePreviewWikiPath] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -285,15 +285,15 @@ const updateActiveThread = useCallback((updater: (thread: Thread) => Thread) => 
     activeThreadId,
     input,
     sidebarOpen,
-    previewPath,
-    previewWikiPath,
+    activePreviewPath,
+    activePreviewWikiPath,
     isLoading,
     error,
     setActiveThreadId,
     setInput,
     setSidebarOpen,
-    setPreviewPath,
-    setPreviewWikiPath,
+    setActivePreviewPath,
+    setActivePreviewWikiPath,
     sendMessage,
     createNewThread,
     navigateHistory,
