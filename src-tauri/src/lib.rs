@@ -1,7 +1,54 @@
 use nami::agent;
 use nami::modes::startup::setup_dependencies;
 use nami::modes::serve::run_serve;
-use std::path::{PathBuf};
+use std::path::PathBuf;
+use std::net::TcpListener;
+use std::sync::Mutex;
+use tauri::{Manager, State};
+use tauri::menu::{Menu, MenuItem};
+use tauri::tray::TrayIconBuilder;
+use tauri_plugin_global_shortcut::{Shortcut, Modifiers, Code, GlobalShortcutExt};
+
+struct ApiPort(Mutex<u16>);
+
+#[tauri::command]
+fn minimize_window(window: tauri::Window) {
+  let _ = window.minimize();
+}
+
+#[tauri::command]
+fn maximize_window(window: tauri::Window) {
+  if let Ok(maximized) = window.is_maximized() {
+    if maximized {
+      let _ = window.unmaximize();
+    } else {
+      let _ = window.maximize();
+    }
+  }
+}
+
+#[tauri::command]
+fn close_window(window: tauri::Window) {
+  let _ = window.close();
+}
+
+#[tauri::command]
+fn get_api_port(port: State<'_, ApiPort>) -> u16 {
+  *port.0.lock().unwrap()
+}
+
+fn find_free_port(start_port: u16) -> u16 {
+    let mut port = start_port;
+    loop {
+        if TcpListener::bind(("127.0.0.1", port)).is_ok() {
+            return port;
+        }
+        port += 1;
+        if port > 65535 {
+            return start_port; // Fallback
+        }
+    }
+}
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -17,16 +64,89 @@ pub fn run() {
       eprintln!("!!! WARNING: Could not find project root. Config files may not be loaded correctly.");
   }
 
+  let port = find_free_port(8080);
+
   tauri::Builder::default()
-    // .plugin(tauri_plugin_log::Builder::new().build())
-    .setup(|_app| {
-      // Start Nami API server in a dedicated thread to avoid lifetime/runtime issues
-      std::thread::spawn(|| {
-        log::info!("Starting Nami Backend Thread...");
+    .plugin(tauri_plugin_log::Builder::new().build())
+    .plugin(tauri_plugin_window_state::Builder::default().build())
+    .plugin(tauri_plugin_notification::Builder::default().build())
+    .plugin({
+      let port_clone = port;
+      tauri_plugin_global_shortcut::Builder::with_handler(move |app, _shortcut, event| {
+        if event.state() == tauri_plugin_global_shortcut::ShortcutState::Pressed {
+          if let Some(window) = app.get_webview_window("main") {
+            let is_visible = window.is_visible().unwrap_or(false);
+            if is_visible {
+              let _ = window.hide();
+            } else {
+              let _ = window.show();
+              let _ = window.set_focus();
+            }
+          }
+        }
+      })
+      .build()
+    })
+    .manage(ApiPort(Mutex::new(port)))
+    .invoke_handler(tauri::generate_handler![
+      minimize_window,
+      maximize_window,
+      close_window,
+      get_api_port
+    ])
+    .setup(move |app| {
+      // Register global shortcut Alt+Space
+      let shortcut = Shortcut::new(Some(Modifiers::ALT), Code::Space);
+      let _ = app.global_shortcut().register(shortcut);
+
+      // System Tray Menu & Setup
+      let toggle = MenuItem::with_id(app, "toggle", "Show/Hide", true, None::<&str>)?;
+      let quit = MenuItem::with_id(app, "quit", "Quit", true, None::<&str>)?;
+      let menu = Menu::with_items(app, &[&toggle, &quit])?;
+
+      let _tray = TrayIconBuilder::new()
+        .icon(app.default_window_icon().unwrap().clone())
+        .menu(&menu)
+        .on_menu_event(|app, event| {
+          match event.id.as_ref() {
+            "toggle" => {
+              if let Some(window) = app.get_webview_window("main") {
+                let show = if let Ok(visible) = window.is_visible() {
+                  !visible
+                } else {
+                  true
+                };
+                if show {
+                  let _ = window.show();
+                  let _ = window.set_focus();
+                } else {
+                  let _ = window.hide();
+                }
+              }
+            }
+            "quit" => {
+              std::process::exit(0);
+            }
+            _ => {}
+          }
+        })
+        .on_tray_icon_event(|tray, event| {
+          if event.click_type == tauri::tray::ClickType::Left {
+            if let Some(window) = tray.app_handle().get_webview_window("main") {
+              let _ = window.show();
+              let _ = window.set_focus();
+            }
+          }
+        })
+        .build(app)?;
+
+      // Start Nami API server in a dedicated thread
+      std::thread::spawn(move || {
+        log::info!("Starting Nami Backend Thread on port {}...", port);
         let rt = tokio::runtime::Runtime::new().unwrap();
         rt.block_on(async {
           log::info!("Nami Server Runtime Started. Initializing...");
-          if let Err(e) = start_nami_server().await {
+          if let Err(e) = start_nami_server(port).await {
             log::error!("CRITICAL: Nami Server failed to start: {:?}", e);
           }
         });
@@ -51,7 +171,7 @@ fn find_project_root() -> Option<PathBuf> {
     None
 }
 
-async fn start_nami_server() -> anyhow::Result<()> {
+async fn start_nami_server(port: u16) -> anyhow::Result<()> {
     dotenvy::dotenv().ok();
     
     log::info!("Building agent...");
@@ -59,14 +179,14 @@ async fn start_nami_server() -> anyhow::Result<()> {
     log::info!("Setting up dependencies...");
     let deps = setup_dependencies().await?;
 
-    log::info!("Starting server on 127.0.0.1:8080...");
+    log::info!("Starting server on 127.0.0.1:{}...", port);
     run_serve(
         agent,
         model,
         deps.sessions,
         deps.memory_adapter,
         "127.0.0.1".to_string(),
-        8080,
+        port,
     ).await?;
     Ok(())
 }

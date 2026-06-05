@@ -4,7 +4,7 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
-import { api, getHeaders } from '../lib/api';
+import { api, getHeaders, BASE_URL } from '../lib/api';
 
 const parseFrontmatter = (content: string) => {
     const match = content.match(/^---\r?\n([\s\S]+?)\r?\n---\r?\n([\s\S]*)$/);
@@ -37,7 +37,7 @@ export const FilePreview: React.FC<FilePreviewProps> = ({ path, onClose, isWiki 
   const handleDownload = async () => {
     if (!path) return;
     try {
-        const response = await fetch(`/api/workspace/read-binary/${path}`, { headers: getHeaders() });
+        const response = await fetch(`${BASE_URL}/api/workspace/read-binary/${path}`, { headers: getHeaders() });
         const blob = await response.blob();
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
@@ -87,15 +87,27 @@ export const FilePreview: React.FC<FilePreviewProps> = ({ path, onClose, isWiki 
         const isAudio = audioExtensions.includes(ext);
         const isPdf = ext === 'pdf';
 
-        if (isWiki) {
-           const response = await fetch(`/api/wiki/pages/${path}`, {
+        let finalPath = path;
+        let finalIsWiki = isWiki;
+
+        if (path.startsWith('wiki/')) {
+          finalIsWiki = true;
+          let title = path.substring(5);
+          if (title.endsWith('.md')) {
+            title = title.substring(0, title.length - 3);
+          }
+          finalPath = title;
+        }
+
+        if (finalIsWiki) {
+           const response = await fetch(`${BASE_URL}/api/wiki/pages/${finalPath}`, {
                headers: getHeaders()
            });
            if (!response.ok) throw new Error('Failed to load wiki page');
            const data = await response.json();
            setContent(data.content);
         } else if (isPdf) {
-           const response = await fetch(`/api/workspace/read-binary/${path}`, {
+           const response = await fetch(`${BASE_URL}/api/workspace/read-binary/${path}`, {
                headers: getHeaders()
            });
            if (!response.ok) throw new Error('Failed to load PDF');
@@ -103,7 +115,7 @@ export const FilePreview: React.FC<FilePreviewProps> = ({ path, onClose, isWiki 
            await renderPdf(blob);
            setContent("");
         } else if (isImage || isVideo || isAudio) {
-           const response = await fetch(`/api/workspace/read-binary/${path}`, {
+           const response = await fetch(`${BASE_URL}/api/workspace/read-binary/${path}`, {
                headers: getHeaders()
            });
            if (!response.ok) throw new Error('Failed to load media');

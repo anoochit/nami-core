@@ -9,14 +9,14 @@ use axum::{
 use serde_json::json;
 use tokio::fs;
 use walkdir::WalkDir;
-use crate::utils::{get_wiki_dir, get_workspace_dir, sandbox, ignore::NamiIgnore};
+use crate::utils::{get_wiki_dir, get_workspace_dir, sandbox, ignore::NamiIgnore, get_nami_dir};
 
 #[tracing::instrument]
 async fn list_sessions() -> impl IntoResponse {
     use sqlx::{SqlitePool, Row};
 
-    let db_path = "sessions.db";
-    let pool = match SqlitePool::connect(&format!("sqlite:{}?mode=ro", db_path)).await {
+    let db_path = get_nami_dir().join("sessions.db");
+    let pool = match SqlitePool::connect(&format!("sqlite:{}?mode=ro", db_path.to_string_lossy())).await {
         Ok(p) => p,
         Err(e) => return (StatusCode::INTERNAL_SERVER_ERROR, format!("Failed to connect to database: {}", e)).into_response(),
     };
@@ -50,8 +50,8 @@ use crate::modes::command_registry::CommandRegistry;
 async fn get_session_messages(Path(session_id): Path<String>) -> impl IntoResponse {
     use sqlx::{SqlitePool, Row};
 
-    let db_path = "sessions.db";
-    let pool = match SqlitePool::connect(&format!("sqlite:{}?mode=ro", db_path)).await {
+    let db_path = get_nami_dir().join("sessions.db");
+    let pool = match SqlitePool::connect(&format!("sqlite:{}?mode=ro", db_path.to_string_lossy())).await {
         Ok(p) => p,
         Err(e) => return (StatusCode::INTERNAL_SERVER_ERROR, format!("Failed to connect to database: {}", e)).into_response(),
     };
@@ -90,8 +90,8 @@ async fn create_session_handler(Json(payload): Json<serde_json::Value>) -> impl 
         return (StatusCode::BAD_REQUEST, "Missing sessionId").into_response();
     }
 
-    let db_path = "sessions.db";
-    let pool = match SqlitePool::connect(&format!("sqlite:{}?mode=rwc", db_path)).await {
+    let db_path = get_nami_dir().join("sessions.db");
+    let pool = match SqlitePool::connect(&format!("sqlite:{}?mode=rwc", db_path.to_string_lossy())).await {
         Ok(p) => p,
         Err(e) => return (StatusCode::INTERNAL_SERVER_ERROR, format!("Failed to connect to database: {}", e)).into_response(),
     };
@@ -205,7 +205,8 @@ async fn upload_file(mut multipart: Multipart) -> impl IntoResponse {
 
 #[tracing::instrument]
 async fn get_commands() -> impl IntoResponse {
-    match CommandRegistry::load_from_config("config.toml") {
+    let config_path = get_nami_dir().join("config.toml");
+    match CommandRegistry::load_from_config(&config_path.to_string_lossy()) {
         Ok(registry) => Json(json!(registry.commands)).into_response(),
         Err(_) => (StatusCode::INTERNAL_SERVER_ERROR, "Failed to load commands").into_response(),
     }
@@ -347,23 +348,38 @@ async fn list_wiki_pages() -> impl IntoResponse {
 
 /// Reads the content of a specific wiki page by title.
 async fn read_wiki_page(Path(title): Path<String>) -> impl IntoResponse {
-    match get_wiki_dir().await {
-        Ok(_) => (),
+    let wiki_dir = match get_wiki_dir().await {
+        Ok(d) => d,
         Err(e) => return (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()).into_response(),
     };
 
-    // Use sandbox logic to ensure title doesn't escape wiki directory
-    let filename = format!("{}.md", title);
-    let full_path = match sandbox(&format!("wiki/{}", filename)).await {
-        Ok(p) => p,
-        Err(e) => return (StatusCode::FORBIDDEN, e.to_string()).into_response(),
-    };
+    // Ensure title does not contain parent directory escape sequences
+    let clean_title = title.trim_start_matches(['/', '\\']);
+    let mut joined = wiki_dir.clone();
+    joined.push(format!("{}.md", clean_title));
 
-    if !full_path.exists() {
+    // Normalize path to resolve any parent/current directory segments
+    let mut normalized = std::path::PathBuf::new();
+    for component in joined.components() {
+        match component {
+            std::path::Component::ParentDir => {
+                normalized.pop();
+            }
+            std::path::Component::CurDir => {}
+            c => normalized.push(c),
+        }
+    }
+
+    // Safety guard: Must start with the global wiki directory root
+    if !normalized.starts_with(&wiki_dir) {
+        return (StatusCode::FORBIDDEN, "Security Error: Attempt to escape wiki sandbox").into_response();
+    }
+
+    if !normalized.exists() {
         return (StatusCode::NOT_FOUND, "Wiki page not found").into_response();
     }
 
-    match fs::read_to_string(&full_path).await {
+    match fs::read_to_string(&normalized).await {
         Ok(content) => Json(json!({ "title": title, "content": content })).into_response(),
         Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, format!("Read failed: {}", e)).into_response(),
     }

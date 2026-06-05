@@ -1,4 +1,4 @@
-use crate::utils::get_workspace_dir;
+use crate::utils::get_nami_dir;
 use adk_rust::Tool;
 use adk_rust::serde::{Deserialize, Serialize};
 use adk_rust::tool::ToolContext;
@@ -104,8 +104,7 @@ struct TaskIdArgs {
 }
 
 async fn get_states_file() -> std::result::Result<PathBuf, AdkError> {
-    let root: std::path::PathBuf = get_workspace_dir().await?;
-    Ok(root.join("task_states.json"))
+    Ok(get_nami_dir().join("task_states.json"))
 }
 
 pub async fn load_states() -> std::result::Result<Vec<TaskState>, AdkError> {

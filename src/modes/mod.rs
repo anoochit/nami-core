@@ -7,7 +7,6 @@ pub mod cli;
 pub mod command_registry;
 pub mod init;
 pub mod api;
-pub mod browse;
 pub mod run;
 pub mod serve;
 pub mod line;

@@ -1,6 +1,21 @@
 import type { Session, AgentContent, AgentEvent } from '../types/chat';
 
-const BASE_URL = import.meta.env.VITE_API_BASE_URL || "";
+export let BASE_URL = import.meta.env.VITE_API_BASE_URL || "";
+
+// Detect if running inside Tauri and dynamically set BASE_URL using get_api_port command
+const initTauriPort = async () => {
+  if (typeof window !== 'undefined' && (window as any).__TAURI__) {
+    try {
+      const port = await (window as any).__TAURI__.core.invoke('get_api_port');
+      BASE_URL = `http://127.0.0.1:${port}`;
+      console.log(`[Tauri] Dynamic API BASE_URL resolved to: ${BASE_URL}`);
+    } catch (e) {
+      console.error('[Tauri] Failed to fetch dynamic API port:', e);
+    }
+  }
+};
+
+initTauriPort();
 
 /**
  * Gets the current API key from localStorage or environment

@@ -73,7 +73,8 @@ impl<'a> App<'a> {
     fn load_history_file() -> anyhow::Result<Vec<String>> {
         let config = Config::builder().build();
         let mut rl: Editor<(), FileHistory> = Editor::with_config(config)?;
-        let _ = rl.load_history(".cli_history");
+        let history_path = crate::utils::get_nami_dir().join(".cli_history");
+        let _ = rl.load_history(&history_path);
         let mut history = Vec::new();
         for entry in rl.history().iter() {
             history.push(entry.to_string());
@@ -84,9 +85,10 @@ impl<'a> App<'a> {
     fn save_history_entry(entry: &str) -> anyhow::Result<()> {
         let config = Config::builder().build();
         let mut rl: Editor<(), FileHistory> = Editor::with_config(config)?;
-        let _ = rl.load_history(".cli_history");
+        let history_path = crate::utils::get_nami_dir().join(".cli_history");
+        let _ = rl.load_history(&history_path);
         rl.add_history_entry(entry)?;
-        rl.save_history(".cli_history")?;
+        rl.save_history(&history_path)?;
         Ok(())
     }
 
@@ -543,7 +545,8 @@ async fn run_app<B: Backend>(
 
                                                     // Support Slash Commands in TUI
                                                     if trimmed.starts_with('/') {
-                                                        let registry = crate::modes::command_registry::CommandRegistry::load_from_config("config.toml")
+                                                        let config_path = crate::utils::get_nami_dir().join("config.toml");
+                                                        let registry = crate::modes::command_registry::CommandRegistry::load_from_config(&config_path.to_string_lossy())
                                                             .unwrap_or(crate::modes::command_registry::CommandRegistry { commands: Default::default() });
 
                                                         match trimmed {
@@ -690,41 +693,38 @@ fn ui(f: &mut Frame, app: &mut App, workspace: &str, branch: &str, model: &str, 
         .direction(Direction::Vertical)
         .constraints(
             [
-                Constraint::Length(3), // Header + gap
+                Constraint::Length(2), // Header with Bottom Border
                 Constraint::Min(1), // Messages
-                Constraint::Length(3), // Input
-                Constraint::Length(3), // Footer (Shortcuts + Session info)
+                Constraint::Length(3), // Bordered Input Area
+                Constraint::Length(2), // Status Footer + Shortcuts
             ].as_ref()
         )
         .split(f.area());
 
     // --- Header ---
     let status = if app.is_thinking {
-        Span::styled("● thinking", Style::default().fg(Color::Yellow))
+        Span::styled("● thinking", Style::default().fg(Color::Yellow).bold())
     } else {
-        Span::styled("● ready", Style::default().fg(Color::Green))
+        Span::styled("● ready", Style::default().fg(Color::Green).bold())
     };
 
     let header = Paragraph::new(
-        vec![
-            Line::from(
-                vec![
-                    Span::styled("⚡ ", Style::default().fg(Color::Magenta)),
-                    Span::styled(
-                        format!("Nami TUI v{}", env!("CARGO_PKG_VERSION")),
-                        Style::default().bold()
-                    ),
-                    Span::raw(" ".repeat(4)),
-                    Span::styled("Session:", Style::default().fg(Color::DarkGray)),
-                    Span::raw(" "),
-                    Span::styled(&app.session_id, Style::default().fg(Color::Cyan)),
-                    Span::raw(" ".repeat(4)),
-                    status
-                ]
-            ),
-            Line::from("") // Gap
-        ]
-    );
+        Line::from(
+            vec![
+                Span::styled("⚡ ", Style::default().fg(Color::Magenta)),
+                Span::styled(
+                    format!("Nami TUI v{}", env!("CARGO_PKG_VERSION")),
+                    Style::default().fg(Color::LightMagenta).bold()
+                ),
+                Span::raw("   "),
+                Span::styled("Session: ", Style::default().fg(Color::DarkGray)),
+                Span::styled(&app.session_id, Style::default().fg(Color::Cyan)),
+                Span::raw("   "),
+                status
+            ]
+        )
+    ).block(Block::default().borders(Borders::BOTTOM).border_style(Style::default().fg(Color::DarkGray)));
+
     f.render_widget(header, chunks[0]);
 
     // --- Messages ---
@@ -770,39 +770,52 @@ fn ui(f: &mut Frame, app: &mut App, workspace: &str, branch: &str, model: &str, 
         );
     }
 
-    // --- Input Area ---
+    // --- Input Area (Bordered and colored dynamically by thinking state) ---
+    let input_border_color = if app.is_thinking {
+        Color::Yellow
+    } else {
+        Color::Magenta
+    };
+
     let input_block = Block::default()
-        .borders(Borders::TOP)
-        .border_style(Style::default().fg(Color::DarkGray))
-        .padding(Padding::new(1, 0, 0, 0));
+        .borders(Borders::ALL)
+        .border_style(Style::default().fg(input_border_color))
+        .title(Span::styled(" [Input Prompt] ", Style::default().fg(input_border_color).bold()))
+        .padding(Padding::new(1, 1, 0, 0));
 
     app.input.set_block(input_block);
     app.input.set_cursor_style(Style::default().bg(Color::White).fg(Color::Black));
 
-    let input_layout = Layout::default()
-        .direction(Direction::Horizontal)
-        .constraints([Constraint::Length(2), Constraint::Min(1)])
-        .split(chunks[2]);
-
-    f.render_widget(Paragraph::new(">").style(Style::default().fg(Color::Yellow)), input_layout[0]);
-    f.render_widget(&app.input, input_layout[1]);
+    f.render_widget(&app.input, chunks[2]);
 
     // --- Footer ---
     let footer_layout = Layout::default()
         .direction(Direction::Vertical)
         .constraints([
+            Constraint::Length(1), // High-density System Status Line
             Constraint::Length(1), // Shortcuts Legend
-            Constraint::Length(1), // Labels
-            Constraint::Length(1), // Values
         ])
         .split(chunks[3]);
+
+    let footer_info = Line::from(vec![
+        Span::styled(" Workspace: ", Style::default().fg(Color::DarkGray)),
+        Span::styled(workspace, Style::default().fg(Color::Blue).bold()),
+        Span::styled(" | Branch: ", Style::default().fg(Color::DarkGray)),
+        Span::styled(branch, Style::default().fg(Color::Green).bold()),
+        Span::styled(" | Model: ", Style::default().fg(Color::DarkGray)),
+        Span::styled(model, Style::default().fg(Color::Cyan).bold()),
+        Span::styled(" | MCPs: ", Style::default().fg(Color::DarkGray)),
+        Span::styled(mcp_count.to_string(), Style::default().fg(Color::Yellow).bold()),
+        Span::styled(" | Skills: ", Style::default().fg(Color::DarkGray)),
+        Span::styled(skill_count.to_string(), Style::default().fg(Color::Magenta).bold()),
+    ]);
 
     let legend = Line::from(vec![
         Span::styled(" Enter ", Style::default().bg(Color::DarkGray).fg(Color::White).bold()),
         Span::raw(" Send  "),
-        Span::styled(" Alt+Enter / Ctrl+Enter ", Style::default().bg(Color::DarkGray).fg(Color::White).bold()),
+        Span::styled(" Alt+Enter ", Style::default().bg(Color::DarkGray).fg(Color::White).bold()),
         Span::raw(" New Line  "),
-        Span::styled(" PgUp / PgDn / Mouse ", Style::default().bg(Color::DarkGray).fg(Color::White).bold()),
+        Span::styled(" PgUp / PgDn ", Style::default().bg(Color::DarkGray).fg(Color::White).bold()),
         Span::raw(" Scroll  "),
         Span::styled(" Esc ", Style::default().bg(Color::DarkGray).fg(Color::White).bold()),
         Span::raw(" Interrupt  "),
@@ -810,35 +823,6 @@ fn ui(f: &mut Frame, app: &mut App, workspace: &str, branch: &str, model: &str, 
         Span::raw(" Quit"),
     ]);
 
-    let labels = Line::from(
-        vec![
-            Span::styled("workspace (/directory)", Style::default().fg(Color::DarkGray)),
-            Span::raw(" ".repeat(2)),
-            Span::styled("branch", Style::default().fg(Color::DarkGray)),
-            Span::raw(" ".repeat(2)),
-            Span::styled("model", Style::default().fg(Color::DarkGray)),
-            Span::raw(" ".repeat(2)),
-            Span::styled("mcp", Style::default().fg(Color::DarkGray)),
-            Span::raw(" ".repeat(2)),
-            Span::styled("skills", Style::default().fg(Color::DarkGray))
-        ]
-    );
-
-    let values = Line::from(
-        vec![
-            Span::styled(workspace, Style::default()),
-            Span::raw(" | "),
-            Span::styled(branch, Style::default()),
-            Span::raw(" | "),
-            Span::styled(model, Style::default()),
-            Span::raw(" | "),
-            Span::styled(mcp_count.to_string(), Style::default()),
-            Span::raw(" | "),
-            Span::styled(skill_count.to_string(), Style::default())
-        ]
-    );
-
-    f.render_widget(Paragraph::new(legend), footer_layout[0]);
-    f.render_widget(Paragraph::new(labels), footer_layout[1]);
-    f.render_widget(Paragraph::new(values), footer_layout[2]);
+    f.render_widget(Paragraph::new(footer_info), footer_layout[0]);
+    f.render_widget(Paragraph::new(legend), footer_layout[1]);
 }

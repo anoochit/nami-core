@@ -1,4 +1,4 @@
-use crate::utils::get_workspace_dir;
+use crate::utils::get_nami_dir;
 use adk_rust::Tool;
 use adk_rust::serde::Deserialize;
 use adk_tool::{AdkError, tool};
@@ -22,8 +22,8 @@ struct UpdateSoulArgs {
 /// Adds a new fact to the user's permanent memories (workspace/MEMORIES.md).
 #[tool]
 async fn update_user_memory(args: UpdateMemoryArgs) -> std::result::Result<Value, AdkError> {
-    let workspace = get_workspace_dir().await?;
-    let path = workspace.join("MEMORIES.md");
+    let nami_dir = get_nami_dir();
+    let path = nami_dir.join("MEMORIES.md");
 
     let mut content = fs::read_to_string(&path)
         .await
@@ -40,8 +40,8 @@ async fn update_user_memory(args: UpdateMemoryArgs) -> std::result::Result<Value
 /// Updates the agent's persona file (workspace/AGENT.md). Use this to 'evolve' the agent's personality.
 #[tool]
 async fn update_agent_soul(args: UpdateSoulArgs) -> std::result::Result<Value, AdkError> {
-    let workspace = get_workspace_dir().await?;
-    let path = workspace.join("AGENT.md");
+    let nami_dir = get_nami_dir();
+    let path = nami_dir.join("AGENT.md");
 
     let mut content = fs::read_to_string(&path)
         .await

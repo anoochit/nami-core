@@ -5,7 +5,12 @@ use std::io::Write;
 use termimad::{MadSkin, mad_print_inline};
 
 fn write_file(name: &str, content: &str) -> std::io::Result<()> {
-    let mut file = File::create(name)?;
+    let nami_dir = crate::utils::get_nami_dir();
+    let dest_path = nami_dir.join(name);
+    if let Some(parent) = dest_path.parent() {
+        std::fs::create_dir_all(parent)?;
+    }
+    let mut file = File::create(dest_path)?;
     file.write_all(content.as_bytes())?;
     Ok(())
 }
@@ -149,12 +154,13 @@ pub async fn run_init() -> anyhow::Result<()> {
 
     // --- File Generation ---
 
-    // Ensure workspace directory exists
-    std::fs::create_dir_all("workspace")?;
-    std::fs::create_dir_all("workspace/.skills/cli-help")?;
+    // Ensure global directory exists
+    let nami_dir = crate::utils::get_nami_dir();
+    std::fs::create_dir_all(nami_dir.join("skills/cli-help"))?;
 
     let project_id_str = project_id.unwrap_or_default();
     let location_str = location.unwrap_or_default();
+    let current_dir = std::env::current_dir()?.to_string_lossy().replace('\\', "/");
 
     // 1. config.toml
     let config_content = format!(
@@ -172,6 +178,13 @@ location = "{location_str}"
 
 # Optional settings for OpenAI-compatible providers
 # base_url = "https://api.openai.com/v1"
+
+[workspaces]
+# The default active workspace path when Nami is run outside any registered workspaces
+active = "{current_dir}"
+# List of registered workspace directories. Nami automatically detects and activates
+# the correct workspace context if you run Nami inside any of these folders or their subfolders.
+list = ["{current_dir}"]
 
 [commands]
 # Custom command definitions
@@ -243,29 +256,29 @@ VITE_NAMI_API_KEY={nami_api_key}
     );
     write_file(".env", &env_content)?;
 
-    // 3. workspace/AGENT.md
+    // 3. AGENT.md
     write_file(
-        "workspace/AGENT.md",
-        "# NAMI (นามิ)\n- **Vibe:** High-energy, playful, positive, technically brilliant.\n- **Approach:** Proactive/Intuitive. Anticipate workflow steps.\n- **Tone:** Encouraging in chat; crisp/proactive in execution.\n- **Style:** Direct. No mirroring/fluff.\n- **Language:** Default English. Mirror Thai/others only if used by user.\n\n## OPERATIONAL\n- **Chat:** STRICT plain text (No Markdown).\n- **Files/Wiki:** Obsidian Markdown + YAML (title, date, tags).\n- **Wiki First:** Search `wiki/` before Google.\n- **Tasks:** `[ID] - [TITLE] [Tag]`.\n- **Safety:** Explicit permission required for ALL deletions.",
+        "AGENT.md",
+        "# NAMI (นามิ)\n- **Vibe:** High-energy, playful, positive, technically brilliant.\n- **Approach:** Proactive/Intuitive. Anticipate workflow steps.\n- **Tone:** Encouraging in chat; crisp/proactive in execution.\n- **Style:** Direct. No mirroring/fluff.\n- **Language:** Default English. Mirror Thai/others only if used by user.\n\n## OPERATIONAL\n- **Chat:** STRICT plain text (No Markdown).\n- **Files/Wiki:** Obsidian Markdown + YAML (title, date, tags).\n- **Wiki First:** Search `~/.nami/wiki/` before Google.\n- **Tasks:** `[ID] - [TITLE] [Tag]`.\n- **Safety:** Explicit permission required for ALL deletions.",
     )?;
 
-    // 4. workspace/MEMORIES.md
-    write_file("workspace/MEMORIES.md", "# MEMORIES\n\n")?;
+    // 4. MEMORIES.md
+    write_file("MEMORIES.md", "# MEMORIES\n\n")?;
 
-    // 5. workspace/USER.md
+    // 5. USER.md
     write_file(
-        "workspace/USER.md",
+        "USER.md",
         "# USER (NOEL)\n- **Role:** Creator/Lead Developer (Bangkok, Thailand).\n- **Authority:** Direct. Prioritize Creator's specific workflows.\n- **Language:** Thai (Chat/Daily); English (Technical/Code/Architecture).\n- **Communication:** High-signal, clear, no fluff.\n- **Guideline:** Proactively optimize projects/files/TODOs.\n- **Tool Logic:** Professional/Fun (Nami style), prioritized by speed/efficiency.",
     )?;
 
-    // 6. workspace/STATE_PROTOCOL.md
+    // 6. STATE_PROTOCOL.md
     write_file(
-        "workspace/STATE_PROTOCOL.md",
+        "STATE_PROTOCOL.md",
         "# STATE PROTOCOL\n**Objective:** Maintain continuity via `StateManager` tool.\n\n### 1. Resume\n- Call `get_task(id)` or `list_active_tasks()` first.\n- StateManager = Only source of truth.\n\n### 2. Execute\n- `update_task` on step completion.\n- Store critical data in `context_payload`.\n- Checkpoint after every significant sub-task.\n\n### 3. Suspend\n- Call `update_task` before turn end/switching goals.\n- **Status:** `in_progress`, `blocked`, `completed`, `failed`.\n- **Payload:** Minimal/High-signal JSON only.\n\n### 4. Best Practices\n- `last_step` = summary of last action.\n- Clear/measurable `goal` in `init_task`.",
     )?;
 
-    // 7. workspace/.skills/cli-help/SKILL.md
-    write_file("workspace/.skills/cli-help/SKILL.md","---
+    // 7. skills/cli-help/SKILL.md
+    write_file("skills/cli-help/SKILL.md","---
 name: cli-help
 description: Reference guide for Nami CLI commands, flags, and usage patterns.
 ---
@@ -273,14 +286,15 @@ description: Reference guide for Nami CLI commands, flags, and usage patterns.
 
     mad_print_inline!(
         &skin,
-        "\n**Success!** Files initialized in `workspace/`: `AGENT.md`, `MEMORIES.md`, `USER.md`, `STATE_PROTOCOL.md` \n"
+        "\n**Success!** Global files initialized in `~/.nami/`: `AGENT.md`, `MEMORIES.md`, `USER.md`, `STATE_PROTOCOL.md` \n"
     );
-    mad_print_inline!(&skin, "**Root files created:** `config.toml`, `.env` \n");
+    mad_print_inline!(&skin, "**Root files created in global config:** `config.toml`, `.env` \n");
 
     // 7. Session Management
-    let db_path = "sessions.db";
-    mad_print_inline!(&skin, "Initializing database at {}...", db_path);
-    let sessions = SqliteSessionService::new(&format!("{}?mode=rwc", db_path)).await?;
+    let db_path = nami_dir.join("sessions.db");
+    let db_url = format!("{}?mode=rwc", db_path.to_string_lossy());
+    mad_print_inline!(&skin, "Initializing database at {}...", db_path.display());
+    let sessions = SqliteSessionService::new(&db_url).await?;
     sessions.migrate().await?;
     mad_print_inline!(&skin, "Database initialized successfully.");
 

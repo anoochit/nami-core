@@ -8,7 +8,6 @@ use tokio::time::{sleep, Duration};
 
 pub mod ignore;
 
-const WORKSPACE_NAME: &str = "workspace";
 static WORKSPACE_DIR: OnceLock<PathBuf> = OnceLock::new();
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -121,7 +120,46 @@ pub fn clean_error_message(e: impl std::fmt::Display) -> String {
     clean_msg.trim().to_string()
 }
 
-/// Returns the absolute path to the sandbox directory.
+/// Returns the path to the global Nami configuration and state directory (`~/.nami`).
+/// Creates the directory on disk if it does not exist.
+pub fn get_nami_dir() -> PathBuf {
+    let path = dirs::home_dir().unwrap_or_else(|| PathBuf::from(".")).join(".nami");
+    if !path.exists() {
+        let _ = std::fs::create_dir_all(&path);
+    }
+    path
+}
+
+#[derive(serde::Deserialize, Default)]
+struct WorkspacesSection {
+    active: Option<String>,
+    list: Option<Vec<String>>,
+}
+
+#[derive(serde::Deserialize, Default)]
+struct ConfigWithWorkspaces {
+    workspaces: Option<WorkspacesSection>,
+}
+
+/// Retrieves the active workspace path and the list of registered workspace paths from the global config.
+pub fn get_workspaces_info() -> (Option<PathBuf>, Vec<PathBuf>) {
+    let config_path = get_nami_dir().join("config.toml");
+    if !config_path.exists() {
+        return (None, Vec::new());
+    }
+    if let Ok(content) = std::fs::read_to_string(&config_path) {
+        if let Ok(parsed) = toml::from_str::<ConfigWithWorkspaces>(&content) {
+            if let Some(ws) = parsed.workspaces {
+                let active = ws.active.map(PathBuf::from);
+                let list = ws.list.unwrap_or_default().into_iter().map(PathBuf::from).collect();
+                return (active, list);
+            }
+        }
+    }
+    (None, Vec::new())
+}
+
+/// Returns the absolute path to the workspace directory.
 /// Ensures the directory exists on disk.
 pub async fn get_workspace_dir() -> std::result::Result<PathBuf, AdkError> {
     if let Some(cached) = WORKSPACE_DIR.get() {
@@ -130,13 +168,30 @@ pub async fn get_workspace_dir() -> std::result::Result<PathBuf, AdkError> {
 
     let current_dir = std::env::current_dir()
         .map_err(|e| AdkError::tool(format!("Failed to get current directory: {}", e)))?;
+    let canonical_current = std::fs::canonicalize(&current_dir).unwrap_or(current_dir.clone());
 
-    let root = current_dir.join(WORKSPACE_NAME);
+    let (active_opt, list) = get_workspaces_info();
+
+    // 1. Check if canonical_current or any parent is in the registered workspaces list
+    let mut matched_workspace: Option<PathBuf> = None;
+    for ws_path in &list {
+        let canonical_ws = std::fs::canonicalize(ws_path).unwrap_or_else(|_| ws_path.clone());
+        if canonical_current == canonical_ws || canonical_current.starts_with(&canonical_ws) {
+            matched_workspace = Some(canonical_ws);
+            break;
+        }
+    }
+
+    let root = if let Some(matched) = matched_workspace {
+        matched
+    } else if let Some(active) = active_opt {
+        active
+    } else {
+        canonical_current
+    };
 
     if !root.exists() {
-        fs::create_dir_all(&root)
-            .await
-            .map_err(|e| AdkError::tool(format!("Failed to create workspace: {}", e)))?;
+        let _ = fs::create_dir_all(&root).await;
     }
 
     // Canonicalize for security checks
@@ -202,8 +257,7 @@ pub async fn sandbox_with_ignore(user_path: &str, ignore: Option<&NamiIgnore>) -
 
 /// Helper to get the wiki directory path.
 pub async fn get_wiki_dir() -> std::result::Result<PathBuf, AdkError> {
-    let root: std::path::PathBuf = get_workspace_dir().await?;
-    let wiki_dir = root.join("wiki");
+    let wiki_dir = get_nami_dir().join("wiki");
     if !wiki_dir.exists() {
         fs::create_dir_all(&wiki_dir)
             .await

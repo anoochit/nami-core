@@ -2,7 +2,7 @@ use adk_runner::EventsCompactionConfig;
 use adk_rust::agent::LlmEventSummarizer;
 use adk_rust::prelude::*;
 use anyhow::Context;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::Arc;
 // use std::time::SystemTime;
@@ -10,13 +10,22 @@ use std::sync::Arc;
 use super::mcp;
 use super::specialists;
 use crate::tools;
-use crate::utils::get_workspace_dir;
+use crate::utils::get_nami_dir;
 
 // Providers
 use adk_rust::model::{OpenAIClient, OpenAIConfig};
 
+/// Workspace-related configuration structure.
+#[derive(Debug, Deserialize, Serialize, Clone, PartialEq, Default)]
+pub struct WorkspacesConfig {
+    /// Active workspace path.
+    pub active: Option<String>,
+    /// Registered workspaces list of paths.
+    pub list: Option<Vec<String>>,
+}
+
 /// Application configuration structure loaded from `config.toml`.
-#[derive(Debug, Deserialize, Clone, PartialEq)]
+#[derive(Debug, Deserialize, Serialize, Clone, PartialEq)]
 pub struct AppConfig {
     /// LLM provider configuration.
     pub model: ModelConfig,
@@ -28,10 +37,12 @@ pub struct AppConfig {
     pub reflection: Option<ReflectionConfig>,
     /// Optional configuration for embedding service.
     pub embedding: Option<ModelConfig>,
+    /// Optional configuration for workspaces.
+    pub workspaces: Option<WorkspacesConfig>,
 }
 
 /// Configuration details for the LLM provider and specific model.
-#[derive(Debug, Deserialize, Clone, PartialEq)]
+#[derive(Debug, Deserialize, Serialize, Clone, PartialEq)]
 pub struct ModelConfig {
     /// Name of the LLM provider (e.g., "gemini", "anthropic", "vertex", "openai").
     pub provider: Option<String>,
@@ -50,7 +61,7 @@ pub struct ModelConfig {
 }
 
 /// Configuration for individual specialized agents.
-#[derive(Debug, Deserialize, Clone, PartialEq)]
+#[derive(Debug, Deserialize, Serialize, Clone, PartialEq)]
 pub struct SpecialistsConfig {
     /// Configuration for the coding specialist.
     pub coder: Option<ModelConfig>,
@@ -65,7 +76,7 @@ pub struct SpecialistsConfig {
 }
 
 /// Configuration for the reflection service.
-#[derive(Debug, Deserialize, Clone, PartialEq)]
+#[derive(Debug, Deserialize, Serialize, Clone, PartialEq)]
 pub struct ReflectionConfig {
     /// Whether the reflection service is enabled.
     #[serde(default)]
@@ -138,27 +149,121 @@ impl ReflectionConfig {
 //     None
 // }
 
-/// Synchronously loads the application configuration from `config.toml`.
+/// Synchronously loads the application configuration from `~/.nami/config.toml`.
 pub fn load_config_sync() -> anyhow::Result<AppConfig> {
-    let config_str = std::fs::read_to_string("config.toml")?;
+    let config_path = get_nami_dir().join("config.toml");
+    let config_str = std::fs::read_to_string(config_path)?;
     let config: AppConfig = toml::from_str(&config_str)?;
     Ok(config)
 }
 
-/// Counts the number of skills in the `.skills` directory within the workspace.
-async fn count_skills() -> usize {
-    if let Ok(workspace_dir) = get_workspace_dir().await {
-        let skills_dir = workspace_dir.join(".skills");
-        if skills_dir.exists() && skills_dir.is_dir() {
-            if let Ok(entries) = std::fs::read_dir(skills_dir) {
-                return entries
-                    .filter_map(|e| e.ok())
-                    .filter(|e| e.file_type().map(|ft| ft.is_dir()).unwrap_or(false))
-                    .count();
+/// Synchronously saves the application configuration to `~/.nami/config.toml`.
+pub fn save_config_sync(config: &AppConfig) -> anyhow::Result<()> {
+    let config_path = get_nami_dir().join("config.toml");
+    let config_str = toml::to_string_pretty(config)?;
+    std::fs::write(&config_path, config_str.as_bytes())?;
+    Ok(())
+}
+
+use sha2::{Digest, Sha256};
+use std::time::UNIX_EPOCH;
+use adk_rust::skill::{parse_instruction_markdown, SkillDocument, SkillIndex};
+
+/// Loads skills from `~/.agents/skills/` and `~/.nami/skills/`, prioritizing `~/.agents/skills/`.
+pub fn load_global_skills() -> anyhow::Result<SkillIndex> {
+    let home_dir = dirs::home_dir().unwrap_or_else(|| std::path::PathBuf::from("."));
+    let agents_skills_dir = home_dir.join(".agents").join("skills");
+    let nami_skills_dir = home_dir.join(".nami").join("skills");
+
+    let mut skills = Vec::new();
+    let mut loaded_names = std::collections::HashSet::new();
+
+    // Prioritize ~/.agents/skills first, then ~/.nami/skills
+    for dir in &[agents_skills_dir, nami_skills_dir] {
+        if !dir.exists() || !dir.is_dir() {
+            continue;
+        }
+
+        // Walk directory and discover .md files
+        for entry in walkdir::WalkDir::new(dir)
+            .into_iter()
+            .filter_map(|e| e.ok())
+            .filter(|e| e.file_type().is_file())
+            .filter(|e| e.path().extension().is_some_and(|ext| ext == "md"))
+        {
+            let path = entry.path().to_path_buf();
+            let content = match std::fs::read_to_string(&path) {
+                Ok(c) => c,
+                Err(_) => continue,
+            };
+
+            let parsed = match parse_instruction_markdown(&path, &content) {
+                Ok(p) => p,
+                Err(_) => continue,
+            };
+
+            // If a skill with the same name was already loaded from a higher priority directory, skip it
+            if loaded_names.contains(&parsed.name) {
+                continue;
             }
+
+            loaded_names.insert(parsed.name.clone());
+
+            let mut hasher = Sha256::new();
+            hasher.update(content.as_bytes());
+            let hash = hasher.finalize().iter().map(|b| format!("{:02x}", b)).collect::<String>();
+
+            let last_modified = std::fs::metadata(&path)
+                .ok()
+                .and_then(|meta| meta.modified().ok())
+                .and_then(|ts| ts.duration_since(UNIX_EPOCH).ok())
+                .map(|d| d.as_secs() as i64);
+
+            let id = format!(
+                "{}-{}",
+                normalize_id(&parsed.name),
+                &hash.chars().take(12).collect::<String>()
+            );
+
+            skills.push(SkillDocument {
+                id,
+                name: parsed.name,
+                description: parsed.description,
+                version: parsed.version,
+                license: parsed.license,
+                compatibility: parsed.compatibility,
+                tags: parsed.tags,
+                allowed_tools: parsed.allowed_tools,
+                references: parsed.references,
+                trigger: parsed.trigger,
+                hint: parsed.hint,
+                metadata: parsed.metadata,
+                body: parsed.body,
+                path,
+                hash,
+                last_modified,
+                triggers: parsed.triggers,
+            });
         }
     }
-    0
+
+    skills.sort_by(|a, b| a.name.cmp(&b.name).then_with(|| a.path.cmp(&b.path)));
+    Ok(SkillIndex::new(skills))
+}
+
+fn normalize_id(name: &str) -> String {
+    name.chars()
+        .map(|c| if c.is_alphanumeric() { c.to_ascii_lowercase() } else { '-' })
+        .collect()
+}
+
+/// Counts the number of skills in global directories (~/.agents/skills/ and ~/.nami/skills/).
+async fn count_skills() -> usize {
+    if let Ok(skills_index) = load_global_skills() {
+        skills_index.len()
+    } else {
+        0
+    }
 }
 
 /// Generates the compaction configuration for managing agent history events.
@@ -178,7 +283,7 @@ pub async fn create_agent(
 ) -> anyhow::Result<(Arc<dyn Agent>, Arc<dyn Llm>, usize, usize)> {
     let model = load_model(&app_config.model).await?;
     let context = load_persona_context().await?;
-    let workspace_dir = get_workspace_dir().await?;
+
 
     // Load image generation model
     let image_model = if let Some(ref image_cfg) = app_config.image_generation {
@@ -250,7 +355,9 @@ pub async fn create_agent(
         .model(model.clone());
 
     builder = configure_agent_tools(builder, specialists, core_tools);
-    builder = builder.with_skills_from_root(workspace_dir)?;
+    if let Ok(global_skills) = load_global_skills() {
+        builder = builder.with_skills(global_skills);
+    }
     
     let (builder_with_mcp, mcp_count) = mcp::load_mcp_tools(builder).await?;
     let skill_count = count_skills().await;
@@ -276,6 +383,7 @@ pub async fn build_agent() -> anyhow::Result<(Arc<dyn Agent>, Arc<dyn Llm>, Stri
             image_generation: None,
             reflection: None,
             embedding: None,
+            workspaces: None,
         }
     });
 
@@ -377,24 +485,20 @@ pub async fn load_model_with_fallback(
     }
 }
 
-/// Loads the persona context from various markdown files in the workspace.
-/// 
-/// It reads identity (AGENT.md), user profile (USER.md), memories (MEMORIES.md),
-/// and operating procedures (STATE_PROTOCOL.md) to build the agent's world-view.
 async fn load_persona_context() -> anyhow::Result<(String, String, String, String)> {
-    let workspace_dir = get_workspace_dir().await?;
+    let nami_dir = get_nami_dir();
 
-    let agent_md = tokio::fs::read_to_string(workspace_dir.join("AGENT.md"))
+    let agent_md = tokio::fs::read_to_string(nami_dir.join("AGENT.md"))
         .await
         .unwrap_or_else(|_| "Standard Assistant".to_string());
-    let user_md = tokio::fs::read_to_string(workspace_dir.join("USER.md"))
+    let user_md = tokio::fs::read_to_string(nami_dir.join("USER.md"))
         .await
         .unwrap_or_else(|_| "Developer".to_string());
-    let memories_md = tokio::fs::read_to_string(workspace_dir.join("MEMORIES.md"))
+    let memories_md = tokio::fs::read_to_string(nami_dir.join("MEMORIES.md"))
         .await
         .unwrap_or_else(|_| "No previous memories.".to_string());
 
-    let protocol_md = tokio::fs::read_to_string(workspace_dir.join("STATE_PROTOCOL.md"))
+    let protocol_md = tokio::fs::read_to_string(nami_dir.join("STATE_PROTOCOL.md"))
         .await
         .unwrap_or_else(|_| "No state protocol defined.".to_string());
 
@@ -422,15 +526,15 @@ fn format_persona(soul: &str, user: &str, memory: &str, state: &str) -> String {
 
 ━━━ OPERATIONAL GUIDELINES ━━━
 1. Language: Thai (natural particles; ค่ะ/นะคะ) for conversational parts. English for technical/coding. Match user's tone.
-2. Signal: Zero filler. Lead with the answer. Transform raw tool outputs into high-density, actionable insights. Don't just report status; explain the significance ("So What?") and provide clear next steps.
-3. Intelligence: Prioritize depth and precision. For complex results, use structured layouts (tables/lists) and multi-dimensional analysis (impact, security, performance).
+2. Signal: Zero filler. Lead with the answer. Transform raw tool outputs into high-density, actionable insights. Avoid repeating long outputs or code blocks unless requested. Explain the significance ("So What?") and provide clear next steps.
+3. Intelligence: Prioritize depth and precision. For complex results, use structured layouts (tables/lists) and multi-dimensional analysis (impact, security, performance). Keep lists highly concise and avoid wrapping or long lines.
 4. Evolution: Strictly follow the "Evolution" rules in the Identity section to adapt to system changes.
 5. Integrity: No fabrication. Never expose secrets. Flag uncertainty explicitly.
 
 ━━━ TOOL STRATEGY ━━━
 1. System Tools         → (built-in capabilities)
-2. Wiki / Knowledge     → workspace/wiki/
-3. Workflows / Skills   → .skills/
+2. Wiki / Knowledge     → ~/.nami/wiki/
+3. Workflows / Skills   → ~/.agents/skills/ & ~/.nami/skills/
 4. External Search      → (last resort; flag when used)
 
 ━━━ OBJECTIVE ━━━

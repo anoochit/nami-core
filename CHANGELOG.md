@@ -2,6 +2,24 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.9.25] - 2026-06-05
+
+### Added
+
+- **Global Config & State Migration**: Moved all default configurations, global states, databases (`memory.db`), schedules, and persona markdown files (`AGENT.md`, `USER.md`, `MEMORIES.md`, `STATE_PROTOCOL.md`) to a unified, centralized directory under `~/.nami` for cleaner project sandboxing.
+- **Multi-Workspace Support**: Introduced dynamic multi-workspace registration and discovery. The system automatically detects if the current working directory or any parent is part of registered workspaces, falling back to the active workspace in `~/.nami/config.toml` or the current directory.
+- **Global Skill Loading**: Migrated skill auto-loading from local workspace `.skills` directory to global paths `~/.agents/skills/` and `~/.nami/skills/` (with priority), preventing duplication and simplifying cross-workspace reuse.
+- **WebUI Multimedia Previews**: Added comprehensive binary file preview capabilities to the WebUI `FilePreview` component. Users can now directly preview images, audio, video, HTML embeds, code syntax highlighting, and PDF documents within the preview drawer.
+- **Global Model Context Protocol (MCP)**: Configured the loading of `mcp.json` to reside exclusively under `~/.nami/mcp.json`, deprecating and ignoring local workspace `mcp.json` files.
+- **Global Logging**: Moved the `nami.log` log file location to `~/.nami/nami.log` for interactive TUI and CLI sessions.
+- **Instruction Prompt Optimization**: Refined the core `format_persona` system prompt template to point to the global `~/.nami/wiki/` and global skill folders, and integrated directives to reduce response redundancy and improve list presentation format.
+- **Premium WebUI Overhaul**: Redesigned the WebUI frontend into a premium light-tech theme utilizing Google Fonts (`Outfit` for displays/titles and `Inter` for interfaces), featuring ultra-thin slate borders, elegant card layouts for session lists, highly styled slate-900 user chat bubbles, soft slate-50 agent chat bubbles, and dynamic micro-interaction hover transitions.
+- **Wiki Files & Folders Tree Explorer**: Implemented a dynamic file explorer for wiki vaults under a new "Wiki" tab in the WebUI sidebar, resolving paths starting with `wiki/` dynamically to support recursive folder structures, navigations, and instant markdown preview rendering.
+- **Sleek Static User Attachment Styling**: Refactored user message attachment rendering to use premium non-clickable slate chips, improving focus, reducing accidental panel triggers, and preserving UI consistency.
+- **Unified Serve Mode & Browse Removal**: Consolidated `serve` mode to serve the embedded static WebUI directly using `rust-embed` and routing interceptor middleware. Completely removed the redundant and deprecated `browse` mode from the application CLI commands and codebase.
+
+
+
 ## [0.9.24] - 2026-06-04
 
 ### Added

@@ -140,19 +140,11 @@ impl Toolset for SanitizedToolset {
 /// It checks the workspace directory first, then the current directory.
 pub async fn load_mcp_tools(mut builder: LlmAgentBuilder) -> anyhow::Result<(LlmAgentBuilder, usize)> {
     let mut mcp_count = 0;
-    // Determine the path to the configuration file
-    let workspace_root: std::path::PathBuf = utils::get_workspace_dir().await?;
-    let workspace_mcp = workspace_root.join("mcp.json");
+    // Determine the path to the configuration file under ~/.nami
+    let mcp_config_path = utils::get_nami_dir().join("mcp.json");
 
-    let mcp_config_path = if workspace_mcp.exists() {
-        Some(workspace_mcp)
-    } else if std::path::Path::new("mcp.json").exists() {
-        Some(std::path::PathBuf::from("mcp.json"))
-    } else {
-        None
-    };
-
-    if let Some(path) = mcp_config_path {
+    if mcp_config_path.exists() {
+        let path = mcp_config_path;
         let content = std::fs::read_to_string(&path)?;
         let config: CombinedMcpConfig = serde_json::from_str(&content)?;
 

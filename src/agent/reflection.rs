@@ -4,7 +4,7 @@ use adk_memory::{MemoryEntry, MemoryService};
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use tokio::fs;
-use crate::utils::get_workspace_dir;
+use crate::utils::get_nami_dir;
 use sqlx::sqlite::{SqlitePoolOptions, SqliteRow};
 use sqlx::Row;
 use chrono::{Utc, DateTime};
@@ -59,9 +59,9 @@ impl ReflectionService {
     async fn run_cycle(&self) -> anyhow::Result<()> {
         log::info!("Running reflection cycle...");
 
-        let workspace = get_workspace_dir().await?;
-        let state_path = workspace.join("reflection_state.json");
-        let memories_path = workspace.join("MEMORIES.md");
+        let nami_dir = get_nami_dir();
+        let state_path = nami_dir.join("reflection_state.json");
+        let memories_path = nami_dir.join("MEMORIES.md");
 
         let mut state: ReflectionState = if state_path.exists() {
             serde_json::from_str(&fs::read_to_string(&state_path).await?).unwrap_or_default()
@@ -69,9 +69,12 @@ impl ReflectionService {
             ReflectionState::default()
         };
 
+        let db_path = nami_dir.join("sessions.db");
+        let db_url = format!("sqlite:{}?mode=ro", db_path.to_string_lossy());
+
         let pool = SqlitePoolOptions::new()
             .max_connections(1)
-            .connect("sqlite:sessions.db?mode=ro")
+            .connect(&db_url)
             .await?;
 
         // --- 1. Fetch active sessions (parameterized) ---

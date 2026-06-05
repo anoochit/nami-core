@@ -46,14 +46,6 @@ enum Commands {
         #[arg(long)]
         host: Option<String>,
     },
-    /// Browse mode with embedded WebUI.
-    Browse {
-        /// Optional port for the browser UI.
-        port: Option<u16>,
-        /// Optional host to listen on (defaults to 127.0.0.1).
-        #[arg(long)]
-        host: Option<String>,
-    },
     /// Run the LINE bot mode.
     Line {
         /// Optional port for the LINE webhook server.
@@ -62,7 +54,29 @@ enum Commands {
         #[arg(long)]
         host: Option<String>,
     },
+    /// Manage registered workspaces.
+    Workspace {
+        #[command(subcommand)]
+        subcommand: WorkspaceCommands,
+    },
 }
+
+#[derive(Subcommand)]
+enum WorkspaceCommands {
+    /// Add a workspace directory by path.
+    Add {
+        /// Path to the workspace directory.
+        path: String,
+    },
+    /// List all registered workspaces.
+    List,
+    /// Select a workspace as active.
+    Select {
+        /// Index (1-based) or path of the workspace to select.
+        index_or_path: String,
+    },
+}
+
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -101,7 +115,8 @@ async fn main() -> anyhow::Result<()> {
         let is_interactive = matches!(cli.command, Commands::Cli | Commands::Tui);
 
         if is_interactive {
-            let log_file = File::create("nami.log").expect("Failed to create log file");
+            let log_path = nami::utils::get_nami_dir().join("nami.log");
+            let log_file = File::create(log_path).expect("Failed to create log file");
             let _ = tracing_subscriber::registry()
                 .with(fmt::layer().with_writer(log_file))
                 .try_init();
@@ -131,6 +146,7 @@ async fn main() -> anyhow::Result<()> {
             image_generation: None,
             reflection: None,
             embedding: None,
+            workspaces: None,
         }
     });
 
@@ -232,18 +248,6 @@ async fn main() -> anyhow::Result<()> {
             )
             .await?;
         }
-        Commands::Browse { port, host } => {
-            log::info!("Running in browse mode");
-            let host = host.unwrap_or_else(|| "127.0.0.1".to_string());
-            modes::browse::run_browse(
-                agent,
-                model,
-                deps.memory_adapter,
-                host,
-                port.unwrap_or(8080),
-            )
-            .await?;
-        }
         Commands::Line { port, host } => {
             log::info!("Running in LINE bot mode");
             let host = host.unwrap_or_else(|| "127.0.0.1".to_string());
@@ -264,6 +268,10 @@ async fn main() -> anyhow::Result<()> {
             log::info!("Running evaluation mode");
             modes::eval::run_eval(agent, deps.sessions, deps.memory_adapter, model).await?;
         }
+        Commands::Workspace { subcommand } => {
+            log::info!("Running workspace command");
+            handle_workspace(subcommand).await?;
+        }
     }
 
     // shutdown telemetry
@@ -274,3 +282,79 @@ async fn main() -> anyhow::Result<()> {
     }
     Ok(())
 }
+
+async fn handle_workspace(subcommand: WorkspaceCommands) -> anyhow::Result<()> {
+    let mut config = match agent::load_config_sync() {
+        Ok(c) => c,
+        Err(e) => {
+            println!("Error: Failed to load config.toml (please run 'nami init' first). Detail: {}", e);
+            return Ok(());
+        }
+    };
+
+    let mut workspaces = config.workspaces.clone().unwrap_or_default();
+    let mut list = workspaces.list.clone().unwrap_or_default();
+
+    match subcommand {
+        WorkspaceCommands::Add { path } => {
+            let path_buf = std::path::PathBuf::from(&path);
+            let absolute_path = std::fs::canonicalize(&path_buf)
+                .unwrap_or_else(|_| path_buf.clone())
+                .to_string_lossy()
+                .replace('\\', "/");
+
+            if !list.contains(&absolute_path) {
+                list.push(absolute_path.clone());
+                println!("Workspace added: {}", absolute_path);
+            } else {
+                println!("Workspace already registered: {}", absolute_path);
+            }
+
+            workspaces.list = Some(list);
+            config.workspaces = Some(workspaces);
+            agent::save_config_sync(&config)?;
+            println!("Configuration saved.");
+        }
+        WorkspaceCommands::List => {
+            let active = workspaces.active.as_deref().unwrap_or("None");
+            println!("Active workspace: {}", active);
+            println!("\nRegistered workspaces:");
+            for (idx, ws) in list.iter().enumerate() {
+                let marker = if ws == active { "*" } else { " " };
+                println!("  [{}] {} {}", idx + 1, marker, ws);
+            }
+        }
+        WorkspaceCommands::Select { index_or_path } => {
+            let target_path = if let Ok(idx) = index_or_path.parse::<usize>() {
+                if idx > 0 && idx <= list.len() {
+                    Some(list[idx - 1].clone())
+                } else {
+                    println!("Error: Index out of bounds (1 to {}).", list.len());
+                    return Ok(());
+                }
+            } else {
+                let path_buf = std::path::PathBuf::from(&index_or_path);
+                let absolute_path = std::fs::canonicalize(&path_buf)
+                    .unwrap_or_else(|_| path_buf.clone())
+                    .to_string_lossy()
+                    .replace('\\', "/");
+                if list.contains(&absolute_path) {
+                    Some(absolute_path)
+                } else {
+                    println!("Error: Workspace path not registered. Use 'workspace add <path>' first.");
+                    None
+                }
+            };
+
+            if let Some(target) = target_path {
+                workspaces.active = Some(target.clone());
+                config.workspaces = Some(workspaces);
+                agent::save_config_sync(&config)?;
+                println!("Selected active workspace: {}", target);
+            }
+        }
+    }
+
+    Ok(())
+}
+

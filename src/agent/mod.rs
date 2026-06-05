@@ -10,5 +10,5 @@ pub mod specialists;
 
 pub use agent::{
     AppConfig, ModelConfig, build_agent, get_compaction_config, load_config_sync,
-    load_model_with_fallback,
+    save_config_sync, load_model_with_fallback,
 };

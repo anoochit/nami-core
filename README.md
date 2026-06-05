@@ -26,7 +26,8 @@ A modular, extensible AI-powered `Nami` built on top of [adk-rust](https://githu
 
 ### 💻 Rich User Interface
 
-* **Modular React WebUI**: A modern, decomposed component architecture (`ChatHeader`, `MessageList`, `MessageItem`, `ChatInput`) designed for high maintainability, type-safety, and pixel-perfect UX. Features **optimized build chunking** for rapid initial loading.
+* **Premium Antigravity 2.0 WebUI**: A modern, decomposed component architecture (`ChatHeader`, `MessageList`, `MessageItem`, `ChatInput`) overhauled to look premium using Outfit (headings) and Inter (UI/body copy) Google Fonts, ultra-thin slate lines, responsive session history cards, slate-900 user bubbles, and soft tech-gray assistant cards.
+* **Wiki Files & Folder Explorer**: A dedicated "Wiki" tab in the WebUI sidebar allowing users to browse their Obsidian-style wiki vault via an interactive, hierarchical folder-tree. Clicking any wiki file instantly renders its content inside the rich preview panel.
 * **Modern TUI**: A rich, interactive CLI experience with a custom ASCII banner, animated indicators, **startup discovery counts for MCP/Skills**, pretty error rendering with intelligent hints, and structured layout.
 * **Focused Input Control**: Implements terminal raw mode during processing to block echoes, ensuring a clean and focused agent execution state.
 * **Silent Cancellation**: Support for both `Ctrl+C` and silent `ESC` interruption, allowing users to cancel requests without terminal clutter.
@@ -43,34 +44,38 @@ A modular, extensible AI-powered `Nami` built on top of [adk-rust](https://githu
   * `/memo`: Save information to long-term memory.
   * `/recall`: Search and recall facts from memory.
 * **@ File Context References**: Reference files from the `workspace/` directly in the CLI using `@path/to/file` with built-in Tab-completion.
-* **Dynamic Persona & Soul**: Configure the bot's personality and user context via `workspace/AGENT.md` and `workspace/USER.md`. Automatically updated `workspace/MEMORIES.md` tracks personal user facts.
+* **Dynamic Persona & Soul**: Configure the bot's personality and user context via global or workspace `AGENT.md` and `USER.md`. Automatically updated `MEMORIES.md` tracks personal user facts.
 
 ### 📂 Knowledge & Session Management
 
-* **Long-Term Searchable Memory**: Integrated `adk-memory` with a SQLite backend. This allows the agent to search past conversations for relevant facts and projects across all modes (CLI, Bot, Serve, Browse).
+* **Globalized Sandbox System**: Fully migrated from purely local workspaces to a centralized, global environment residing in `~/.nami/`. Central databases, global logging, globalized skills, and system-wide state protocol tracking are securely sandboxed inside the user's home directory.
+* **Multi-Workspace Auto-Discovery**: Automatically discover, switch, and track configurations and state across multiple active project workspaces from the central system.
+* **Long-Term Searchable Memory**: Integrated `adk-memory` with a SQLite backend. This allows the agent to search past conversations for relevant facts and projects across all modes (CLI, Bot, Serve, Desktop).
 * **Obsidian-Style Wiki KM**: A transparent, human-readable Knowledge Management system using `.md` files.
-*   `add_wiki_page`: Markdown saving with `[[wikilink]]` syntax.
-*   `get_wiki_graph`: Knowledge graph visualization.
-*   `search_wiki_by_tag`: Filter notes by specific `#tags`.
-*   `create_daily_note`: Journal entries for the current date.
-*   `get_backlinks`: List pages linking to a specific note.
-*   `rename_wiki_page`: Safe renaming with link updates.
+  * `add_wiki_page`: Markdown saving with `[[wikilink]]` syntax.
+  * `get_wiki_graph`: Knowledge graph visualization.
+  * `search_wiki_by_tag`: Filter notes by specific `#tags`.
+  * `create_daily_note`: Journal entries for the current date.
+  * `get_backlinks`: List pages linking to a specific note.
+  * `rename_wiki_page`: Safe renaming with link updates.
 * **Persistent Sessions**: SQLite-backed conversation history keyed by Telegram user ID.
-* **State Management**: A structured JSON-based system for tracking long-running tasks, guided by `workspace/STATE_PROTOCOL.md`.
-*   `init_task`: Initialize new processes with goals and steps.
-*   `update_task`: Progress tracking and persistent context.
-*   `list_active_tasks`: View all in-progress or blocked tasks.
+* **State Management**: A structured JSON-based system for tracking long-running tasks, guided by `STATE_PROTOCOL.md`.
+  * `init_task`: Initialize new processes with goals and steps.
+  * `update_task`: Progress tracking and persistent context.
+  * `list_active_tasks`: View all in-progress or blocked tasks.
 * **Todo Management**: Built-in task manager for tracking goals and daily items (`add_todo`, `list_todos`, `mark_todo_done`).
 
 ### 🛠 Specialized Skills & Tools
 
+* **Unified Serve Server**: A consolidated HTTP serve mode (`nami serve`) combining a headless API server with a fully embedded, self-contained premium WebUI static asset delivery system, removing the need for a separate `browse` mode.
+* **Centralized Global Skill Registry**: Allows discovery, loading, and execution of modular tools and extensions globally or per-workspace, managed dynamically via the central `~/.nami/` registry.
 * **Publishing Skills**: Compile workspace documents into distributable formats:
   * `create-pdf`: Beautifully formatted PDF documents.
   * `create-epub`: EPUB e-books with BOM sanitization.
 
 ### 🧩 Agent Skills
 
-Nami Core is designed for extreme extensibility. You can add new capabilities by deploying modules to the `workspace/.skills/` directory.
+Nami Core is designed for extreme extensibility. You can add new capabilities by deploying modules to the `.skills/` directory.
 
 * **Extensibility Model**: Skills are modular components that bundle specialized scripts and configuration. They allow Nami to perform complex, domain-specific tasks without modifying core code.
 * **Skill Management**: You can manage, create, and validate skills using the `skill-creator` extension.
@@ -174,8 +179,7 @@ The application provides several run modes:
 | **LINE Bot** | `nami line` | Start the LINE Bot webhook server. |
 | **CLI** | `nami cli` | Local interactive terminal agent with rich TUI. |
 | **Run** | `nami run <prompt>` | Execute a single prompt directly from the CLI. |
-| **Server** | `nami serve` | Run as an HTTP service. |
-| **Browse** | `nami browse` | Start server with embedded WebUI. |
+| **Server** | `nami serve` | Start the HTTP server with embedded premium WebUI and APIs. |
 | **Desktop (Dev)** | `make desktop-dev` | Launch the native Tauri desktop app in development mode. |
 | **Desktop (Build)** | `make desktop` | Build the production desktop installer (MSI, DMG, DEB). |
 
@@ -191,8 +195,7 @@ graph TD
         Line[LINE Bot]
         CLI[Interactive CLI]
         Run[Direct Run]
-        Server[HTTP Server/Browse]
-        Browse[Browse]
+        Server[HTTP Server & WebUI]
         Desktop[Desktop App]
     end
 
@@ -223,8 +226,15 @@ Here are some best practices for extending and maintaining Nami:
 ### 🚀 Getting Started & Production
 
 * **Production Readiness**: For high-traffic bots, migrate `teloxide` from polling to webhooks for better reliability.
-* **Build Optimization**: Use `make build` to ensure all assets (including WebUI) are compiled properly before generating the Rust binary.
+* **Build Optimization**: Use `make build` to compile the React assets into `webui/dist/` before compiling the final Rust binary. This ensures the embedded static WebUI in `nami serve` is fully up to date.
+* **WebUI Development**: Run a separate hot-reloading dev server with `pnpm --filter webui dev` in one terminal, while pointing it to the native server running `nami serve` in another.
 * **Environment Management**: Always manage your credentials via the `.env` file; never hardcode API keys.
+
+### 🎨 WebUI Styling Guidelines (Antigravity 2.0 Theme)
+
+* **Premium Typography**: Headings and titles should use the `Outfit` font family (`font-display`). User interface and body copy should use `Inter` (`font-sans`).
+* **Slate/Grayscale Hierarchy**: Stick strictly to polished slate scale borders (`border-slate-100` / `border-slate-200/80`), soft background fills (`bg-slate-50/50`), deep slate user bubbles (`bg-slate-900`), and clean white/slate-50 agent cards. Avoid harsh pure black borders or default saturated colors.
+* **Micro-Animations**: Implement fine transitions on hover and active states (e.g., `transition-all duration-200 hover:scale-[1.01] hover:bg-slate-50`) to keep the experience feeling modern and alive.
 
 ### 🧩 Extending Nami
 

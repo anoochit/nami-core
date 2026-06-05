@@ -1,4 +1,4 @@
-use crate::utils::get_workspace_dir;
+use crate::utils::get_nami_dir;
 use adk_rust::Tool;
 use adk_rust::serde::{Deserialize, Serialize};
 use adk_tool::{AdkError, tool};
@@ -28,8 +28,7 @@ struct TodoIdArgs {
 }
 
 async fn get_todo_file() -> std::result::Result<PathBuf, AdkError> {
-    let root: std::path::PathBuf = get_workspace_dir().await?;
-    Ok(root.join("todos.json"))
+    Ok(get_nami_dir().join("todos.json"))
 }
 
 async fn load_todos() -> std::result::Result<Vec<Todo>, AdkError> {

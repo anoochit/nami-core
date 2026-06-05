@@ -17,6 +17,7 @@ use walkdir::WalkDir;
 // use crate::agent::agent::{check_config_mtime, create_agent, get_config_mtime, get_skills_mtime};
 use crate::agent::get_compaction_config;
 use crate::modes::command_registry::CommandRegistry;
+use crate::utils::get_nami_dir;
 
 use adk_rust::Agent;
 use adk_rust::prelude::*;
@@ -564,7 +565,8 @@ pub async fn run_cli(
 
     rl.set_helper(Some(NamiHelper));
 
-    let _ = rl.load_history(".cli_history");
+    let history_path = get_nami_dir().join(".cli_history");
+    let _ = rl.load_history(&history_path);
 
     let mut nami_skin = MadSkin::default();
 
@@ -623,7 +625,8 @@ pub async fn run_cli(
                 let trimmed = line.trim();
 
                 if trimmed.starts_with('/') {
-                    let registry = CommandRegistry::load_from_config("config.toml")
+                    let config_path = get_nami_dir().join("config.toml");
+                    let registry = CommandRegistry::load_from_config(&config_path.to_string_lossy())
                         .unwrap_or(CommandRegistry { commands: Default::default() });
 
                     if handle_slash_command(
@@ -657,7 +660,7 @@ pub async fn run_cli(
 
                 let _ = rl.add_history_entry(trimmed);
 
-                rl.save_history(".cli_history")?;
+                let _ = rl.save_history(&history_path);
 
                 let enriched_prompt = process_file_references(trimmed).await;
 
