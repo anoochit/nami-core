@@ -13,8 +13,14 @@ export default defineConfig({
   },
   build: {
     rollupOptions: {
+      output: {
+        manualChunks: {
+          marp: ['@marp-team/marp-core'],
+          pdf: ['pdfjs-dist'],
+        },
+      },
     },
-    chunkSizeWarningLimit: 2000,
+    chunkSizeWarningLimit: 4000,
   },
   server: {
     host: '127.0.0.1',
