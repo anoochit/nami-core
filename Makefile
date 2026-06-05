@@ -1,4 +1,4 @@
-.PHONY: all webui nami clean run build
+.PHONY: all webui nami clean run build desktop desktop-dev check-docs
 
 # Default target
 all: build
@@ -10,6 +10,10 @@ build: nami
 webui:
 	@echo "Building WebUI..."
 	cd webui && pnpm install && pnpm run build
+
+deps:
+	@echo "Installing WebUI dependencies..."
+	cd webui && pnpm install
 
 # Build Rust binary (depends on WebUI assets for embedding)
 nami: webui
@@ -42,15 +46,29 @@ test:
 docs:
 	cargo doc --no-deps --target-dir docs/reference
 
+# Detect OS and set default TAURI_TARGET if not provided
+ifeq ($(OS),Windows_NT)
+	DEFAULT_TAURI_TARGET := x86_64-pc-windows-msvc
+else ifeq ($(shell uname -s),Linux)
+	DEFAULT_TAURI_TARGET := x86_64-unknown-linux-gnu
+else ifeq ($(shell uname -s),Darwin)
+	DEFAULT_TAURI_TARGET := x86_64-apple-darwin
+else
+	DEFAULT_TAURI_TARGET := unknown
+endif
+
+TAURI_TARGET ?= $(DEFAULT_TAURI_TARGET)
+
 # Build for Desktop (Tauri)
-desktop:
+desktop: webui
 	@echo "Building Desktop application (Tauri)..."
-	npx @tauri-apps/cli build
+	npm exec -- @tauri-apps/cli build $(if $(TAURI_TARGET),--target $(TAURI_TARGET),)
 
 # Run Desktop in development mode
-desktop-dev:
+desktop-dev: deps
 	@echo "Starting Desktop in development mode..."
-	npx @tauri-apps/cli dev
+	@cmd /c start "" pnpm -C webui dev
+	@set CI=true && npx @tauri-apps/cli dev $(if $(TAURI_TARGET),--target $(TAURI_TARGET),)
 
 # Check for missing module README.md files
 check-docs:

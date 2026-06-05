@@ -44,8 +44,8 @@ fn find_free_port(start_port: u16) -> u16 {
             return port;
         }
         port += 1;
-        if port > 65535 {
-            return start_port; // Fallback
+        if port == 0 {
+            return start_port; // wrapped around
         }
     }
 }
@@ -67,25 +67,28 @@ pub fn run() {
   let port = find_free_port(8080);
 
   tauri::Builder::default()
-    .plugin(tauri_plugin_log::Builder::new().build())
+// .plugin(tauri_plugin_log::Builder::new().build())
     .plugin(tauri_plugin_window_state::Builder::default().build())
-    .plugin(tauri_plugin_notification::Builder::default().build())
+    .plugin(tauri_plugin_notification::init())
     .plugin({
-      let port_clone = port;
-      tauri_plugin_global_shortcut::Builder::with_handler(move |app, _shortcut, event| {
-        if event.state() == tauri_plugin_global_shortcut::ShortcutState::Pressed {
-          if let Some(window) = app.get_webview_window("main") {
-            let is_visible = window.is_visible().unwrap_or(false);
-            if is_visible {
-              let _ = window.hide();
-            } else {
-              let _ = window.show();
-              let _ = window.set_focus();
+
+      tauri_plugin_global_shortcut::Builder::new()
+        .with_handler(move |app: &tauri::AppHandle,
+                         _shortcut: &tauri_plugin_global_shortcut::Shortcut,
+                         event: tauri_plugin_global_shortcut::ShortcutEvent| {
+          if event.state() == tauri_plugin_global_shortcut::ShortcutState::Pressed {
+            if let Some(window) = app.get_webview_window("main") {
+              let is_visible = window.is_visible().unwrap_or(false);
+              if is_visible {
+                let _ = window.hide();
+              } else {
+                let _ = window.show();
+                let _ = window.set_focus();
+              }
             }
           }
-        }
-      })
-      .build()
+        })
+        .build()
     })
     .manage(ApiPort(Mutex::new(port)))
     .invoke_handler(tauri::generate_handler![
@@ -130,24 +133,27 @@ pub fn run() {
             _ => {}
           }
         })
-        .on_tray_icon_event(|tray, event| {
-          if event.click_type == tauri::tray::ClickType::Left {
-            if let Some(window) = tray.app_handle().get_webview_window("main") {
-              let _ = window.show();
-              let _ = window.set_focus();
+                .on_tray_icon_event(|tray, event| {
+            // Handle left click (mouse button up)
+            if let tauri::tray::TrayIconEvent::Click { button, button_state, .. } = event {
+                if button == tauri::tray::MouseButton::Left && button_state == tauri::tray::MouseButtonState::Up {
+                    if let Some(window) = tray.app_handle().get_webview_window("main") {
+                        let _ = window.show();
+                        let _ = window.set_focus();
+                    }
+                }
             }
-          }
         })
         .build(app)?;
 
       // Start Nami API server in a dedicated thread
       std::thread::spawn(move || {
-        log::info!("Starting Nami Backend Thread on port {}...", port);
+        println!("Starting Nami Backend Thread on port {}...", port);
         let rt = tokio::runtime::Runtime::new().unwrap();
         rt.block_on(async {
-          log::info!("Nami Server Runtime Started. Initializing...");
+          println!("Nami Server Runtime Started. Initializing...");
           if let Err(e) = start_nami_server(port).await {
-            log::error!("CRITICAL: Nami Server failed to start: {:?}", e);
+            eprintln!("CRITICAL: Nami Server failed to start: {:?}", e);
           }
         });
       });
@@ -174,12 +180,12 @@ fn find_project_root() -> Option<PathBuf> {
 async fn start_nami_server(port: u16) -> anyhow::Result<()> {
     dotenvy::dotenv().ok();
     
-    log::info!("Building agent...");
+    println!("Building agent...");
     let (agent, model, _provider, _model_name, _mcp_count, _skill_count) = agent::build_agent().await?;
-    log::info!("Setting up dependencies...");
+    println!("Setting up dependencies...");
     let deps = setup_dependencies().await?;
 
-    log::info!("Starting server on 127.0.0.1:{}...", port);
+    println!("Starting server on 127.0.0.1:{}...", port);
     run_serve(
         agent,
         model,
