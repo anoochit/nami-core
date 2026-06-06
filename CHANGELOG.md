@@ -1,6 +1,19 @@
 # Changelog
 
-All notable changes to this project will be documented in this file.
+## [0.9.26] - 2026-06-06
+
+### Added
+
+- **Quiet Logging Mode**: Implemented log and verbose message suppression for `run`, `eval`, and `workspace` subcommands to provide an extremely clean, script-friendly console output. Automatically sets logging filters to error level and silences CLI initialization output and background telemetry logs.
+
+### Changed
+
+- **Centralized Documentation Integration**: Consolidated and merged the contents of all individual module READMEs from the internal `src/` directory directly into the central documentation ([docs/COMPONENTS.md](file:///mnt/d/Projects/AIProject/namiclaw/docs/COMPONENTS.md)), keeping the codebase single-sourced and cohesive.
+- **Documentation Alignment**: Synchronized main documentations in `docs/ARCHITECTURE.md` and `docs/HARNESS.md` with the current codebase, removing deprecated `browse` mode references and documenting the quiet mode behavior for evaluations.
+
+### Removed
+
+- **Redundant Internal READMEs**: Removed all redundant internal `README.md` files from the `src/` subdirectories to simplify directory structures and prevent document fragmentation.
 
 ## [0.9.25] - 2026-06-05
 

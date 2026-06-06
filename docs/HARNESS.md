@@ -27,6 +27,9 @@ The `eval` mode allows you to run the agent against a predefined dataset and ver
 make eval  # or cargo run -- eval
 ```
 
+> [!TIP]
+> **Quiet Mode Enabled**: When executing evaluations, verbose startup/setup logs and telemetry messages are automatically suppressed to ensure the test progress and summaries are extremely clean and legible on stdout.
+
 ### Configuring `evals.yaml`
 The evaluation dataset is stored in `evals.yaml` in the project root.
 
