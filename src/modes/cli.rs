@@ -310,9 +310,12 @@ fn print_tool_response(response: &str) -> io::Result<()> {
         response.to_string()
     };
 
-    println!("{}\r", 
+    println!("{} {} {}\r", 
+        style::style("✅").green(),
+        style::style("Tool Result:").dim().bold(),
         style::style(minified_resp).dim()
     );
+
     io::stdout().flush()?;
     Ok(())
 }
@@ -796,7 +799,22 @@ pub async fn run_cli(
                                                 );
                                                 io::stdout().flush()?;
                                             }
-                                            if let Part::FunctionResponse { .. } = part {
+                                            if let Part::FunctionResponse { function_response, .. } = part {
+                                                let resp_str = function_response.response.to_string();
+                                                let minified_resp = if let Ok(val) = serde_json::from_str::<serde_json::Value>(&resp_str) {
+                                                    serde_json::to_string(&val).unwrap_or_else(|_| resp_str.clone())
+                                                } else {
+                                                    resp_str.clone()
+                                                };
+                                                
+                                                clear_current_line(&mut io::stdout())?;
+                                                println!("{} {} {}\r", 
+                                                    style::style("✅").green(),
+                                                    style::style("Tool Result:").dim().bold(),
+                                                    style::style(minified_resp).dim()
+                                                );
+                                                io::stdout().flush()?;
+                                                
                                                 function_response_buffer.push(part.clone());
                                             }
                                         }
