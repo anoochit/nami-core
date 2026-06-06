@@ -119,8 +119,7 @@ Nami is structured into four primary modules under `src/`. Below is a detailed b
 - **`invoke_agent/`**: Invokes a single specialist agent (e.g., coder, researcher, writer) by name with a given prompt to delegate tasks.
 - **`memory/`**: Vector-searchable long-term memory operations (`add_memory`, `recall_memory`) backed by SQLite.
 - **`parallel_tasks/`**: Orchestration logic to run multiple specialist agents concurrently.
-- **`pev_loop/`**: Planner-Executor-Verifier loop tools (`pev_init`, `pev_run`) to iteratively execute and verify sub-tasks.
-- **`plan/`**: Manages implementation plan Markdown files (`plans/*.md`), syncing them with the task state manager.
+- **`plan/`**: Integrated Autonomous Planner-Executor-Verifier toolset. Supports structured implementation planning (`plan_create` with custom pre-synthesized steps, `plan_show`, `plan_list`, `plan_delete`, `plan_update`), interactive plan alignment (`PlanGrill` helper for CLI and conversational Q&A-driven planning), and complete autonomous plan execution (`plan_execute`) with self-healing, critic verification, and dynamic replanning.
 - **`scheduler/`**: Background task scheduler running operations based on cron expressions.
 - **`search/`**: Web search integration using external APIs (e.g., Serper.dev) for real-time information retrieval.
 - **`shell/`** *(Disabled)*: Executes shell commands (currently disabled for security reasons).

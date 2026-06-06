@@ -107,6 +107,10 @@ async fn get_states_file() -> std::result::Result<PathBuf, AdkError> {
     Ok(get_nami_dir().join("task_states.json"))
 }
 
+async fn get_archive_file() -> std::result::Result<PathBuf, AdkError> {
+    Ok(get_nami_dir().join("task_states_archive.json"))
+}
+
 pub async fn load_states() -> std::result::Result<Vec<TaskState>, AdkError> {
     let path = get_states_file().await?;
     if !path.exists() {
@@ -119,9 +123,53 @@ pub async fn load_states() -> std::result::Result<Vec<TaskState>, AdkError> {
         .map_err(|e| AdkError::tool(format!("Failed to parse task states: {}", e)))
 }
 
+async fn archive_tasks(tasks_to_archive: &[TaskState]) -> std::result::Result<(), AdkError> {
+    if tasks_to_archive.is_empty() {
+        return Ok(());
+    }
+    let path = get_archive_file().await?;
+    let mut archived = if path.exists() {
+        let content = fs::read_to_string(&path)
+            .await
+            .map_err(|e| AdkError::tool(format!("Failed to read task states archive: {}", e)))?;
+        serde_json::from_str::<Vec<TaskState>>(&content).unwrap_or_default()
+    } else {
+        Vec::new()
+    };
+
+    // Prevent duplicate entries in archive
+    for task in tasks_to_archive {
+        if !archived.iter().any(|t| t.task_id == task.task_id && t.updated_at == task.updated_at) {
+            archived.push(task.clone());
+        }
+    }
+
+    let content = serde_json::to_string_pretty(&archived)
+        .map_err(|e| AdkError::tool(format!("Failed to serialize task states archive: {}", e)))?;
+    fs::write(&path, content)
+        .await
+        .map_err(|e| AdkError::tool(format!("Failed to write task states archive: {}", e)))
+}
+
 async fn save_states(states: &[TaskState]) -> std::result::Result<(), AdkError> {
+    let mut active_states = Vec::new();
+    let mut to_archive = Vec::new();
+
+    // Auto-archive completed/cancelled tasks older than 5 minutes to keep main list clean
+    for task in states {
+        if task.status.is_terminal() && Utc::now().signed_duration_since(task.updated_at).num_minutes() >= 5 {
+            to_archive.push(task.clone());
+        } else {
+            active_states.push(task.clone());
+        }
+    }
+
+    if !to_archive.is_empty() {
+        archive_tasks(&to_archive).await?;
+    }
+
     let path = get_states_file().await?;
-    let content = serde_json::to_string_pretty(states)
+    let content = serde_json::to_string_pretty(&active_states)
         .map_err(|e| AdkError::tool(format!("Failed to serialize task states: {}", e)))?;
     fs::write(&path, content)
         .await
@@ -297,6 +345,11 @@ impl Tool for UpdateTask {
                 let steps: Vec<Step> = serde_json::from_value(steps_val)
                     .map_err(|e| AdkError::tool(format!("Invalid steps format: {}", e)))?;
                 task.steps = steps;
+
+                // Auto-mark status as Done if all steps are completed successfully
+                if !task.steps.is_empty() && task.steps.iter().all(|s| s.completed) {
+                    task.status = TaskStatus::Done;
+                }
             }
             task.updated_at = Utc::now();
 
@@ -337,6 +390,17 @@ impl Tool for GetTask {
         if let Some(task) = states.into_iter().find(|t| t.task_id == args.task_id) {
             Ok(json!(task))
         } else {
+            // Check archive as fallback
+            let archive_path = get_archive_file().await?;
+            if archive_path.exists() {
+                let content = fs::read_to_string(&archive_path)
+                    .await
+                    .map_err(|e| AdkError::tool(format!("Failed to read archive: {}", e)))?;
+                let archived: Vec<TaskState> = serde_json::from_str(&content).unwrap_or_default();
+                if let Some(task) = archived.into_iter().find(|t| t.task_id == args.task_id) {
+                    return Ok(json!(task));
+                }
+            }
             Err(AdkError::tool(format!("Task '{}' not found", args.task_id)))
         }
     }
@@ -373,12 +437,112 @@ impl Tool for ListActiveTasks {
     }
 }
 
+pub struct ListTasks;
+#[async_trait::async_trait]
+impl Tool for ListTasks {
+    fn name(&self) -> &str {
+        "list_tasks"
+    }
+    fn description(&self) -> &str {
+        "Lists all tasks, including active and archived/terminal ones."
+    }
+    fn parameters_schema(&self) -> Option<Value> {
+        Some(json!({ "type": "object", "properties": {} }))
+    }
+    async fn execute(
+        &self,
+        _ctx: Arc<dyn ToolContext>,
+        _args: Value,
+    ) -> std::result::Result<Value, AdkError> {
+        let mut all_tasks = load_states().await?;
+        let archive_path = get_archive_file().await?;
+        if archive_path.exists() {
+            let content = fs::read_to_string(&archive_path)
+                .await
+                .map_err(|e| AdkError::tool(format!("Failed to read archive: {}", e)))?;
+            let mut archived: Vec<TaskState> = serde_json::from_str(&content).unwrap_or_default();
+            all_tasks.append(&mut archived);
+        }
+
+        Ok(json!({ "tasks": all_tasks }))
+    }
+}
+
+pub struct DeleteTask;
+#[async_trait::async_trait]
+impl Tool for DeleteTask {
+    fn name(&self) -> &str {
+        "delete_task"
+    }
+    fn description(&self) -> &str {
+        "Deletes a task from the active state manager or the archive."
+    }
+    fn parameters_schema(&self) -> Option<Value> {
+        Some(json!({
+            "type": "object",
+            "properties": {
+                "task_id": { "type": "string", "description": "The ID of the task to delete." }
+            },
+            "required": ["task_id"]
+        }))
+    }
+    async fn execute(
+        &self,
+        _ctx: Arc<dyn ToolContext>,
+        args: Value,
+    ) -> std::result::Result<Value, AdkError> {
+        let args: TaskIdArgs = serde_json::from_value(args)
+            .map_err(|e| AdkError::tool(format!("Invalid arguments: {}", e)))?;
+
+        let mut deleted = false;
+
+        // 1. Attempt to delete from active states
+        let mut states = load_states().await?;
+        let len_before = states.len();
+        states.retain(|t| t.task_id != args.task_id);
+        if states.len() < len_before {
+            save_states(&states).await?;
+            deleted = true;
+        }
+
+        // 2. Attempt to delete from archived states
+        let archive_path = get_archive_file().await?;
+        if archive_path.exists() {
+            let content = fs::read_to_string(&archive_path)
+                .await
+                .map_err(|e| AdkError::tool(format!("Failed to read archive: {}", e)))?;
+            let mut archived: Vec<TaskState> = serde_json::from_str(&content).unwrap_or_default();
+            let len_archive_before = archived.len();
+            archived.retain(|t| t.task_id != args.task_id);
+            if archived.len() < len_archive_before {
+                let serialized = serde_json::to_string_pretty(&archived)
+                    .map_err(|e| AdkError::tool(format!("Failed to serialize archive: {}", e)))?;
+                fs::write(&archive_path, serialized)
+                    .await
+                    .map_err(|e| AdkError::tool(format!("Failed to write archive: {}", e)))?;
+                deleted = true;
+            }
+        }
+
+        if deleted {
+            Ok(json!({
+                "status": "success",
+                "message": format!("Task '{}' deleted successfully.", args.task_id)
+            }))
+        } else {
+            Err(AdkError::tool(format!("Task '{}' not found", args.task_id)))
+        }
+    }
+}
+
 pub fn state_manager_tools() -> Vec<Arc<dyn Tool>> {
     vec![
         Arc::new(InitTask),
         Arc::new(UpdateTask),
         Arc::new(GetTask),
         Arc::new(ListActiveTasks),
+        Arc::new(ListTasks),
+        Arc::new(DeleteTask),
     ]
 }
 

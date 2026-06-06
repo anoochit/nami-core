@@ -8,7 +8,6 @@ pub mod filesystem;
 pub mod image_generator;
 pub mod memory;
 pub mod parallel_tasks;
-pub mod pev_loop;
 pub mod plan;
 pub mod scheduler;
 pub mod search;

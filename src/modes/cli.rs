@@ -543,10 +543,111 @@ fn print_status_line(stdout: &mut io::Stdout, text: &str) -> io::Result<()> {
     Ok(())
 }
 
+async fn run_cli_grill(
+    model: &Arc<dyn Llm>,
+    runner: &mut Runner,
+    user_id: &str,
+    session_id: &str,
+    goal: &str,
+    nami_skin: &MadSkin,
+) -> anyhow::Result<()> {
+    use rustyline::DefaultEditor;
+    use serde_json::json;
+
+    println!("\n{}\n", style::style("🤖 Initiating Interactive Alignment Loop (Grill-Me Mode)...").magenta().bold());
+    println!("Analyzing goal: {}\n", style::style(goal).cyan());
+    
+    // 1. Generate questions
+    print_status_line(&mut io::stdout(), "Generating alignment questions...")?;
+    let questions = match crate::tools::plan::PlanGrill::generate_questions(model, goal).await {
+        Ok(q) => q,
+        Err(e) => {
+            clear_current_line(&mut io::stdout())?;
+            println!("{} {}\n", style::style("Error generating questions:").red().bold(), e);
+            return Ok(());
+        }
+    };
+    clear_current_line(&mut io::stdout())?;
+
+    println!("Great! Let's clarify a few details to make the plan robust:\n");
+
+    let mut qa_pairs = Vec::new();
+    let mut rl = DefaultEditor::new()?;
+
+    for (i, question) in questions.iter().enumerate() {
+        println!("{}. {}", style::style(format!("{}", i + 1)).magenta().bold(), style::style(question).bold());
+        let answer = loop {
+            let res = rl.readline("Answer > ");
+            match res {
+                Ok(line) => {
+                    let trimmed = line.trim();
+                    if !trimmed.is_empty() {
+                        break trimmed.to_string();
+                    }
+                    println!("{}", style::style("Please provide a brief answer to help build a precise plan.").yellow());
+                }
+                Err(rustyline::error::ReadlineError::Interrupted) => {
+                    println!("\n{}", style::style("Grill-Me session cancelled.").red());
+                    return Ok(());
+                }
+                Err(e) => {
+                    return Err(anyhow::anyhow!("Readline error: {}", e));
+                }
+            }
+        };
+        println!();
+        qa_pairs.push((question.clone(), answer));
+    }
+
+    // 2. Synthesize Plan
+    print_status_line(&mut io::stdout(), "Synthesizing and registering aligned plan...")?;
+    
+    let steps_val = match crate::tools::plan::PlanGrill::synthesize_plan(model, goal, &qa_pairs).await {
+        Ok(steps) => steps,
+        Err(e) => {
+            clear_current_line(&mut io::stdout())?;
+            println!("{} {}\n", style::style("Error synthesizing plan:").red().bold(), e);
+            return Ok(());
+        }
+    };
+    clear_current_line(&mut io::stdout())?;
+
+    let plan_name = format!("grill-{}", uuid::Uuid::new_v4().to_string().split('-').next().unwrap());
+    
+    // Create the plan using PlanCreate
+    let plan_tool = crate::tools::plan::PlanCreate::new(model.clone());
+    let create_args = json!({
+        "name": plan_name,
+        "objective": goal,
+        "steps": steps_val
+    });
+
+    let context: Arc<dyn adk_rust::tool::ToolContext> = Arc::new(adk_tool::SimpleToolContext::new(session_id));
+    match plan_tool.execute(context.clone(), create_args).await {
+        Ok(_) => {
+            println!("{}\n", style::style(format!("✨ Plan '{}' successfully synthesized and registered!", plan_name)).green().bold());
+            // Show the newly created plan
+            let show_tool = crate::tools::plan::PlanShow;
+            if let Ok(show_res) = show_tool.execute(context.clone(), json!({"name": plan_name})).await {
+                if let Some(content) = show_res["content"].as_str() {
+                    let markdown = nami_skin.term_text(content);
+                    println!("{}", markdown);
+                }
+            }
+        }
+        Err(e) => {
+            println!("{} {}\n", style::style("Error registering plan:").red().bold(), e);
+        }
+    }
+
+    Ok(())
+}
+
 pub async fn handle_slash_command(
     trimmed: &str,
     runner: &mut Runner,
     sessions: &Arc<dyn SessionService>,
+    model: &Arc<dyn Llm>,
     app_name: &str,
     user_id: &str,
     session_id: &mut String,
@@ -560,6 +661,15 @@ pub async fn handle_slash_command(
     let parts: Vec<&str> = trimmed.splitn(2, ' ').collect();
     let command_name = parts[0];
     let args = parts.get(1).unwrap_or(&"");
+
+    if command_name == "/grill" {
+        if args.is_empty() {
+            println!("{} Please specify a goal, e.g. `/grill Build a weather dashboard`\n", style::style("Error:").red().bold());
+            return Ok(false);
+        }
+        run_cli_grill(model, runner, user_id, session_id, args, nami_skin).await?;
+        return Ok(false);
+    }
 
     // Dynamic registry lookup
     if let Some(prompt) = registry.format_prompt(command_name, args) {
@@ -706,6 +816,7 @@ pub async fn run_cli(
                         trimmed,
                         &mut runner,
                         &sessions,
+                        &model,
                         app_name,
                         user_id,
                         &mut session_id,
@@ -890,8 +1001,6 @@ pub async fn run_cli(
                     termimad::FmtText::from(&nami_skin, &cleaned, Some(term_width)).to_string();
 
                 println!("{}", rendered);
-
-                println!();
                 println!();
             }
 

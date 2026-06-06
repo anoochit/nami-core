@@ -16,8 +16,7 @@ A modular, extensible AI-powered `Nami` built on top of [adk-rust](https://githu
 * **AI Gateway Integration**: Support for high-availability routing via **MLflow Deployments**, enabling load balancing and fallback strategies across multiple LLM providers.
 * **Native PDF & Marp Slides Rendering**: Directly view PDF documents and render Marp Markdown presentations (using `marp: true` frontmatter) within the WebUI preview canvas.
 * **Specialist Agents**: Ecosystem of specialized agents (`coder`, `researcher`, `writer`, `generalist`, `verifier`, `ralph`) with full access to core tools (filesystem, search, wiki), allowing for autonomous complex task execution.
-* **PEV (Planner-Executor-Verifier) Loop**: A sophisticated autonomous loop that plans tasks, executes steps using specialized agents, and rigorously verifies results using a critic agent to ensure correctness.
-* **Structured Implementation Planning**: Dedicated `plan` tools and `/plan` command to create, track, and sync multi-step implementation plans with the state manager.
+* **Autonomous Planner (PEV Loop)**: A unified toolset (`plan_create`, `plan_execute`, etc.) that automatically generates multi-step implementation plans, delegates steps to specialized agents, verifies execution correctness via critic feedback, and triggers self-healing dynamic replanning on verification failures.
 * **Native Image Generation**: Implemented a native image generation tool using `gemini-2.5-flash-image-preview`, providing high-quality, efficient visuals directly within the agent's workflow without external script dependencies.
 * **Parallel Task Execution**: A custom `parallel_tasks` tool that orchestrates multiple specialists simultaneously for high-speed multi-tasking.
 * **Autonomous Goal Loops**: A "Ralph Wiggum" loop agent that persists through multiple iterations to achieve complex goals, triggered via `/goal`.
@@ -38,6 +37,7 @@ A modular, extensible AI-powered `Nami` built on top of [adk-rust](https://githu
   * `/goal`: Run autonomous loops to achieve goals.
   * `/schedule`: Manage automated tasks with cron expressions.
   * `/plan`: Initialize structured implementation plans.
+  * `/grill`: Start an interactive Q&A alignment session to refine goals and generate precise plans (Grill-Me).
   * `/tasks`: List and manage active system tasks.
   * `/status`: View real-time agent and system status.
   * `/wiki`: Search the project wiki vault.
@@ -209,7 +209,7 @@ graph TD
     
     Agent --> LLM[ThaiLLM/Gemini/OpenAI]
     Agent --> SubAgents[Sub-Agents: Coder, Researcher, Writer, Verifier, Ralph]
-    Agent --> Tools[Tools: Filesystem, Memory, PEV, Plans, etc.]
+    Agent --> Tools[Tools: Filesystem, Memory, Autonomous Planner, etc.]
     Agent --> Wiki[Obsidian-Style Wiki: Graph, Tags, Daily Notes]
     Agent --> Persona[AGENT.md & USER.md]
 

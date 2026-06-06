@@ -4,6 +4,8 @@
 
 ### Added
 
+- **Interactive Plan Alignment (Grill-Me Mode)**: Introduced the new `/grill <goal>` slash command. In local CLI/TUI mode, this initiates a synchronous, blocking terminal prompt loop that asks 3-5 AI-generated clarification questions and synthesizes highly precise customized plans. In `serve` / Bot modes, it uses conversational prompts directly over chat to align on details before invoking plan-creation tools autonomously.
+- **Autonomous Planner (PEV Loop)**: Consolidated the redundant `pev_loop` and `plan` modules into a unified, clean Autonomous Planner toolset under `src/tools/plan/`. Refactored `plan_create` to accept an optional `autonomous` flag to dynamically generate precise task steps with verification criteria, and renamed the full execution, self-correcting parser, and dynamic replanning loop to `plan_execute`.
 - **Dynamic Custom Specialist Agents**: Added support for defining arbitrary custom specialist agents under `[specialists.custom]` in the global `config.toml`. Custom agents dynamically load custom LLM models/overrides, custom descriptions, and custom instructions (system prompts), registering them automatically for agent delegation.
 - **Quiet Logging Mode**: Implemented log and verbose message suppression for `run`, `eval`, and `workspace` subcommands to provide an extremely clean, script-friendly console output. Automatically sets logging filters to error level and silences CLI initialization output and background telemetry logs.
 - **Dynamic Workspace Path Resolution**: Replaced the static, process-lifetime OnceLock cache (`WORKSPACE_DIR`) on `get_workspace_dir()` with dynamic, configuration-level resolution, allowing changes to the active workspace to take effect immediately in all filesystem tools.
@@ -18,6 +20,7 @@
 
 ### Removed
 
+- **Redundant pev_loop Module**: Deleted the redundant `pev_loop` module (`pev_init`, `pev_run`), fully consolidating its core execution, self-healing parser, and dynamic replanning loop mechanisms into the unified `plan` toolset to eliminate concepts duplication.
 - **Redundant Internal READMEs**: Removed all redundant internal `README.md` files from the `src/` subdirectories to simplify directory structures and prevent document fragmentation.
 
 ## [0.9.25] - 2026-06-05

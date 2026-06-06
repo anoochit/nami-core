@@ -313,7 +313,7 @@ pub async fn create_agent(
     core_tools.extend(tools::filesystem::filesystem_tools());
     core_tools.extend(tools::image_generator::image_generator_tools(image_model));
     core_tools.extend(tools::memory::memory_tools());
-    core_tools.extend(tools::plan::plan_tools());
+    core_tools.extend(tools::plan::plan_tools(model.clone()));
     core_tools.extend(tools::scheduler::scheduler_tools());
     core_tools.extend(tools::search::search_tools());
     core_tools.extend(tools::soul::soul_tools());
@@ -377,7 +377,7 @@ pub async fn create_agent(
     let specialists =
         specialists::get_specialists(model.clone(), specialist_models, core_tools.clone(), custom_specs);
 
-    core_tools.extend(tools::pev_loop::pev_tools(model.clone(), specialists.clone()));
+    core_tools.push(Arc::new(tools::plan::PlanExecute::new(model.clone(), specialists.clone())));
 
     let mut builder = LlmAgentBuilder::new("nami")
         .description("A helpful and playful AI assistant")

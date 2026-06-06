@@ -216,9 +216,9 @@ help = "Schedule a repeating task (goal | cron)"
 template = "recall_memory: {{args}}"
 help = "Recall information from memory"
 
-[commands."/pev"]
-template = "Please use PEV mode for this objective: {{args}}. First, use pev_init(goal='{{args}}', task_id='pev-{{uuid}}') to plan it, then use pev_run(task_id='pev-{{uuid}}') to execute and verify it."
-help = "Run the Planner-Executor-Verifier loop for a goal"
+[commands."/grill"]
+template = "You are an interactive planner. The user wants to start a 'grill-me' session for the goal: '{{args}}'. First, ask the user 3 to 5 highly precise, concise clarification questions in the chat to understand their needs. Do NOT write the plan yet. Wait for the user to answer them. Once they reply, synthesize a refined multi-step plan with verification criteria and register it using the `plan_create` tool with autonomous=true."
+help = "Start an interactive grill-me session to align and create a plan"
 
 [commands."/test"]
 template = "Analyze the code in {{args}} and generate a unit test file in tests/."
