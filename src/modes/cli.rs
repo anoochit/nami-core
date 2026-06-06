@@ -545,8 +545,8 @@ fn print_status_line(stdout: &mut io::Stdout, text: &str) -> io::Result<()> {
 
 async fn run_cli_grill(
     model: &Arc<dyn Llm>,
-    runner: &mut Runner,
-    user_id: &str,
+    _runner: &mut Runner,
+    _user_id: &str,
     session_id: &str,
     goal: &str,
     nami_skin: &MadSkin,
