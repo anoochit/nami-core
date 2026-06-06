@@ -93,6 +93,38 @@ impl Completer for NamiHelper {
             return Ok((start + 1, matches));
         }
 
+        if word.starts_with('/') {
+            let mut matches = Vec::new();
+            let commands = vec![
+                "/exit", "/quit", "/clear", "/new", "/tasks", "/status", "/version", "/help"
+            ];
+            
+            for cmd in commands {
+                if cmd.to_lowercase().starts_with(&word.to_lowercase()) {
+                    matches.push(Pair {
+                        display: cmd.to_string(),
+                        replacement: cmd.to_string(),
+                    });
+                }
+            }
+            
+            // Try loading dynamic commands too
+            let config_path = get_nami_dir().join("config.toml");
+            if let Ok(registry) = CommandRegistry::load_from_config(&config_path.to_string_lossy()) {
+                for name in registry.commands.keys() {
+                    let cmd_with_slash = if name.starts_with('/') { name.clone() } else { format!("/{}", name) };
+                    if cmd_with_slash.to_lowercase().starts_with(&word.to_lowercase()) {
+                        matches.push(Pair {
+                            display: cmd_with_slash.clone(),
+                            replacement: cmd_with_slash,
+                        });
+                    }
+                }
+            }
+            
+            return Ok((start, matches));
+        }
+
         Ok((0, Vec::new()))
     }
 }
@@ -202,6 +234,99 @@ fn format_error(e: impl std::fmt::Display) -> String {
     format!("\n\n> ❌ Error\n> \n> {}\n\n", clean_msg)
 }
 
+fn highlight_json(json: &str) -> String {
+    let mut result = Vec::new();
+    let re_key_val = Regex::new(r#"^(\s*)"([^"]+)"(\s*:\s*)(.*)$"#).unwrap();
+    let re_str_val = Regex::new(r#"^"([^"]*)"(.*)$"#).unwrap();
+    let re_num_bool_null = Regex::new(r#"^(true|false|null|-?\d+(?:\.\d+)?)(.*)$"#).unwrap();
+
+    for line in json.lines() {
+        let formatted_line = if let Some(caps) = re_key_val.captures(line) {
+            let indent = &caps[1];
+            let key = &caps[2];
+            let colon = &caps[3];
+            let val = &caps[4];
+            
+            let styled_key = style::style(format!("\"{}\"", key)).with(style::Color::Rgb { r: 0, g: 240, b: 255 }).bold();
+            let styled_colon = style::style(colon).dim();
+            
+            let mut styled_val = val.to_string();
+            if val.starts_with('"') {
+                if let Some(val_caps) = re_str_val.captures(val) {
+                    let str_content = &val_caps[1];
+                    let suffix = &val_caps[2];
+                    styled_val = format!("{}{}", style::style(format!("\"{}\"", str_content)).with(style::Color::Rgb { r: 255, g: 0, b: 128 }), style::style(suffix).dim());
+                }
+            } else if val == "{" || val == "[" || val == "}," || val == "]," || val == "}" || val == "]" {
+                styled_val = style::style(val).white().bold().to_string();
+            } else {
+                if let Some(num_caps) = re_num_bool_null.captures(val) {
+                    let num_val = &num_caps[1];
+                    let suffix = &num_caps[2];
+                    let color_val = match num_val {
+                        "true" | "false" => style::style(num_val).with(style::Color::Rgb { r: 180, g: 100, b: 255 }),
+                        "null" => style::style(num_val).dark_grey(),
+                        _ => style::style(num_val).with(style::Color::Rgb { r: 100, g: 255, b: 100 }), // green numbers
+                    };
+                    styled_val = format!("{}{}", color_val, style::style(suffix).dim());
+                }
+            }
+            
+            format!("{}{}{}{}", indent, styled_key, styled_colon, styled_val)
+        } else {
+            style::style(line).white().bold().to_string()
+        };
+        result.push(formatted_line);
+    }
+    result.join("\n")
+}
+
+fn print_tool_call(name: &str, args: &str) -> io::Result<()> {
+    clear_current_line(&mut io::stdout())?;
+    
+    let border_color = style::Color::Rgb { r: 180, g: 100, b: 255 }; // Violet
+    
+    println!("{}", style::style(format!("┌── 🔨 Tool Call: {} ──────────────────────────────────────────────────", name)).with(border_color).bold());
+    
+    let formatted_args = if let Ok(val) = serde_json::from_str::<serde_json::Value>(args) {
+        serde_json::to_string_pretty(&val).unwrap_or_else(|_| args.to_string())
+    } else {
+        args.to_string()
+    };
+    
+    let highlighted = highlight_json(&formatted_args);
+    for line in highlighted.lines() {
+        println!("{} {}", style::style("│").with(border_color), line);
+    }
+    
+    println!("{}", style::style("└───────────────────────────────────────────────────────────────────────").with(border_color));
+    io::stdout().flush()?;
+    Ok(())
+}
+
+fn print_tool_response(response: &str) -> io::Result<()> {
+    clear_current_line(&mut io::stdout())?;
+    
+    let border_color = style::Color::Rgb { r: 0, g: 240, b: 255 }; // Cyan
+    
+    println!("{}", style::style("┌── ✅ Tool Result ─────────────────────────────────────────────────────").with(border_color).bold());
+    
+    let formatted_resp = if let Ok(val) = serde_json::from_str::<serde_json::Value>(response) {
+        serde_json::to_string_pretty(&val).unwrap_or_else(|_| response.to_string())
+    } else {
+        response.to_string()
+    };
+    
+    let highlighted = highlight_json(&formatted_resp);
+    for line in highlighted.lines() {
+        println!("{} {}", style::style("│").with(border_color), line);
+    }
+    
+    println!("{}", style::style("└───────────────────────────────────────────────────────────────────────").with(border_color));
+    io::stdout().flush()?;
+    Ok(())
+}
+
 async fn run_system_prompt(
     runner: &mut Runner,
     user_id: &str,
@@ -213,7 +338,7 @@ async fn run_system_prompt(
         &mut io::stdout(),
         &format!(
             "{} {}",
-            style::style("⏳").magenta(),
+            style::style("⠋").with(style::Color::Rgb { r: 255, g: 0, b: 128 }).bold(),
             style::style("Agent is thinking...").dim()
         ),
     )?;
@@ -224,11 +349,26 @@ async fn run_system_prompt(
     let mut cancelled = false;
     let mut cancelled_by_esc = false;
     let mut event_reader = EventStream::new();
+    let mut spinner_tick = tokio::time::interval(std::time::Duration::from_millis(80));
+    let spinner_chars = vec!["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];
+    let mut spinner_idx = 0;
 
     terminal::enable_raw_mode()?;
 
     loop {
         tokio::select! {
+            _ = spinner_tick.tick() => {
+                spinner_idx = (spinner_idx + 1) % spinner_chars.len();
+                let spinner_char = spinner_chars[spinner_idx];
+                print_status_line(
+                    &mut io::stdout(),
+                    &format!(
+                        "{} {}",
+                        style::style(spinner_char).with(style::Color::Rgb { r: 255, g: 0, b: 128 }).bold(),
+                        style::style("Agent is thinking...").dim()
+                    ),
+                )?;
+            }
             result = stream.next() => {
                 match result {
                     Some(Ok(event)) => {
@@ -238,50 +378,13 @@ async fn run_system_prompt(
                                     response.push_str(text);
                                 }
                                 if let Part::FunctionCall { name, args, .. } = part {
-                                    let args_str = args.to_string().replace('\n', " ").replace("  ", " ");
-                                    // let compact_args = if args_str.chars().count() > 80 {
-                                    //     format!("{}...", args_str.chars().take(77).collect::<String>())
-                                    // } else {
-                                    //     args_str
-                                    // };
-                                    
-                                    clear_current_line(&mut io::stdout())?;
-                                    println!("{} {} {}({})\r", 
-                                        style::style("🔨").magenta(),
-                                        style::style("Tool Call:").dim().bold(),
-                                        style::style(name).cyan(),
-                                        style::style(args_str).dim()
-                                    );
-                                    io::stdout().flush()?;
+                                    print_tool_call(name, &args.to_string())?;
                                 }
                                 if let Part::FunctionResponse { function_response, .. } = part {
-                                    let resp_str = function_response.response.to_string().replace('\n', " ");
-                                    // let compact_resp = if resp_str.chars().count() > 100 {
-                                    //     format!("{}...", resp_str.chars().take(97).collect::<String>())
-                                    // } else {
-                                    //     resp_str
-                                    // };
-                                    
-                                    clear_current_line(&mut io::stdout())?;
-                                    println!("{} {} {}\r", 
-                                        style::style("✅").green(),
-                                        style::style("Tool Result:").dim().bold(),
-                                        style::style(resp_str).dim()
-                                    );
-                                    io::stdout().flush()?;
+                                    print_tool_response(&function_response.response.to_string())?;
                                 }
                             }
                         }
-
-                        // Re-print the thinking status if we are still waiting for more
-                        print_status_line(
-                            &mut io::stdout(),
-                            &format!(
-                                "{} {}",
-                                style::style("⏳").magenta(),
-                                style::style("Agent is thinking...").dim()
-                            ),
-                        )?;
                     }
                     Some(Err(e)) => {
                         response.push_str(&format_error(e));
@@ -341,42 +444,48 @@ async fn run_system_prompt(
 }
 
 fn render_banner(provider: &str, model_name: &str, session_id: &str, mcp_count: usize, skill_count: usize) {
+    let violet = style::Color::Rgb { r: 180, g: 100, b: 255 };
+    let magenta = style::Color::Rgb { r: 255, g: 0, b: 128 };
+    let cyan = style::Color::Rgb { r: 0, g: 240, b: 255 };
+
+    let header_text = format!("⚡ Nami CLI v{} ", env!("CARGO_PKG_VERSION"));
+    
+    // Print top rule with header text
+    print!("{}", style::style(header_text).with(magenta).bold());
+    println!("{}", style::style("─".repeat(50usize.saturating_sub(13 + env!("CARGO_PKG_VERSION").len()))).with(violet));
+    
+    // Print details
     println!(
-        "{}",
-        style::style(
-            r#"
-  _  _            _ 
- | \| |__ _ _ __ (_)
- | .` / _` | '  \| |
- |_|\_\__,_|_|_|_|_|
-                    
-"#
-        )
-        .magenta()
+        "  {} {} ({})  {} {} MCP, {} skills",
+        style::style("●").with(magenta),
+        style::style("Model:").dim(),
+        style::style(format!("{} using {}", provider, model_name)).with(cyan),
+        style::style("●").with(magenta),
+        style::style(format!("{} servers", mcp_count)).with(cyan),
+        style::style(format!("{} skills", skill_count)).with(cyan),
     );
+    let workspace_dir = std::env::current_dir()
+        .map(|p| p.to_string_lossy().to_string())
+        .unwrap_or_else(|_| "Unknown".to_string());
 
     println!(
-        "{} {}",
-        style::style(format!("Nami CLI v{}", env!("CARGO_PKG_VERSION")))
-            .bold()
-            .magenta(),
-        style::style(format!("({}) using {}", provider, model_name)).dim()
+        "  {} {} {}",
+        style::style("●").with(magenta),
+        style::style("Session:").dim(),
+        style::style(session_id).with(cyan).dim(),
     );
-
     println!(
-        "{} {}",
-        style::style("Capabilities:").bold().magenta(),
-        style::style(format!("{} MCP servers, {} skills", mcp_count, skill_count)).dim()
+        "  {} {} {}",
+        style::style("●").with(magenta),
+        style::style("Workspace:").dim(),
+        style::style(workspace_dir).with(cyan),
     );
+    
+    // Print bottom rule
+    println!("{}", style::style("─".repeat(50)).with(violet));
 
-    println!(
-        "{} {}",
-        style::style("Session ID:").bold().magenta(),
-        style::style(session_id).dim()
-    );
-
-    println!("\nType /? for commands.");
-    println!("Use @file for references.\n");
+    println!("\nType {} for commands.", style::style("/?").with(magenta).bold());
+    println!("Use {} for file references.\n", style::style("@file").with(cyan).bold());
 }
 
 pub async fn ensure_session(
@@ -570,13 +679,19 @@ pub async fn run_cli(
 
     let mut nami_skin = MadSkin::default();
 
-    nami_skin
-        .paragraph
-        .set_fg(termimad::crossterm::style::Color::White);
-
-    nami_skin
-        .bullet
-        .set_fg(termimad::crossterm::style::Color::Magenta);
+    nami_skin.paragraph.set_fg(termimad::crossterm::style::Color::Rgb { r: 240, g: 240, b: 245 });
+    nami_skin.bold.set_fg(termimad::crossterm::style::Color::Rgb { r: 255, g: 0, b: 128 }); // Synthwave Pink
+    nami_skin.italic.set_fg(termimad::crossterm::style::Color::Rgb { r: 0, g: 240, b: 255 }); // Cyan
+    nami_skin.inline_code.set_fg(termimad::crossterm::style::Color::Rgb { r: 180, g: 100, b: 255 }); // Violet
+    nami_skin.inline_code.set_bg(termimad::crossterm::style::Color::Rgb { r: 25, g: 20, b: 35 });
+    nami_skin.code_block.set_fg(termimad::crossterm::style::Color::Rgb { r: 0, g: 240, b: 255 });
+    nami_skin.code_block.set_bg(termimad::crossterm::style::Color::Rgb { r: 20, g: 15, b: 30 });
+    nami_skin.bullet.set_fg(termimad::crossterm::style::Color::Rgb { r: 255, g: 0, b: 128 });
+    
+    // Headers
+    nami_skin.headers[0].set_fg(termimad::crossterm::style::Color::Rgb { r: 255, g: 0, b: 128 }); // H1 - Hot Pink
+    nami_skin.headers[1].set_fg(termimad::crossterm::style::Color::Rgb { r: 0, g: 240, b: 255 }); // H2 - Cyan
+    nami_skin.headers[2].set_fg(termimad::crossterm::style::Color::Rgb { r: 180, g: 100, b: 255 }); // H3 - Violet
 
     // let mut last_config_mtime = get_config_mtime();
     // let mut last_skills_mtime = get_skills_mtime();

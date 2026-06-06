@@ -11,6 +11,7 @@
 
 ### Changed
 
+- **Gemini Sequential Tool Calling Directive**: Integrated a strict sequential tool execution rule into the default `persona/AGENT.md` persona (and the default initializer template in `src/modes/init.rs`) instructing the model to trigger function/tool calls strictly one-at-a-time, completely resolving Gemini API's parallel tool calling part-count mismatch validation errors.
 - **Smart Path Sandboxing**: Upgraded `sandbox_with_ignore` to correctly match absolute paths within the workspace and strip duplicate folder prefix nesting on relative paths (e.g. resolving `x/file` to `/path/to/x/file` rather than `/path/to/x/x/file`), eliminating filesystems failure on active workspaces.
 - **Centralized Documentation Integration**: Consolidated and merged the contents of all individual module READMEs from the internal `src/` directory directly into the central documentation ([docs/COMPONENTS.md](file:///mnt/d/Projects/AIProject/namiclaw/docs/COMPONENTS.md)), keeping the codebase single-sourced and cohesive.
 - **Documentation Alignment**: Synchronized main documentations in `docs/ARCHITECTURE.md` and `docs/HARNESS.md` with the current codebase, removing deprecated `browse` mode references and documenting the quiet mode behavior for evaluations.
