@@ -234,6 +234,7 @@ fn format_error(e: impl std::fmt::Display) -> String {
     format!("\n\n> ❌ Error\n> \n> {}\n\n", clean_msg)
 }
 
+#[allow(dead_code)]
 fn highlight_json(json: &str) -> String {
     let mut result = Vec::new();
     let re_key_val = Regex::new(r#"^(\s*)"([^"]+)"(\s*:\s*)(.*)$"#).unwrap();
@@ -284,22 +285,18 @@ fn highlight_json(json: &str) -> String {
 fn print_tool_call(name: &str, args: &str) -> io::Result<()> {
     clear_current_line(&mut io::stdout())?;
     
-    let border_color = style::Color::Rgb { r: 180, g: 100, b: 255 }; // Violet
-    
-    println!("{}", style::style(format!("┌── 🔨 Tool Call: {} ──────────────────────────────────────────────────", name)).with(border_color).bold());
-    
-    let formatted_args = if let Ok(val) = serde_json::from_str::<serde_json::Value>(args) {
-        serde_json::to_string_pretty(&val).unwrap_or_else(|_| args.to_string())
+    let minified_args = if let Ok(val) = serde_json::from_str::<serde_json::Value>(args) {
+        serde_json::to_string(&val).unwrap_or_else(|_| args.to_string())
     } else {
         args.to_string()
     };
-    
-    let highlighted = highlight_json(&formatted_args);
-    for line in highlighted.lines() {
-        println!("{} {}", style::style("│").with(border_color), line);
-    }
-    
-    println!("{}", style::style("└───────────────────────────────────────────────────────────────────────").with(border_color));
+
+    println!("{} {} {}({})\r", 
+        style::style("🔨").magenta(),
+        style::style("Tool Call:").dim().bold(),
+        style::style(name).cyan(),
+        style::style(minified_args).dim()
+    );
     io::stdout().flush()?;
     Ok(())
 }
@@ -307,22 +304,15 @@ fn print_tool_call(name: &str, args: &str) -> io::Result<()> {
 fn print_tool_response(response: &str) -> io::Result<()> {
     clear_current_line(&mut io::stdout())?;
     
-    let border_color = style::Color::Rgb { r: 0, g: 240, b: 255 }; // Cyan
-    
-    println!("{}", style::style("┌── ✅ Tool Result ─────────────────────────────────────────────────────").with(border_color).bold());
-    
-    let formatted_resp = if let Ok(val) = serde_json::from_str::<serde_json::Value>(response) {
-        serde_json::to_string_pretty(&val).unwrap_or_else(|_| response.to_string())
+    let minified_resp = if let Ok(val) = serde_json::from_str::<serde_json::Value>(response) {
+        serde_json::to_string(&val).unwrap_or_else(|_| response.to_string())
     } else {
         response.to_string()
     };
-    
-    let highlighted = highlight_json(&formatted_resp);
-    for line in highlighted.lines() {
-        println!("{} {}", style::style("│").with(border_color), line);
-    }
-    
-    println!("{}", style::style("└───────────────────────────────────────────────────────────────────────").with(border_color));
+
+    println!("{}\r", 
+        style::style(minified_resp).dim()
+    );
     io::stdout().flush()?;
     Ok(())
 }
@@ -338,7 +328,7 @@ async fn run_system_prompt(
         &mut io::stdout(),
         &format!(
             "{} {}",
-            style::style("⠋").with(style::Color::Rgb { r: 255, g: 0, b: 128 }).bold(),
+            style::style("⠋").with(style::Color::Rgb { r: 255, g: 121, b: 198 }).bold(),
             style::style("Agent is thinking...").dim()
         ),
     )?;
@@ -364,7 +354,7 @@ async fn run_system_prompt(
                     &mut io::stdout(),
                     &format!(
                         "{} {}",
-                        style::style(spinner_char).with(style::Color::Rgb { r: 255, g: 0, b: 128 }).bold(),
+                        style::style(spinner_char).with(style::Color::Rgb { r: 255, g: 121, b: 198 }).bold(),
                         style::style("Agent is thinking...").dim()
                     ),
                 )?;
@@ -444,39 +434,42 @@ async fn run_system_prompt(
 }
 
 fn render_banner(provider: &str, model_name: &str, session_id: &str, mcp_count: usize, skill_count: usize) {
-    let violet = style::Color::Rgb { r: 180, g: 100, b: 255 };
-    let magenta = style::Color::Rgb { r: 255, g: 0, b: 128 };
-    let cyan = style::Color::Rgb { r: 0, g: 240, b: 255 };
+    let violet = style::Color::Rgb { r: 189, g: 147, b: 249 }; // Dracula Purple
+    let magenta = style::Color::Rgb { r: 255, g: 121, b: 198 }; // Dracula Pink
+    let cyan = style::Color::Rgb { r: 139, g: 233, b: 253 }; // Dracula Cyan
 
-    let header_text = format!("⚡ Nami CLI v{} ", env!("CARGO_PKG_VERSION"));
+    let header_text = format!("Nami CLI v{}", env!("CARGO_PKG_VERSION"));
     
-    // Print top rule with header text
-    print!("{}", style::style(header_text).with(magenta).bold());
-    println!("{}", style::style("─".repeat(50usize.saturating_sub(13 + env!("CARGO_PKG_VERSION").len()))).with(violet));
+    // Print header line
+    println!("{}", style::style("─".repeat(50)).with(violet));
     
-    // Print details
+    // Print header text with no trailing lines after version number
+    println!("{}", style::style(header_text).with(magenta).bold());
+    
+    // Print details on separate lines with indentation and no bullet points
     println!(
-        "  {} {} ({})  {} {} MCP, {} skills",
-        style::style("●").with(magenta),
+        "{} {}",
         style::style("Model:").dim(),
         style::style(format!("{} using {}", provider, model_name)).with(cyan),
-        style::style("●").with(magenta),
-        style::style(format!("{} servers", mcp_count)).with(cyan),
-        style::style(format!("{} skills", skill_count)).with(cyan),
     );
+    println!(
+        "{} {} MCP servers, {} skills",
+        style::style("Capabilities:").dim(),
+        style::style(mcp_count).with(cyan),
+        style::style(skill_count).with(cyan),
+    );
+
     let workspace_dir = std::env::current_dir()
         .map(|p| p.to_string_lossy().to_string())
         .unwrap_or_else(|_| "Unknown".to_string());
 
     println!(
-        "  {} {} {}",
-        style::style("●").with(magenta),
+        "{} {}",
         style::style("Session:").dim(),
         style::style(session_id).with(cyan).dim(),
     );
     println!(
-        "  {} {} {}",
-        style::style("●").with(magenta),
+        "{} {}",
         style::style("Workspace:").dim(),
         style::style(workspace_dir).with(cyan),
     );
@@ -679,60 +672,22 @@ pub async fn run_cli(
 
     let mut nami_skin = MadSkin::default();
 
-    nami_skin.paragraph.set_fg(termimad::crossterm::style::Color::Rgb { r: 240, g: 240, b: 245 });
-    nami_skin.bold.set_fg(termimad::crossterm::style::Color::Rgb { r: 255, g: 0, b: 128 }); // Synthwave Pink
-    nami_skin.italic.set_fg(termimad::crossterm::style::Color::Rgb { r: 0, g: 240, b: 255 }); // Cyan
-    nami_skin.inline_code.set_fg(termimad::crossterm::style::Color::Rgb { r: 180, g: 100, b: 255 }); // Violet
-    nami_skin.inline_code.set_bg(termimad::crossterm::style::Color::Rgb { r: 25, g: 20, b: 35 });
-    nami_skin.code_block.set_fg(termimad::crossterm::style::Color::Rgb { r: 0, g: 240, b: 255 });
-    nami_skin.code_block.set_bg(termimad::crossterm::style::Color::Rgb { r: 20, g: 15, b: 30 });
-    nami_skin.bullet.set_fg(termimad::crossterm::style::Color::Rgb { r: 255, g: 0, b: 128 });
+    nami_skin.paragraph.set_fg(termimad::crossterm::style::Color::Rgb { r: 248, g: 248, b: 242 }); // Dracula FG
+    nami_skin.bold.set_fg(termimad::crossterm::style::Color::Rgb { r: 255, g: 121, b: 198 }); // Dracula Pink
+    nami_skin.italic.set_fg(termimad::crossterm::style::Color::Rgb { r: 139, g: 233, b: 253 }); // Dracula Cyan
+    nami_skin.inline_code.set_fg(termimad::crossterm::style::Color::Rgb { r: 189, g: 147, b: 249 }); // Dracula Purple
+    nami_skin.inline_code.set_bg(termimad::crossterm::style::Color::Rgb { r: 40, g: 42, b: 54 }); // Dracula BG
+    nami_skin.code_block.set_fg(termimad::crossterm::style::Color::Rgb { r: 139, g: 233, b: 253 }); // Dracula Cyan
+    nami_skin.code_block.set_bg(termimad::crossterm::style::Color::Rgb { r: 40, g: 42, b: 54 }); // Dracula BG
+    nami_skin.bullet.set_fg(termimad::crossterm::style::Color::Rgb { r: 255, g: 121, b: 198 }); // Dracula Pink
     
     // Headers
-    nami_skin.headers[0].set_fg(termimad::crossterm::style::Color::Rgb { r: 255, g: 0, b: 128 }); // H1 - Hot Pink
-    nami_skin.headers[1].set_fg(termimad::crossterm::style::Color::Rgb { r: 0, g: 240, b: 255 }); // H2 - Cyan
-    nami_skin.headers[2].set_fg(termimad::crossterm::style::Color::Rgb { r: 180, g: 100, b: 255 }); // H3 - Violet
-
-    // let mut last_config_mtime = get_config_mtime();
-    // let mut last_skills_mtime = get_skills_mtime();
+    nami_skin.headers[0].set_fg(termimad::crossterm::style::Color::Rgb { r: 255, g: 121, b: 198 }); // Dracula Pink
+    nami_skin.headers[1].set_fg(termimad::crossterm::style::Color::Rgb { r: 139, g: 233, b: 253 }); // Dracula Cyan
+    nami_skin.headers[2].set_fg(termimad::crossterm::style::Color::Rgb { r: 189, g: 147, b: 249 }); // Dracula Purple
 
     loop {
-        // let mut config_changed = false;
-
-        // if let Some(new_config) = check_config_mtime(&mut last_config_mtime) {
-        //     let (new_agent, new_model) = create_agent(&new_config).await?;
-
-        //     agent = new_agent;
-        //     model = new_model;
-
-        //     provider = new_config
-        //         .model
-        //         .provider
-        //         .clone()
-        //         .unwrap_or_else(|| "gemini".to_string());
-        //     model_name = new_config.model.model_name.clone();
-
-        //     config_changed = true;
-        // }
-
-        // let current_skills_mtime = get_skills_mtime();
-
-        // if last_skills_mtime != current_skills_mtime {
-        //     last_skills_mtime = current_skills_mtime;
-        //     config_changed = true;
-        // }
-
-        // if config_changed {
-        //     runner = Runner::builder()
-        //         .app_name(app_name)
-        //         .agent(agent.clone())
-        //         .session_service(sessions.clone())
-        //         .compaction_config(get_compaction_config(model.clone()))
-        //         .build()?;
-
-        //     println!("\n{}\n", style::style("🧠 Agent reloaded").cyan());
-        // }
-
+       
         let line = rl.readline("You > ");
 
         match line {
@@ -783,7 +738,7 @@ pub async fn run_cli(
                     &mut io::stdout(),
                     &format!(
                         "{} {}",
-                        style::style("⏳").magenta(),
+                        style::style("⠋").with(style::Color::Rgb { r: 255, g: 121, b: 198 }).bold(),
                         style::style("Agent is thinking...").dim()
                     ),
                 )?;
@@ -795,11 +750,26 @@ pub async fn run_cli(
                 let mut cancelled = false;
                 let mut cancelled_by_esc = false;
                 let mut event_reader = EventStream::new();
+                let mut spinner_tick = tokio::time::interval(std::time::Duration::from_millis(80));
+                let spinner_chars = vec!["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];
+                let mut spinner_idx = 0;
 
                 terminal::enable_raw_mode()?;
 
                 loop {
                     tokio::select! {
+                        _ = spinner_tick.tick() => {
+                            spinner_idx = (spinner_idx + 1) % spinner_chars.len();
+                            let spinner_char = spinner_chars[spinner_idx];
+                            print_status_line(
+                                &mut io::stdout(),
+                                &format!(
+                                    "{} {}",
+                                    style::style(spinner_char).with(style::Color::Rgb { r: 255, g: 121, b: 198 }).bold(),
+                                    style::style("Agent is thinking...").dim()
+                                ),
+                            )?;
+                        }
                         result = stream.next() => {
                             match result {
                                 Some(Ok(event)) => {
@@ -831,16 +801,6 @@ pub async fn run_cli(
                                             }
                                         }
                                     }
-
-                                    // Re-print the thinking status if we are still waiting for more
-                                    print_status_line(
-                                        &mut io::stdout(),
-                                        &format!(
-                                            "{} {}",
-                                            style::style("⏳").magenta(),
-                                            style::style("Agent is thinking...").dim()
-                                        ),
-                                    )?;
                                 }
 
                                 Some(Err(e)) => {
