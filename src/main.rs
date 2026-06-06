@@ -80,32 +80,56 @@ enum WorkspaceCommands {
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-    println!("Application entry reached");
+    let cli = Cli::parse();
+    let is_quiet = matches!(
+        cli.command,
+        Commands::Run { .. } | Commands::Eval | Commands::Workspace { .. }
+    );
+
+    if !is_quiet {
+        println!("Application entry reached");
+    }
     log::info!("Application entry reached");
+
     rustls::crypto::ring::default_provider()
         .install_default()
         .expect("Failed to install rustls crypto provider");
 
     dotenvy::dotenv().ok();
 
-    println!("Parsing CLI...");
-    let cli = Cli::parse();
+    if !is_quiet {
+        println!("Parsing CLI...");
+    }
 
     // Logging & Telemetry setup
     let rust_log = std::env::var("RUST_LOG").unwrap_or_else(|_| "".to_string());
     if rust_log.is_empty() {
-        unsafe { std::env::set_var("RUST_LOG", "info") };
+        if is_quiet {
+            unsafe { std::env::set_var("RUST_LOG", "error") };
+        } else {
+            unsafe { std::env::set_var("RUST_LOG", "info") };
+        }
+    } else if is_quiet {
+        unsafe { std::env::set_var("RUST_LOG", "error") };
     }
-    println!(
-        "RUST_LOG set to '{}'",
-        std::env::var("RUST_LOG").unwrap()
-    );
+    if is_quiet {
+        unsafe { std::env::set_var("npm_config_loglevel", "error") };
+        unsafe { std::env::set_var("NPM_CONFIG_LOGLEVEL", "error") };
+    }
+
+    if !is_quiet {
+        println!(
+            "RUST_LOG set to '{}'",
+            std::env::var("RUST_LOG").unwrap()
+        );
+    }
 
     let otel_endpoint = std::env::var("OTEL_COLLECTOR").unwrap_or_else(|_| "NOT_SET".to_string());
     let use_telemetry = otel_endpoint != "NOT_SET" && !otel_endpoint.is_empty();
-    println!("OTEL_COLLECTOR='{}'", otel_endpoint);
-
-    println!("Initializing telemetry...");
+    if !is_quiet {
+        println!("OTEL_COLLECTOR='{}'", otel_endpoint);
+        println!("Initializing telemetry...");
+    }
 
     // If we are running under Tauri, let Tauri's plugin manage logging
     let is_tauri = std::env::var("TAURI_ENV").is_ok();
@@ -125,12 +149,16 @@ async fn main() -> anyhow::Result<()> {
         }
     }
 
-    println!("Telemetry initialized. Starting app...");
+    if !is_quiet {
+        println!("Telemetry initialized. Starting app...");
+    }
     log::info!("Application starting with telemetry: {}", use_telemetry);
     tracing::info!("Application starting with telemetry: {}", use_telemetry);
 
     // shared setup
-    log::info!("Building agent...");
+    if !is_quiet {
+        log::info!("Building agent...");
+    }
     let config = agent::load_config_sync().unwrap_or_else(|e| {
         log::warn!("Failed to load config.toml: {}. Using defaults.", e);
         agent::AppConfig {
@@ -276,7 +304,9 @@ async fn main() -> anyhow::Result<()> {
 
     // shutdown telemetry
     if use_telemetry {
-        log::info!("Flushing telemetry...");
+        if !is_quiet {
+            log::info!("Flushing telemetry...");
+        }
         tokio::time::sleep(Duration::from_millis(500)).await;
         shutdown_telemetry();
     }
