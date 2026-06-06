@@ -61,7 +61,8 @@ Nami is structured into four primary modules under `src/`. Below is a detailed b
 #### Dependencies & Maintenance
 - **Dependencies**: `adk-rust`, `adk-runner`, `crate::tools`, `crate::utils`
 - **Maintenance**:
-  - When adding new specialized agents, ensure they are registered in `specialists.rs` and added to the `core_tools` list in `agent.rs`.
+  - Built-in specialized agents are registered in `specialists.rs` and added to the `core_tools` list in `agent.rs`.
+  - Arbitrary custom specialist agents can be configured dynamically under `[specialists.custom]` in the global `config.toml` (or `~/.nami/config.toml`) without modifying the source code. Custom agents automatically load custom LLM models/overrides, custom descriptions, and custom instructions (system prompts), registering themselves for delegation.
   - System instructions (`format_persona`) must remain concise to stay within token limits.
 
 ---

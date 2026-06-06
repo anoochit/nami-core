@@ -371,8 +371,10 @@ async fn handle_workspace(subcommand: WorkspaceCommands) -> anyhow::Result<()> {
                 if list.contains(&absolute_path) {
                     Some(absolute_path)
                 } else {
-                    println!("Error: Workspace path not registered. Use 'workspace add <path>' first.");
-                    None
+                    println!("Workspace path not registered. Automatically registering: {}", absolute_path);
+                    list.push(absolute_path.clone());
+                    workspaces.list = Some(list.clone());
+                    Some(absolute_path)
                 }
             };
 

@@ -60,6 +60,19 @@ pub struct ModelConfig {
     pub location: Option<String>,
 }
 
+/// Configuration for dynamic custom specialist agents.
+#[derive(Debug, Deserialize, Serialize, Clone, PartialEq)]
+pub struct CustomSpecialistConfig {
+    pub provider: Option<String>,
+    pub model_name: Option<String>,
+    pub api_key_env: Option<String>,
+    pub base_url: Option<String>,
+    pub project_id: Option<String>,
+    pub location: Option<String>,
+    pub description: String,
+    pub instruction: String,
+}
+
 /// Configuration for individual specialized agents.
 #[derive(Debug, Deserialize, Serialize, Clone, PartialEq)]
 pub struct SpecialistsConfig {
@@ -73,6 +86,9 @@ pub struct SpecialistsConfig {
     pub ralph: Option<ModelConfig>,
     /// Configuration for the generalist agent.
     pub generalist: Option<ModelConfig>,
+    /// Additional dynamic custom specialist agents
+    #[serde(default)]
+    pub custom: Option<HashMap<String, CustomSpecialistConfig>>,
 }
 
 /// Configuration for the reflection service.
@@ -340,10 +356,26 @@ pub async fn create_agent(
                 load_model_with_fallback(&Some(generalist_cfg.clone()), &app_config.model).await?,
             );
         }
+        if let Some(ref custom_specs) = specs.custom {
+            for (name, custom_cfg) in custom_specs {
+                let model_cfg = ModelConfig {
+                    provider: custom_cfg.provider.clone(),
+                    model_name: custom_cfg.model_name.clone().unwrap_or_else(|| app_config.model.model_name.clone()),
+                    api_key_env: custom_cfg.api_key_env.clone(),
+                    base_url: custom_cfg.base_url.clone(),
+                    project_id: custom_cfg.project_id.clone(),
+                    location: custom_cfg.location.clone(),
+                };
+                let loaded_model = load_model_with_fallback(&Some(model_cfg), &app_config.model).await?;
+                specialist_models.insert(name.clone(), loaded_model);
+            }
+        }
     }
 
+    let custom_specs = app_config.specialists.as_ref().and_then(|s| s.custom.clone());
+
     let specialists =
-        specialists::get_specialists(model.clone(), specialist_models, core_tools.clone());
+        specialists::get_specialists(model.clone(), specialist_models, core_tools.clone(), custom_specs);
 
     core_tools.extend(tools::pev_loop::pev_tools(model.clone(), specialists.clone()));
 

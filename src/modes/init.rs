@@ -239,6 +239,30 @@ help = "Invoke a specific skill by name"
 [commands."/mcp"]
 template = "Query the connected MCP servers with: {{args}}"
 help = "Execute a query against connected MCP servers"
+
+# --- Specialist Agents Configuration ---
+# [specialists.coder]
+# # model_name = "gemini-2.5-pro"
+
+# [specialists.researcher]
+
+# [specialists.writer]
+
+# [specialists.ralph]
+
+# [specialists.generalist]
+
+# --- Custom Dynamic Specialists ---
+# You can define custom specialist agents under [specialists.custom.<agent_name>].
+# These agents are automatically registered at runtime and can be delegated tasks.
+# Each custom agent must define `description` (used for routing) and `instruction`.
+# `model_name`, `provider`, etc. are optional overrides.
+#
+# [specialists.custom.database_guru]
+# description = "A specialist in database design, query optimization, and SQL performance tuning."
+# instruction = "You are an expert database administrator. Provide high-quality SQL queries and structural design advice."
+# # provider = "gemini"
+# # model_name = "gemini-2.5-pro"
 "#);
     write_file("config.toml", &config_content)?;
 

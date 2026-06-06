@@ -3,12 +3,10 @@ use std::path::PathBuf;
 use tokio::fs;
 use crate::utils::ignore::NamiIgnore;
 use serde_json;
-use std::sync::OnceLock;
 use tokio::time::{sleep, Duration};
 
 pub mod ignore;
 
-static WORKSPACE_DIR: OnceLock<PathBuf> = OnceLock::new();
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum ErrorCategory {
@@ -162,10 +160,6 @@ pub fn get_workspaces_info() -> (Option<PathBuf>, Vec<PathBuf>) {
 /// Returns the absolute path to the workspace directory.
 /// Ensures the directory exists on disk.
 pub async fn get_workspace_dir() -> std::result::Result<PathBuf, AdkError> {
-    if let Some(cached) = WORKSPACE_DIR.get() {
-        return Ok(cached.clone());
-    }
-
     let current_dir = std::env::current_dir()
         .map_err(|e| AdkError::tool(format!("Failed to get current directory: {}", e)))?;
     let canonical_current = std::fs::canonicalize(&current_dir).unwrap_or(current_dir.clone());
@@ -196,7 +190,6 @@ pub async fn get_workspace_dir() -> std::result::Result<PathBuf, AdkError> {
 
     // Canonicalize for security checks
     let absolute = fs::canonicalize(&root).await.unwrap_or(root);
-    let _ = WORKSPACE_DIR.set(absolute.clone());
     Ok(absolute)
 }
 
@@ -208,24 +201,45 @@ pub async fn sandbox(user_path: &str) -> std::result::Result<PathBuf, AdkError> 
 pub async fn sandbox_with_ignore(user_path: &str, ignore: Option<&NamiIgnore>) -> std::result::Result<PathBuf, AdkError> {
     let root: std::path::PathBuf = get_workspace_dir().await?;
 
-    // 1. Clean the user path: remove leading slashes and drive letters (Windows)
-    // to prevent the join from treating it as a new absolute path.
-    let clean_path = user_path.trim_start_matches(['/', '\\']);
+    let user_path_buf = PathBuf::from(user_path);
+    let mut normalized;
 
-    // 2. Join and normalize
-    let mut joined = root.clone();
-    joined.push(clean_path);
+    if user_path_buf.is_absolute() {
+        // If it's absolute, check if it falls within the workspace root
+        if user_path_buf.starts_with(&root) {
+            normalized = user_path_buf;
+        } else {
+            return Err(AdkError::tool(format!(
+                "Security Error: Absolute path '{}' attempts to escape sandbox '{}'.",
+                user_path, root.display()
+            )));
+        }
+    } else {
+        // If it is relative, we check if it starts with the last component of root (e.g. "x/")
+        // to prevent duplicate nesting (like resolving /path/to/x/x/file.txt instead of /path/to/x/file.txt)
+        let mut clean_p = user_path_buf;
+        if let Some(root_name) = root.file_name() {
+            if clean_p.starts_with(root_name) {
+                if let Ok(stripped) = clean_p.strip_prefix(root_name) {
+                    clean_p = stripped.to_path_buf();
+                }
+            }
+        }
+        normalized = root.join(clean_p);
+    }
 
-    let mut normalized = PathBuf::new();
-    for component in joined.components() {
+    // Normalize components to resolve any dot/parent-dir traversal (e.g., /a/b/../c)
+    let mut clean_normalized = PathBuf::new();
+    for component in normalized.components() {
         match component {
             std::path::Component::ParentDir => {
-                normalized.pop();
+                clean_normalized.pop();
             }
             std::path::Component::CurDir => {}
-            c => normalized.push(c),
+            c => clean_normalized.push(c),
         }
     }
+    normalized = clean_normalized;
 
     // 3. Final Guard: The resulting path MUST still start with the workspace root.
     if !normalized.starts_with(&root) {

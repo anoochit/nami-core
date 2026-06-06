@@ -16,6 +16,7 @@ pub fn get_specialists(
     default_model: Arc<dyn Llm>,
     specific_models: std::collections::HashMap<String, Arc<dyn Llm>>,
     tools: Vec<Arc<dyn Tool>>,
+    custom_specs: Option<HashMap<String, super::agent::CustomSpecialistConfig>>,
 ) -> HashMap<String, Arc<dyn Tool>> {
     let get_model = |name: &str| {
         specific_models
@@ -136,6 +137,26 @@ pub fn get_specialists(
     specialists.insert("writer".to_string(), Arc::new(AgentTool::new(writer)));
     specialists.insert("ralph".to_string(), Arc::new(AgentTool::new(ralph)));
     specialists.insert("verifier".to_string(), Arc::new(AgentTool::new(verifier)));
+
+    if let Some(specs) = custom_specs {
+        for (name, config) in specs {
+            let mut agent_builder = LlmAgentBuilder::new(&name)
+                .description(&config.description)
+                .instruction(&config.instruction)
+                .model(get_model(&name));
+            for t in &tools {
+                agent_builder = agent_builder.tool(t.clone());
+            }
+            match agent_builder.build() {
+                Ok(agent) => {
+                    specialists.insert(name.clone(), Arc::new(AgentTool::new(Arc::new(agent))));
+                }
+                Err(e) => {
+                    log::error!("Failed to build custom specialist agent '{}': {}", name, e);
+                }
+            }
+        }
+    }
 
     specialists
 }

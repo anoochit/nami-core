@@ -4,10 +4,14 @@
 
 ### Added
 
+- **Dynamic Custom Specialist Agents**: Added support for defining arbitrary custom specialist agents under `[specialists.custom]` in the global `config.toml`. Custom agents dynamically load custom LLM models/overrides, custom descriptions, and custom instructions (system prompts), registering them automatically for agent delegation.
 - **Quiet Logging Mode**: Implemented log and verbose message suppression for `run`, `eval`, and `workspace` subcommands to provide an extremely clean, script-friendly console output. Automatically sets logging filters to error level and silences CLI initialization output and background telemetry logs.
+- **Dynamic Workspace Path Resolution**: Replaced the static, process-lifetime OnceLock cache (`WORKSPACE_DIR`) on `get_workspace_dir()` with dynamic, configuration-level resolution, allowing changes to the active workspace to take effect immediately in all filesystem tools.
+- **Workspace Auto-Registration Select Shortcut**: Updated the `workspace select <path>` command to automatically register and save unregistered workspace directories (like `.`) when specified as active.
 
 ### Changed
 
+- **Smart Path Sandboxing**: Upgraded `sandbox_with_ignore` to correctly match absolute paths within the workspace and strip duplicate folder prefix nesting on relative paths (e.g. resolving `x/file` to `/path/to/x/file` rather than `/path/to/x/x/file`), eliminating filesystems failure on active workspaces.
 - **Centralized Documentation Integration**: Consolidated and merged the contents of all individual module READMEs from the internal `src/` directory directly into the central documentation ([docs/COMPONENTS.md](file:///mnt/d/Projects/AIProject/namiclaw/docs/COMPONENTS.md)), keeping the codebase single-sourced and cohesive.
 - **Documentation Alignment**: Synchronized main documentations in `docs/ARCHITECTURE.md` and `docs/HARNESS.md` with the current codebase, removing deprecated `browse` mode references and documenting the quiet mode behavior for evaluations.
 
