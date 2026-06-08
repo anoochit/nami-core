@@ -65,23 +65,56 @@ impl Completer for NamiHelper {
         if let Some(path_part) = word.strip_prefix('@') {
             let mut matches = Vec::new();
 
-            let workspace_path = std::path::Path::new("workspace");
+            // Resolve base directory and prefix search pattern
+            let (base_dir, search_pattern) = if path_part.starts_with('/') || std::path::Path::new(path_part).is_absolute() {
+                // If it's an absolute path, use its parent directory as the search base
+                let path_obj = std::path::Path::new(path_part);
+                if let Some(parent) = path_obj.parent() {
+                    let file_name = path_obj.file_name().map(|n| n.to_string_lossy().to_string()).unwrap_or_default();
+                    (parent.to_path_buf(), file_name)
+                } else {
+                    (std::path::PathBuf::from("/"), path_part.to_string())
+                }
+            } else {
+                // Otherwise, use dynamic workspace path
+                let workspace_path = if let Ok(current_dir) = std::env::current_dir() {
+                    let canonical_current = crate::utils::clean_unc_path(std::fs::canonicalize(&current_dir).unwrap_or(current_dir.clone()));
+                    let (active_opt, list) = crate::utils::get_workspaces_info();
+                    let mut matched_workspace = None;
+                    for ws_path in &list {
+                        let canonical_ws = crate::utils::clean_unc_path(std::fs::canonicalize(ws_path).unwrap_or_else(|_| ws_path.clone()));
+                        if canonical_current == canonical_ws || canonical_current.starts_with(&canonical_ws) {
+                            matched_workspace = Some(canonical_ws);
+                            break;
+                        }
+                    }
+                    matched_workspace.or(active_opt).unwrap_or(canonical_current)
+                } else {
+                    std::path::PathBuf::from(".")
+                };
+                (workspace_path, path_part.to_string())
+            };
 
-            if workspace_path.exists() {
-                for entry in WalkDir::new(workspace_path)
+            if base_dir.exists() {
+                for entry in WalkDir::new(&base_dir)
                     .max_depth(5)
                     .into_iter()
                     .filter_map(|e| e.ok())
                 {
                     if entry.file_type().is_file()
-                        && let Ok(relative_path) = entry.path().strip_prefix(workspace_path)
+                        && let Ok(relative_path) = entry.path().strip_prefix(&base_dir)
                     {
                         let path_str = relative_path.to_string_lossy().replace("\\", "/");
 
-                        if path_str.to_lowercase().contains(&path_part.to_lowercase()) {
+                        if path_str.to_lowercase().contains(&search_pattern.to_lowercase()) {
+                            let replacement = if path_part.starts_with('/') || std::path::Path::new(path_part).is_absolute() {
+                                base_dir.join(&path_str).to_string_lossy().replace("\\", "/")
+                            } else {
+                                path_str.clone()
+                            };
                             matches.push(Pair {
-                                display: path_str.clone(),
-                                replacement: path_str,
+                                display: path_str,
+                                replacement,
                             });
                         }
                     }

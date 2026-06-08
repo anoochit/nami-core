@@ -45,6 +45,12 @@ struct SearchWikiByTagArgs {
 }
 
 #[derive(Deserialize, JsonSchema)]
+struct GlobFindWikiArgs {
+    /// The glob pattern to match against wiki page paths or titles (e.g. "Projects/*.md" or "**/ideas.md").
+    pattern: String,
+}
+
+#[derive(Deserialize, JsonSchema)]
 struct GetWikiGraphArgs {}
 
 #[derive(Deserialize, JsonSchema)]
@@ -841,6 +847,58 @@ async fn sanitize_wiki_vault(_args: SanitizeWikiVaultArgs) -> std::result::Resul
     }))
 }
 
+/// Deletes a wiki page by title from the 'wiki/' directory.
+#[tool]
+async fn delete_wiki_page(args: WikiPageArgs) -> std::result::Result<Value, AdkError> {
+    let wiki_dir = get_wiki_dir().await?;
+    let filename = format!("{}.md", args.title.trim_start_matches(['/', '\\']));
+    let path = wiki_dir.join(&filename);
+
+    if !path.exists() {
+        return Err(AdkError::tool(format!("Wiki page '{}' not found.", args.title)));
+    }
+
+    if !path.is_file() {
+        return Err(AdkError::tool(format!("Path is not a wiki page: {}", args.title)));
+    }
+
+    fs::remove_file(&path)
+        .await
+        .map_err(|e| AdkError::tool(format!("Failed to delete wiki page: {}", e)))?;
+
+    Ok(json!({
+        "status": "success",
+        "message": format!("Successfully deleted wiki page '{}'.", args.title),
+        "path": format!("wiki/{}", filename)
+    }))
+}
+
+/// Finds wiki pages matching a specific glob pattern recursively within the wiki directory.
+#[tool]
+async fn glob_find_wiki(args: GlobFindWikiArgs) -> std::result::Result<Value, AdkError> {
+    let wiki_dir = get_wiki_dir().await?;
+    let mut matches = Vec::new();
+    let glob = globset::Glob::new(&args.pattern)
+        .map_err(|e| AdkError::tool(format!("Invalid glob pattern: {}", e)))?
+        .compile_matcher();
+
+    for entry in WalkDir::new(&wiki_dir).into_iter().filter_map(|e| e.ok()) {
+        let path = entry.path();
+        if path.is_file() {
+            let relative = path.strip_prefix(&wiki_dir).unwrap_or(path);
+            let rel_str = relative.to_string_lossy().replace("\\", "/");
+            if glob.is_match(&rel_str) {
+                matches.push(json!({
+                    "title": get_relative_title(&wiki_dir, path),
+                    "path": format!("wiki/{}", rel_str)
+                }));
+            }
+        }
+    }
+
+    Ok(json!({ "matches": matches }))
+}
+
 pub fn wiki_tools() -> Vec<Arc<dyn Tool>> {
     vec![
         Arc::new(AddWikiPage),
@@ -855,6 +913,8 @@ pub fn wiki_tools() -> Vec<Arc<dyn Tool>> {
         Arc::new(GetBacklinks),
         Arc::new(CheckBrokenLinks),
         Arc::new(RenameWikiPage),
+        Arc::new(DeleteWikiPage),
+        Arc::new(GlobFindWiki),
         Arc::new(ApplyTemplate),
     ]
 }
