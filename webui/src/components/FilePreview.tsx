@@ -2,8 +2,25 @@ import React, { useState, useEffect, useRef } from 'react';
 import { X, FileText, Loader2, AlertCircle, Download, Copy, Check } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
+import { PrismLight as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
+import json from 'react-syntax-highlighter/dist/esm/languages/prism/json';
+import typescript from 'react-syntax-highlighter/dist/esm/languages/prism/typescript';
+import tsx from 'react-syntax-highlighter/dist/esm/languages/prism/tsx';
+import javascript from 'react-syntax-highlighter/dist/esm/languages/prism/javascript';
+import jsx from 'react-syntax-highlighter/dist/esm/languages/prism/jsx';
+import rust from 'react-syntax-highlighter/dist/esm/languages/prism/rust';
+import python from 'react-syntax-highlighter/dist/esm/languages/prism/python';
+import css from 'react-syntax-highlighter/dist/esm/languages/prism/css';
+
+SyntaxHighlighter.registerLanguage('json', json);
+SyntaxHighlighter.registerLanguage('typescript', typescript);
+SyntaxHighlighter.registerLanguage('tsx', tsx);
+SyntaxHighlighter.registerLanguage('javascript', javascript);
+SyntaxHighlighter.registerLanguage('jsx', jsx);
+SyntaxHighlighter.registerLanguage('rust', rust);
+SyntaxHighlighter.registerLanguage('python', python);
+SyntaxHighlighter.registerLanguage('css', css);
 import { api, getHeaders, BASE_URL } from '../lib/api';
 
 const parseFrontmatter = (content: string) => {
@@ -192,6 +209,20 @@ export const FilePreview: React.FC<FilePreviewProps> = ({ path, onClose, isWiki 
   const isHtml = ['html', 'htm'].includes(ext);
   const isCode = ['ts', 'tsx', 'js', 'jsx', 'rs', 'py', 'json', 'css'].includes(ext);
 
+  const getLanguageName = (extension: string) => {
+    switch (extension) {
+      case 'ts': return 'typescript';
+      case 'tsx': return 'tsx';
+      case 'js': return 'javascript';
+      case 'jsx': return 'jsx';
+      case 'rs': return 'rust';
+      case 'py': return 'python';
+      case 'json': return 'json';
+      case 'css': return 'css';
+      default: return extension;
+    }
+  };
+
   return (
     <div className="flex flex-col h-full bg-white border-l shadow-2xl z-10">
       <div className="p-3 border-b flex justify-between items-center bg-gray-50">
@@ -241,7 +272,7 @@ export const FilePreview: React.FC<FilePreviewProps> = ({ path, onClose, isWiki 
             ) : isMarp ? (
                 <div dangerouslySetInnerHTML={{ __html: marpHtml }} />
             ) : isCode ? (
-                <SyntaxHighlighter language={ext} style={vscDarkPlus} customStyle={{ margin: 0, padding: '1rem', borderRadius: '0.5rem' }}>
+                <SyntaxHighlighter language={getLanguageName(ext)} style={vscDarkPlus} customStyle={{ margin: 0, padding: '1rem', borderRadius: '0.5rem' }}>
                     {content || ''}
                 </SyntaxHighlighter>
             ) : (
