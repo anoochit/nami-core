@@ -62,58 +62,6 @@ impl Completer for NamiHelper {
         let (start, word) =
             rustyline::completion::extract_word(line, pos, None, |c| c == ' ' || c == '\t');
 
-        if let Some(path_part) = word.strip_prefix('@') {
-            let mut matches = Vec::new();
-
-            // Resolve dynamic workspace path
-            let base_dir = if let Ok(current_dir) = std::env::current_dir() {
-                let canonical_current = crate::utils::clean_unc_path(std::fs::canonicalize(&current_dir).unwrap_or(current_dir.clone()));
-                let (active_opt, list) = crate::utils::get_workspaces_info();
-                let mut matched_workspace = None;
-                for ws_path in &list {
-                    let canonical_ws = crate::utils::clean_unc_path(std::fs::canonicalize(ws_path).unwrap_or_else(|_| ws_path.clone()));
-                    if canonical_current == canonical_ws || canonical_current.starts_with(&canonical_ws) {
-                        matched_workspace = Some(canonical_ws);
-                        break;
-                    }
-                }
-                matched_workspace.or(active_opt).unwrap_or(canonical_current)
-            } else {
-                std::path::PathBuf::from(".")
-            };
-
-            let clean_search_pattern = path_part.trim_start_matches(['/', '\\']);
-
-            if base_dir.exists() {
-                for entry in WalkDir::new(&base_dir)
-                    .max_depth(5)
-                    .into_iter()
-                    .filter_entry(|e| {
-                        let name = e.file_name().to_string_lossy();
-                        name != ".git" && name != "target" && name != "node_modules" && name != "dist" && name != ".venv" && name != "build"
-                    })
-                    .filter_map(|e| e.ok())
-                {
-                    if entry.file_type().is_file()
-                        && let Ok(relative_path) = entry.path().strip_prefix(&base_dir)
-                    {
-                        let path_str = relative_path.to_string_lossy().replace("\\", "/");
-
-                        if path_str.to_lowercase().contains(&clean_search_pattern.to_lowercase()) {
-                            matches.push(Pair {
-                                display: path_str.clone(),
-                                replacement: path_str,
-                            });
-                        }
-                    }
-                }
-            }
-
-            matches.truncate(10);
-
-            return Ok((start + 1, matches));
-        }
-
         if word.starts_with('/') {
             let mut matches = Vec::new();
             let commands = vec![
@@ -144,6 +92,67 @@ impl Completer for NamiHelper {
             }
             
             return Ok((start, matches));
+        }
+
+        if !word.is_empty() {
+            let (replace_index, clean_search_pattern, prepend_at) = if let Some(path_part) = word.strip_prefix('@') {
+                (start + 1, path_part.trim_start_matches(['/', '\\']), false)
+            } else {
+                (start, word.trim_start_matches(['/', '\\']), true)
+            };
+
+            let mut matches = Vec::new();
+
+            // Resolve dynamic workspace path
+            let base_dir = if let Ok(current_dir) = std::env::current_dir() {
+                let canonical_current = crate::utils::clean_unc_path(std::fs::canonicalize(&current_dir).unwrap_or(current_dir.clone()));
+                let (active_opt, list) = crate::utils::get_workspaces_info();
+                let mut matched_workspace = None;
+                for ws_path in &list {
+                    let canonical_ws = crate::utils::clean_unc_path(std::fs::canonicalize(ws_path).unwrap_or_else(|_| ws_path.clone()));
+                    if canonical_current == canonical_ws || canonical_current.starts_with(&canonical_ws) {
+                        matched_workspace = Some(canonical_ws);
+                        break;
+                    }
+                }
+                matched_workspace.or(active_opt).unwrap_or(canonical_current)
+            } else {
+                std::path::PathBuf::from(".")
+            };
+
+            if base_dir.exists() {
+                for entry in WalkDir::new(&base_dir)
+                    .max_depth(5)
+                    .into_iter()
+                    .filter_entry(|e| {
+                        let name = e.file_name().to_string_lossy();
+                        name != ".git" && name != "target" && name != "node_modules" && name != "dist" && name != ".venv" && name != "build"
+                    })
+                    .filter_map(|e| e.ok())
+                {
+                    if entry.file_type().is_file()
+                        && let Ok(relative_path) = entry.path().strip_prefix(&base_dir)
+                    {
+                        let path_str = relative_path.to_string_lossy().replace("\\", "/");
+
+                        if path_str.to_lowercase().contains(&clean_search_pattern.to_lowercase()) {
+                            let replacement = if prepend_at {
+                                format!("@{}", path_str)
+                            } else {
+                                path_str.clone()
+                            };
+                            matches.push(Pair {
+                                display: path_str,
+                                replacement,
+                            });
+                        }
+                    }
+                }
+            }
+
+            matches.truncate(10);
+
+            return Ok((replace_index, matches));
         }
 
         Ok((0, Vec::new()))
@@ -800,6 +809,11 @@ pub async fn run_cli(
     let mut rl: Editor<NamiHelper, rustyline::history::FileHistory> = Editor::with_config(config)?;
 
     rl.set_helper(Some(NamiHelper));
+
+    rl.bind_sequence(
+        rustyline::KeyEvent(rustyline::KeyCode::Tab, rustyline::Modifiers::NONE),
+        rustyline::Cmd::Complete,
+    );
 
     let history_path = get_nami_dir().join(".cli_history");
     let _ = rl.load_history(&history_path);
