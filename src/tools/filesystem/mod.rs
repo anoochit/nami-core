@@ -71,6 +71,25 @@ async fn list_dir(args: PathArgs) -> std::result::Result<Value, AdkError> {
     Ok(json!({ "entries": entries }))
 }
 
+/// Deletes a file at the specified path within the workspace.
+#[tool]
+async fn delete_file(args: PathArgs) -> std::result::Result<Value, AdkError> {
+    let path = sandbox(&args.path).await?;
+    if !path.exists() {
+        return Err(AdkError::tool(format!("File does not exist: {}", args.path)));
+    }
+    if !path.is_file() {
+        return Err(AdkError::tool(format!("Path is not a file: {}", args.path)));
+    }
+
+    fs::remove_file(&path)
+        .await
+        .map_err(|e| AdkError::tool(format!("Delete failed: {}", e)))?;
+
+    Ok(json!({ "status": "success", "path": args.path }))
+}
+
+
 #[derive(Deserialize, JsonSchema)]
 pub(crate) struct ExecArgs {
     pub(crate) command: String,
@@ -277,6 +296,7 @@ pub fn filesystem_tools() -> Vec<Arc<dyn Tool>> {
     vec![
         Arc::new(ReadFile),
         Arc::new(WriteFile),
+        Arc::new(DeleteFile),
         Arc::new(ListDir),
         Arc::new(ExecCommand),
         Arc::new(ReplaceText),

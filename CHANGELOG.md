@@ -10,6 +10,7 @@
 - **Quiet Logging Mode**: Implemented log and verbose message suppression for `run`, `eval`, and `workspace` subcommands to provide an extremely clean, script-friendly console output. Automatically sets logging filters to error level and silences CLI initialization output and background telemetry logs.
 - **Dynamic Workspace Path Resolution**: Replaced the static, process-lifetime OnceLock cache (`WORKSPACE_DIR`) on `get_workspace_dir()` with dynamic, configuration-level resolution, allowing changes to the active workspace to take effect immediately in all filesystem tools.
 - **Workspace Auto-Registration Select Shortcut**: Updated the `workspace select <path>` command to automatically register and save unregistered workspace directories (like `.`) when specified as active.
+- **Serve Mode Dynamic Workspace API**: Introduced dedicated REST endpoints (`GET /api/workspaces`, `POST /api/workspaces/add`, and `POST /api/workspaces/select`) to enable programmatic listing, adding, and selecting of workspaces in server mode, bringing feature parity with the CLI mode.
 
 ### Changed
 
