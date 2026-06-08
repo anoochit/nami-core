@@ -157,19 +157,37 @@ pub fn get_workspaces_info() -> (Option<PathBuf>, Vec<PathBuf>) {
     (None, Vec::new())
 }
 
+pub fn clean_unc_path(path: PathBuf) -> PathBuf {
+    #[cfg(windows)]
+    {
+        let path_str = path.to_string_lossy();
+        if path_str.starts_with(r"\\?\UNC\") {
+            PathBuf::from(format!(r"\\{}", &path_str[8..]))
+        } else if path_str.starts_with(r"\\?\") {
+            PathBuf::from(&path_str[4..])
+        } else {
+            path
+        }
+    }
+    #[cfg(not(windows))]
+    {
+        path
+    }
+}
+
 /// Returns the absolute path to the workspace directory.
 /// Ensures the directory exists on disk.
 pub async fn get_workspace_dir() -> std::result::Result<PathBuf, AdkError> {
     let current_dir = std::env::current_dir()
         .map_err(|e| AdkError::tool(format!("Failed to get current directory: {}", e)))?;
-    let canonical_current = std::fs::canonicalize(&current_dir).unwrap_or(current_dir.clone());
+    let canonical_current = clean_unc_path(std::fs::canonicalize(&current_dir).unwrap_or(current_dir.clone()));
 
     let (active_opt, list) = get_workspaces_info();
 
     // 1. Check if canonical_current or any parent is in the registered workspaces list
     let mut matched_workspace: Option<PathBuf> = None;
     for ws_path in &list {
-        let canonical_ws = std::fs::canonicalize(ws_path).unwrap_or_else(|_| ws_path.clone());
+        let canonical_ws = clean_unc_path(std::fs::canonicalize(ws_path).unwrap_or_else(|_| ws_path.clone()));
         if canonical_current == canonical_ws || canonical_current.starts_with(&canonical_ws) {
             matched_workspace = Some(canonical_ws);
             break;
@@ -189,7 +207,7 @@ pub async fn get_workspace_dir() -> std::result::Result<PathBuf, AdkError> {
     }
 
     // Canonicalize for security checks
-    let absolute = fs::canonicalize(&root).await.unwrap_or(root);
+    let absolute = clean_unc_path(fs::canonicalize(&root).await.unwrap_or(root));
     Ok(absolute)
 }
 
@@ -201,7 +219,7 @@ pub async fn sandbox(user_path: &str) -> std::result::Result<PathBuf, AdkError> 
 pub async fn sandbox_with_ignore(user_path: &str, ignore: Option<&NamiIgnore>) -> std::result::Result<PathBuf, AdkError> {
     let root: std::path::PathBuf = get_workspace_dir().await?;
 
-    let user_path_buf = PathBuf::from(user_path);
+    let user_path_buf = clean_unc_path(PathBuf::from(user_path));
     let mut normalized;
 
     if user_path_buf.is_absolute() {
@@ -239,7 +257,7 @@ pub async fn sandbox_with_ignore(user_path: &str, ignore: Option<&NamiIgnore>) -
             c => clean_normalized.push(c),
         }
     }
-    normalized = clean_normalized;
+    normalized = clean_unc_path(clean_normalized);
 
     // 3. Final Guard: The resulting path MUST still start with the workspace root.
     if !normalized.starts_with(&root) {

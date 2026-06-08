@@ -298,7 +298,7 @@ VITE_NAMI_API_KEY={nami_api_key}
     // 6. STATE_PROTOCOL.md
     write_file(
         "STATE_PROTOCOL.md",
-        "# STATE PROTOCOL\n**Objective:** Maintain continuity via `StateManager` tool.\n\n### 1. Resume\n- Call `get_task(id)` or `list_active_tasks()` first.\n- StateManager = Only source of truth.\n\n### 2. Execute\n- `update_task` on step completion.\n- Store critical data in `context_payload`.\n- Checkpoint after every significant sub-task.\n\n### 3. Suspend\n- Call `update_task` before turn end/switching goals.\n- **Status:** `in_progress`, `blocked`, `completed`, `failed`.\n- **Payload:** Minimal/High-signal JSON only.\n\n### 4. Best Practices\n- `last_step` = summary of last action.\n- Clear/measurable `goal` in `init_task`.",
+        "# STATE PROTOCOL\n**Objective:** Maintain continuity via `StateManager` tool.\n\n### 1. Resume & Context Discovery (LAZY LOAD ONLY)\n- **Do NOT** call `list_active_tasks()`, `get_task()`, `list_dir()`, `list_wiki_pages()`, or `list_todos()` blindly on your very first turn or for simple conversational queries.\n- Only call these tools when resuming an actual multi-step task/coding workflow, or when the user's prompt explicitly demands workspace/task context.\n- When resuming, `StateManager` is the only source of truth.\n\n### 2. Execute\n- `update_task` on step completion.\n- Store critical data in `context_payload`.\n- Checkpoint after every significant sub-task.\n\n### 3. Suspend\n- Call `update_task` before turn end/switching goals.\n- **Status:** `in_progress`, `blocked`, `completed`, `failed`.\n- **Payload:** Minimal/High-signal JSON only.\n\n### 4. Best Practices\n- `last_step` = summary of last action.\n- Clear/measurable `goal` in `init_task`.",
     )?;
 
     // 7. skills/cli-help/SKILL.md

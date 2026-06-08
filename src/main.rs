@@ -328,8 +328,8 @@ async fn handle_workspace(subcommand: WorkspaceCommands) -> anyhow::Result<()> {
     match subcommand {
         WorkspaceCommands::Add { path } => {
             let path_buf = std::path::PathBuf::from(&path);
-            let absolute_path = std::fs::canonicalize(&path_buf)
-                .unwrap_or_else(|_| path_buf.clone())
+            let absolute_path = nami::utils::clean_unc_path(std::fs::canonicalize(&path_buf)
+                .unwrap_or_else(|_| path_buf.clone()))
                 .to_string_lossy()
                 .replace('\\', "/");
 
@@ -364,8 +364,8 @@ async fn handle_workspace(subcommand: WorkspaceCommands) -> anyhow::Result<()> {
                 }
             } else {
                 let path_buf = std::path::PathBuf::from(&index_or_path);
-                let absolute_path = std::fs::canonicalize(&path_buf)
-                    .unwrap_or_else(|_| path_buf.clone())
+                let absolute_path = nami::utils::clean_unc_path(std::fs::canonicalize(&path_buf)
+                    .unwrap_or_else(|_| path_buf.clone()))
                     .to_string_lossy()
                     .replace('\\', "/");
                 if list.contains(&absolute_path) {
