@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.9.27] - 2026-06-09
+
+### Added
+
+- **Automatic Workspace Detection & Activation**: Upgraded workspace resolution in [get_workspace_dir](file:///home/xavier/namiclaw/src/utils/mod.rs#L222) to automatically set the active workspace and register the directory to the global workspaces list in `config.toml` whenever Nami is run in a directory.
+- **Wiki Search Fallback Interactive Prompts**: Updated the tool execution strategy in [format_persona](file:///home/xavier/namiclaw/src/agent/agent.rs#L543) to prompt the agent to explicitly ask the user whether it should search the project workspace files when a wiki page/information is not found.
+- **Responsive Icon Navigation Sidebar (WebUI)**: Replaced the tab-based sidebar in [App.tsx](file:///home/xavier/namiclaw/webui/src/App.tsx) with a light vertical icon sidebar on desktop, which responsively transforms into a horizontal bottom navigation bar on mobile.
+- **Mobile Collapsible Drawer Overlay (WebUI)**: Added a mobile drawer overlay for the sidebar panel, sliding up cleanly from the bottom bar when open and collapsing to `translate-y-full` when closed.
+
 ## [0.9.27] - 2026-06-08
 
 ### Added
