@@ -34,6 +34,7 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
       >
         {sidebarOpen ? <PanelLeftClose size={18} /> : <PanelLeftOpen size={18} />}
       </button> */}
+      <div/>
       
       <div className="flex flex-col items-center max-w-[50%]">
         <h2 className="font-display font-semibold text-sm text-slate-800 truncate max-w-[200px] sm:max-w-md text-center leading-snug">
