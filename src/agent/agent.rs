@@ -565,7 +565,7 @@ fn format_persona(soul: &str, user: &str, memory: &str, state: &str) -> String {
 
 ━━━ TOOL STRATEGY ━━━
 1. System Tools         → (built-in capabilities)
-2. Wiki / Knowledge     → ~/.nami/wiki/
+2. Wiki / Knowledge     → ~/.nami/wiki/ (If a wiki page/information is not found, stop and ask the user if you should search the workspace/project files instead).
 3. Workflows / Skills   → ~/.agents/skills/ & ~/.nami/skills/
 4. External Search      → (last resort; flag when used)
 

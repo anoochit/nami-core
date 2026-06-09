@@ -175,6 +175,48 @@ pub fn clean_unc_path(path: PathBuf) -> PathBuf {
     }
 }
 
+fn update_active_workspace_config(new_active: &std::path::Path) -> anyhow::Result<()> {
+    let config_path = get_nami_dir().join("config.toml");
+    let content = if config_path.exists() {
+        std::fs::read_to_string(&config_path)?
+    } else {
+        String::new()
+    };
+
+    let mut doc: toml::Value = if content.is_empty() {
+        toml::Value::Table(toml::map::Map::new())
+    } else {
+        toml::from_str(&content)?
+    };
+
+    if let Some(table) = doc.as_table_mut() {
+        let workspaces = table
+            .entry("workspaces")
+            .or_insert_with(|| toml::Value::Table(toml::map::Map::new()))
+            .as_table_mut()
+            .ok_or_else(|| anyhow::anyhow!("workspaces is not a table"))?;
+
+        let new_active_str = new_active.to_string_lossy().to_string();
+
+        // Update active
+        workspaces.insert("active".to_string(), toml::Value::String(new_active_str.clone()));
+
+        // Add to list if not present
+        let list_val = workspaces.entry("list").or_insert_with(|| toml::Value::Array(Vec::new()));
+        if let Some(arr) = list_val.as_array_mut() {
+            let exists = arr.iter().any(|v| v.as_str() == Some(&new_active_str));
+            if !exists {
+                arr.push(toml::Value::String(new_active_str));
+            }
+        }
+
+        let updated_content = toml::to_string_pretty(&doc)?;
+        std::fs::write(&config_path, updated_content)?;
+    }
+
+    Ok(())
+}
+
 /// Returns the absolute path to the workspace directory.
 /// Ensures the directory exists on disk.
 pub async fn get_workspace_dir() -> std::result::Result<PathBuf, AdkError> {
@@ -194,13 +236,22 @@ pub async fn get_workspace_dir() -> std::result::Result<PathBuf, AdkError> {
         }
     }
 
-    let root = if let Some(matched) = matched_workspace {
-        matched
-    } else if let Some(active) = active_opt {
-        active
-    } else {
-        canonical_current
+    let root = matched_workspace.unwrap_or(canonical_current);
+
+    // If active workspace is different or not set, automatically update config.toml
+    let is_different = match &active_opt {
+        Some(active) => {
+            let canonical_active = clean_unc_path(std::fs::canonicalize(active).unwrap_or_else(|_| active.clone()));
+            canonical_active != root
+        }
+        None => true,
     };
+
+    if is_different {
+        if let Err(e) = update_active_workspace_config(&root) {
+            log::warn!("Failed to update active workspace in config: {:?}", e);
+        }
+    }
 
     if !root.exists() {
         let _ = fs::create_dir_all(&root).await;
