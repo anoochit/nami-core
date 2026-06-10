@@ -390,14 +390,12 @@ async fn read_wiki_page(Path(title): Path<String>) -> impl IntoResponse {
 
 #[tracing::instrument]
 async fn get_workspaces() -> impl IntoResponse {
-    let config = match crate::agent::load_config_sync() {
-        Ok(c) => c,
-        Err(e) => return (StatusCode::INTERNAL_SERVER_ERROR, format!("Failed to load config: {}", e)).into_response(),
-    };
-
-    let workspaces = config.workspaces.unwrap_or_default();
-    let active = workspaces.active.unwrap_or_default();
-    let list = workspaces.list.unwrap_or_default();
+    let current_dir = std::env::current_dir()
+        .unwrap_or_else(|_| std::path::PathBuf::from("."));
+    let active = crate::utils::clean_unc_path(std::fs::canonicalize(&current_dir).unwrap_or(current_dir))
+        .to_string_lossy()
+        .replace('\\', "/");
+    let list = vec![active.clone()];
 
     Json(json!({
         "active": active,
@@ -412,32 +410,8 @@ struct WorkspacePathPayload {
 
 #[tracing::instrument]
 async fn add_workspace(Json(payload): Json<WorkspacePathPayload>) -> impl IntoResponse {
-    let mut config = match crate::agent::load_config_sync() {
-        Ok(c) => c,
-        Err(e) => return (StatusCode::INTERNAL_SERVER_ERROR, format!("Failed to load config: {}", e)).into_response(),
-    };
-
-    let mut workspaces = config.workspaces.clone().unwrap_or_default();
-    let mut list = workspaces.list.clone().unwrap_or_default();
-
-    let path_buf = std::path::PathBuf::from(&payload.path);
-    let absolute_path = crate::utils::clean_unc_path(std::fs::canonicalize(&path_buf)
-        .unwrap_or_else(|_| path_buf.clone()))
-        .to_string_lossy()
-        .replace('\\', "/");
-
-    if !list.contains(&absolute_path) {
-        list.push(absolute_path.clone());
-    }
-
-    workspaces.list = Some(list);
-    config.workspaces = Some(workspaces);
-
-    if let Err(e) = crate::agent::save_config_sync(&config) {
-        return (StatusCode::INTERNAL_SERVER_ERROR, format!("Failed to save config: {}", e)).into_response();
-    }
-
-    Json(json!({ "status": "success", "added": absolute_path })).into_response()
+    // No-op success for backward compatibility with frontend WebUI
+    Json(json!({ "status": "success", "added": payload.path })).into_response()
 }
 
 #[derive(serde::Deserialize, Debug)]
@@ -447,43 +421,7 @@ struct WorkspaceSelectPayload {
 
 #[tracing::instrument]
 async fn select_workspace(Json(payload): Json<WorkspaceSelectPayload>) -> impl IntoResponse {
-    let mut config = match crate::agent::load_config_sync() {
-        Ok(c) => c,
-        Err(e) => return (StatusCode::INTERNAL_SERVER_ERROR, format!("Failed to load config: {}", e)).into_response(),
-    };
-
-    let mut workspaces = config.workspaces.clone().unwrap_or_default();
-    let mut list = workspaces.list.clone().unwrap_or_default();
-
-    let target_path = if let Ok(idx) = payload.index_or_path.parse::<usize>() {
-        if idx > 0 && idx <= list.len() {
-            Some(list[idx - 1].clone())
-        } else {
-            return (StatusCode::BAD_REQUEST, format!("Index out of bounds (1 to {}).", list.len())).into_response();
-        }
-    } else {
-        let path_buf = std::path::PathBuf::from(&payload.index_or_path);
-        let absolute_path = crate::utils::clean_unc_path(std::fs::canonicalize(&path_buf)
-            .unwrap_or_else(|_| path_buf.clone()))
-            .to_string_lossy()
-            .replace('\\', "/");
-        if list.contains(&absolute_path) {
-            Some(absolute_path)
-        } else {
-            list.push(absolute_path.clone());
-            workspaces.list = Some(list.clone());
-            Some(absolute_path)
-        }
-    };
-
-    if let Some(target) = target_path {
-        workspaces.active = Some(target.clone());
-        config.workspaces = Some(workspaces);
-        if let Err(e) = crate::agent::save_config_sync(&config) {
-            return (StatusCode::INTERNAL_SERVER_ERROR, format!("Failed to save config: {}", e)).into_response();
-        }
-        Json(json!({ "status": "success", "active": target })).into_response()
-    } else {
-        (StatusCode::BAD_REQUEST, "Invalid selection").into_response()
-    }
+    // No-op success for backward compatibility with frontend WebUI
+    Json(json!({ "status": "success", "active": payload.index_or_path })).into_response()
+}
 }

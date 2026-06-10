@@ -15,15 +15,6 @@ use crate::utils::get_nami_dir;
 // Providers
 use adk_rust::model::{OpenAIClient, OpenAIConfig};
 
-/// Workspace-related configuration structure.
-#[derive(Debug, Deserialize, Serialize, Clone, PartialEq, Default)]
-pub struct WorkspacesConfig {
-    /// Active workspace path.
-    pub active: Option<String>,
-    /// Registered workspaces list of paths.
-    pub list: Option<Vec<String>>,
-}
-
 /// Application configuration structure loaded from `config.toml`.
 #[derive(Debug, Deserialize, Serialize, Clone, PartialEq)]
 pub struct AppConfig {
@@ -37,8 +28,6 @@ pub struct AppConfig {
     pub reflection: Option<ReflectionConfig>,
     /// Optional configuration for embedding service.
     pub embedding: Option<ModelConfig>,
-    /// Optional configuration for workspaces.
-    pub workspaces: Option<WorkspacesConfig>,
 }
 
 /// Configuration details for the LLM provider and specific model.
@@ -415,7 +404,6 @@ pub async fn build_agent() -> anyhow::Result<(Arc<dyn Agent>, Arc<dyn Llm>, Stri
             image_generation: None,
             reflection: None,
             embedding: None,
-            workspaces: None,
         }
     });
 

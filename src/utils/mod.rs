@@ -128,35 +128,6 @@ pub fn get_nami_dir() -> PathBuf {
     path
 }
 
-#[derive(serde::Deserialize, Default)]
-struct WorkspacesSection {
-    active: Option<String>,
-    list: Option<Vec<String>>,
-}
-
-#[derive(serde::Deserialize, Default)]
-struct ConfigWithWorkspaces {
-    workspaces: Option<WorkspacesSection>,
-}
-
-/// Retrieves the active workspace path and the list of registered workspace paths from the global config.
-pub fn get_workspaces_info() -> (Option<PathBuf>, Vec<PathBuf>) {
-    let config_path = get_nami_dir().join("config.toml");
-    if !config_path.exists() {
-        return (None, Vec::new());
-    }
-    if let Ok(content) = std::fs::read_to_string(&config_path) {
-        if let Ok(parsed) = toml::from_str::<ConfigWithWorkspaces>(&content) {
-            if let Some(ws) = parsed.workspaces {
-                let active = ws.active.map(PathBuf::from);
-                let list = ws.list.unwrap_or_default().into_iter().map(PathBuf::from).collect();
-                return (active, list);
-            }
-        }
-    }
-    (None, Vec::new())
-}
-
 pub fn clean_unc_path(path: PathBuf) -> PathBuf {
     #[cfg(windows)]
     {
@@ -175,91 +146,24 @@ pub fn clean_unc_path(path: PathBuf) -> PathBuf {
     }
 }
 
-fn update_active_workspace_config(new_active: &std::path::Path) -> anyhow::Result<()> {
-    let config_path = get_nami_dir().join("config.toml");
-    let content = if config_path.exists() {
-        std::fs::read_to_string(&config_path)?
-    } else {
-        String::new()
-    };
-
-    let mut doc: toml::Value = if content.is_empty() {
-        toml::Value::Table(toml::map::Map::new())
-    } else {
-        toml::from_str(&content)?
-    };
-
-    if let Some(table) = doc.as_table_mut() {
-        let workspaces = table
-            .entry("workspaces")
-            .or_insert_with(|| toml::Value::Table(toml::map::Map::new()))
-            .as_table_mut()
-            .ok_or_else(|| anyhow::anyhow!("workspaces is not a table"))?;
-
-        let new_active_str = new_active.to_string_lossy().to_string();
-
-        // Update active
-        workspaces.insert("active".to_string(), toml::Value::String(new_active_str.clone()));
-
-        // Add to list if not present
-        let list_val = workspaces.entry("list").or_insert_with(|| toml::Value::Array(Vec::new()));
-        if let Some(arr) = list_val.as_array_mut() {
-            let exists = arr.iter().any(|v| v.as_str() == Some(&new_active_str));
-            if !exists {
-                arr.push(toml::Value::String(new_active_str));
-            }
-        }
-
-        let updated_content = toml::to_string_pretty(&doc)?;
-        std::fs::write(&config_path, updated_content)?;
-    }
-
-    Ok(())
-}
-
 /// Returns the absolute path to the workspace directory.
 /// Ensures the directory exists on disk.
 pub async fn get_workspace_dir() -> std::result::Result<PathBuf, AdkError> {
+    // 1. Check environment variable override
+    if let Ok(env_ws) = std::env::var("NAMI_WORKSPACE") {
+        if !env_ws.is_empty() {
+            let path = PathBuf::from(env_ws);
+            let absolute = clean_unc_path(fs::canonicalize(&path).await.unwrap_or(path));
+            return Ok(absolute);
+        }
+    }
+
+    // 2. Always default to current working directory
     let current_dir = std::env::current_dir()
         .map_err(|e| AdkError::tool(format!("Failed to get current directory: {}", e)))?;
     let canonical_current = clean_unc_path(std::fs::canonicalize(&current_dir).unwrap_or(current_dir.clone()));
 
-    let (active_opt, list) = get_workspaces_info();
-
-    // 1. Check if canonical_current or any parent is in the registered workspaces list
-    let mut matched_workspace: Option<PathBuf> = None;
-    for ws_path in &list {
-        let canonical_ws = clean_unc_path(std::fs::canonicalize(ws_path).unwrap_or_else(|_| ws_path.clone()));
-        if canonical_current == canonical_ws || canonical_current.starts_with(&canonical_ws) {
-            matched_workspace = Some(canonical_ws);
-            break;
-        }
-    }
-
-    let root = matched_workspace.unwrap_or(canonical_current);
-
-    // If active workspace is different or not set, automatically update config.toml
-    let is_different = match &active_opt {
-        Some(active) => {
-            let canonical_active = clean_unc_path(std::fs::canonicalize(active).unwrap_or_else(|_| active.clone()));
-            canonical_active != root
-        }
-        None => true,
-    };
-
-    if is_different {
-        if let Err(e) = update_active_workspace_config(&root) {
-            log::warn!("Failed to update active workspace in config: {:?}", e);
-        }
-    }
-
-    if !root.exists() {
-        let _ = fs::create_dir_all(&root).await;
-    }
-
-    // Canonicalize for security checks
-    let absolute = clean_unc_path(fs::canonicalize(&root).await.unwrap_or(root));
-    Ok(absolute)
+    Ok(canonical_current)
 }
 
 /// Resolves a user-provided string into a safe path within the workspace.
