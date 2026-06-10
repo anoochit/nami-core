@@ -104,18 +104,17 @@ impl Completer for NamiHelper {
             let mut matches = Vec::new();
 
             // Resolve dynamic workspace path
-            let base_dir = if let Ok(current_dir) = std::env::current_dir() {
-                let canonical_current = crate::utils::clean_unc_path(std::fs::canonicalize(&current_dir).unwrap_or(current_dir.clone()));
-                let (active_opt, list) = crate::utils::get_workspaces_info();
-                let mut matched_workspace = None;
-                for ws_path in &list {
-                    let canonical_ws = crate::utils::clean_unc_path(std::fs::canonicalize(ws_path).unwrap_or_else(|_| ws_path.clone()));
-                    if canonical_current == canonical_ws || canonical_current.starts_with(&canonical_ws) {
-                        matched_workspace = Some(canonical_ws);
-                        break;
-                    }
+            let base_dir = if let Ok(env_ws) = std::env::var("NAMI_WORKSPACE") {
+                if !env_ws.is_empty() {
+                    let path = std::path::PathBuf::from(env_ws);
+                    crate::utils::clean_unc_path(std::fs::canonicalize(&path).unwrap_or(path))
+                } else if let Ok(current_dir) = std::env::current_dir() {
+                    crate::utils::clean_unc_path(std::fs::canonicalize(&current_dir).unwrap_or(current_dir))
+                } else {
+                    std::path::PathBuf::from(".")
                 }
-                matched_workspace.or(active_opt).unwrap_or(canonical_current)
+            } else if let Ok(current_dir) = std::env::current_dir() {
+                crate::utils::clean_unc_path(std::fs::canonicalize(&current_dir).unwrap_or(current_dir))
             } else {
                 std::path::PathBuf::from(".")
             };
