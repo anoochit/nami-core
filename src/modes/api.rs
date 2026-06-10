@@ -424,4 +424,3 @@ async fn select_workspace(Json(payload): Json<WorkspaceSelectPayload>) -> impl I
     // No-op success for backward compatibility with frontend WebUI
     Json(json!({ "status": "success", "active": payload.index_or_path })).into_response()
 }
-}
