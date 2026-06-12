@@ -197,7 +197,7 @@ template = "wiki_search: {{args}}"
 help = "Search the project wiki"
 
 [commands."/memo"]
-template = "add_memory: {{args}}"
+template = "update_user_memory: {{args}}"
 help = "Save information to memory"
 
 [commands."/parallel"]
@@ -220,25 +220,25 @@ help = "Recall information from memory"
 template = "You are an interactive planner. The user wants to start a 'grill-me' session for the goal: '{{args}}'. First, ask the user 3 to 5 highly precise, concise clarification questions in the chat to understand their needs. Do NOT write the plan yet. Wait for the user to answer them. Once they reply, synthesize a refined multi-step plan with verification criteria and register it using the `plan_create` tool with autonomous=true."
 help = "Start an interactive grill-me session to align and create a plan"
 
-[commands."/test"]
-template = "Analyze the code in {{args}} and generate a unit test file in tests/."
-help = "Generate tests for a specific file or module"
+// [commands."/test"]
+// template = "Analyze the code in {{args}} and generate a unit test file in tests/."
+// help = "Generate tests for a specific file or module"
 
-[commands."/doc"]
-template = "Examine {{args}} and update the corresponding documentation in docs/."
-help = "Update documentation for a specific feature"
+// [commands."/doc"]
+// template = "Examine {{args}} and update the corresponding documentation in docs/."
+// help = "Update documentation for a specific feature"
 
-[commands."/refactor"]
-template = "Perform a code review and suggest refactorings for {{args}} to improve maintainability."
-help = "Request refactoring suggestions for a module"
+// [commands."/refactor"]
+// template = "Perform a code review and suggest refactorings for {{args}} to improve maintainability."
+// help = "Request refactoring suggestions for a module"
 
 [commands."/skill"]
 template = "Activate and execute the skill: {{args}}"
 help = "Invoke a specific skill by name"
 
-[commands."/mcp"]
-template = "Query the connected MCP servers with: {{args}}"
-help = "Execute a query against connected MCP servers"
+// [commands."/mcp"]
+// template = "Query the connected MCP servers with: {{args}}"
+// help = "Execute a query against connected MCP servers"
 
 # --- Specialist Agents Configuration ---
 # [specialists.coder]

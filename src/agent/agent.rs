@@ -274,8 +274,8 @@ async fn count_skills() -> usize {
 /// Generates the compaction configuration for managing agent history events.
 pub fn get_compaction_config(model: Arc<dyn Llm>) -> EventsCompactionConfig {
     EventsCompactionConfig {
-        compaction_interval: 10,
-        overlap_size: 0,
+        compaction_interval: 3,
+        overlap_size: 1,
         summarizer: Arc::new(LlmEventSummarizer::new(model)),
     }
 }

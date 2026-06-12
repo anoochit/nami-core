@@ -19,7 +19,7 @@ struct UpdateSoulArgs {
     trait_info: String,
 }
 
-/// Adds a new fact to the user's permanent memories (workspace/MEMORIES.md).
+/// Adds a new fact to the user's permanent memories (~/.nami/MEMORIES.md).
 #[tool]
 async fn update_user_memory(args: UpdateMemoryArgs) -> std::result::Result<Value, AdkError> {
     let nami_dir = get_nami_dir();
@@ -37,7 +37,7 @@ async fn update_user_memory(args: UpdateMemoryArgs) -> std::result::Result<Value
     Ok(json!({"status": "success", "message": "I'll remember that for you!"}))
 }
 
-/// Updates the agent's persona file (workspace/AGENT.md). Use this to 'evolve' the agent's personality.
+/// Updates the agent's persona file (~/.nami/AGENT.md). Use this to 'evolve' the agent's personality.
 #[tool]
 async fn update_agent_soul(args: UpdateSoulArgs) -> std::result::Result<Value, AdkError> {
     let nami_dir = get_nami_dir();
