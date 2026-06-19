@@ -174,12 +174,23 @@ pub async fn sandbox(user_path: &str) -> std::result::Result<PathBuf, AdkError> 
 pub async fn sandbox_with_ignore(user_path: &str, ignore: Option<&NamiIgnore>) -> std::result::Result<PathBuf, AdkError> {
     let root: std::path::PathBuf = get_workspace_dir().await?;
 
-    let user_path_buf = clean_unc_path(PathBuf::from(user_path));
+    let mut user_path_buf = clean_unc_path(PathBuf::from(user_path));
+    if user_path_buf.starts_with("~") {
+        if let Some(home) = dirs::home_dir() {
+            if let Ok(stripped) = user_path_buf.strip_prefix("~") {
+                user_path_buf = home.join(stripped);
+            }
+        }
+    }
+
     let mut normalized;
+    let home = dirs::home_dir().unwrap_or_else(|| PathBuf::from("."));
+    let nami_dir = home.join(".nami");
+    let agents_dir = home.join(".agents");
 
     if user_path_buf.is_absolute() {
-        // If it's absolute, check if it falls within the workspace root
-        if user_path_buf.starts_with(&root) {
+        // If it's absolute, check if it falls within the workspace root or allowed directories
+        if user_path_buf.starts_with(&root) || user_path_buf.starts_with(&nami_dir) || user_path_buf.starts_with(&agents_dir) {
             normalized = user_path_buf;
         } else {
             return Err(AdkError::tool(format!(
@@ -214,8 +225,8 @@ pub async fn sandbox_with_ignore(user_path: &str, ignore: Option<&NamiIgnore>) -
     }
     normalized = clean_unc_path(clean_normalized);
 
-    // 3. Final Guard: The resulting path MUST still start with the workspace root.
-    if !normalized.starts_with(&root) {
+    // 3. Final Guard: The resulting path MUST still start with the workspace root or allowed directories.
+    if !normalized.starts_with(&root) && !normalized.starts_with(&nami_dir) && !normalized.starts_with(&agents_dir) {
         return Err(AdkError::tool(format!(
             "Security Error: Path '{}' attempts to escape sandbox.",
             user_path
