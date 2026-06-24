@@ -96,7 +96,8 @@ pub fn invoke_agent_tool(specialists: HashMap<String, Arc<dyn Tool>>) -> Vec<Arc
 #[cfg(test)]
 mod tests {
     use super::*;
-    use adk_rust::{Tool, ToolContext, SimpleToolContext};
+    use adk_rust::{Tool, ToolContext};
+    use adk_tool::SimpleToolContext;
     use std::collections::HashMap;
     use std::sync::Arc;
     use serde_json::json;
@@ -107,7 +108,7 @@ mod tests {
     impl Tool for MockSpecialist {
         fn name(&self) -> &str { "mock_specialist" }
         fn description(&self) -> &str { "mock specialist" }
-        async fn execute(&self, _ctx: Arc<dyn ToolContext>, args: serde_json::Value) -> Result<serde_json::Value, adk_rust::AdkError> {
+        async fn execute(&self, _ctx: Arc<dyn ToolContext>, args: serde_json::Value) -> std::result::Result<serde_json::Value, adk_rust::AdkError> {
             Ok(json!({ "output": format!("Handled: {}", args["input"]) }))
         }
     }

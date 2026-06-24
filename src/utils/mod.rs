@@ -294,13 +294,8 @@ mod tests {
         // These should fail as they attempt to escape via traversal
         assert!(sandbox("../secret.txt").await.is_err());
         
-        // Absolute paths are currently neutralized by stripping leading slashes,
-        // making them relative to the workspace root.
-        let res = sandbox("/etc/passwd").await;
-        assert!(res.is_ok());
-        let path = res.unwrap();
-        assert!(path.to_string_lossy().contains("workspace"));
-        assert!(path.to_string_lossy().ends_with("etc/passwd"));
+        // Absolute paths outside the allowed directories should fail
+        assert!(sandbox("/etc/passwd").await.is_err());
         
         // This should succeed
         let res = sandbox("docs/index.html").await;

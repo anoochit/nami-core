@@ -12,7 +12,7 @@ memory.db
 !/workspace/README.md
 !/workspace/STATE_PROTOCOL.md
 workspace/MEMORIES.md
-/ref
+!/ref
 workspace/wiki/
 workspace/todos.json
 workspace/wiki/.obsidian
@@ -27,3 +27,4 @@ mlflow.db
 *.log
 .antigravitycli
 x
+.npm/

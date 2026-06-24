@@ -21,7 +21,7 @@ async fn list_sessions() -> impl IntoResponse {
         Err(e) => return (StatusCode::INTERNAL_SERVER_ERROR, format!("Failed to connect to database: {}", e)).into_response(),
     };
 
-    let sessions = match sqlx::query("SELECT session_id, app_name, user_id, created_at FROM sessions ORDER BY created_at DESC")
+    let sessions = match sqlx::query("SELECT session_id, app_name, user_id, created_at FROM sessions WHERE EXISTS (SELECT 1 FROM events WHERE events.session_id = sessions.session_id) ORDER BY created_at DESC")
         .fetch_all(&pool)
         .await
     {

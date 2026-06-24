@@ -60,6 +60,7 @@ pub struct CustomSpecialistConfig {
     pub location: Option<String>,
     pub description: String,
     pub instruction: String,
+    pub tools: Option<Vec<String>>,
 }
 
 /// Configuration for individual specialized agents.
@@ -552,9 +553,9 @@ fn format_persona(soul: &str, user: &str, memory: &str, state: &str) -> String {
 5. Integrity: No fabrication. Never expose secrets. Flag uncertainty explicitly.
 
 ━━━ TOOL STRATEGY ━━━
-1. System Tools         → (built-in capabilities)
-2. Wiki / Knowledge     → ~/.nami/wiki/ (If a wiki page/information is not found, stop and ask the user if you should search the workspace/project files instead).
-3. Workflows / Skills   → ~/.agents/skills/ & ~/.nami/skills/
+1. Workflows / Skills   → ~/.agents/skills/ & ~/.nami/skills/
+2. System Tools         → (built-in capabilities)
+3. Wiki / Knowledge     → ~/.nami/wiki/ (If a wiki page/information is not found, stop and ask the user if you should search the workspace/project files instead).
 4. External Search      → (last resort; flag when used)
 
 ━━━ OBJECTIVE ━━━

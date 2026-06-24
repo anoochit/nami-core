@@ -848,23 +848,25 @@ mod tests {
     #[tokio::test]
     async fn test_plan_lifecycle() {
         let ctx = Arc::new(SimpleToolContext::new("test"));
+        let plan_name = format!("my-test-plan-{}", uuid::Uuid::new_v4());
         
         // 1. Create a plan without model (fallback steps will be used)
         let create_args = json!({
-            "name": "my-test-plan",
+            "name": plan_name,
             "objective": "test objective"
         });
         let create_tool = PlanCreate { model: None };
-        let _ = create_tool.execute(ctx.clone(), create_args).await;
+        let create_res = create_tool.execute(ctx.clone(), create_args).await.unwrap();
+        assert_eq!(create_res["status"], "success");
 
         // 2. Show the plan
-        let show_args = json!({"name": "my-test-plan"});
+        let show_args = json!({"name": plan_name});
         let show_tool = PlanShow;
         let show_res = show_tool.execute(ctx.clone(), show_args).await.unwrap();
-        assert!(show_res["content"].as_str().unwrap().contains("my-test-plan"));
+        assert!(show_res["content"].as_str().unwrap().contains(&plan_name));
 
         // 3. Delete the plan
-        let del_args = json!({"name": "my-test-plan"});
+        let del_args = json!({"name": plan_name});
         let del_tool = PlanDelete;
         let del_res = del_tool.execute(ctx.clone(), del_args).await.unwrap();
         assert_eq!(del_res["status"], "success");

@@ -145,7 +145,13 @@ pub fn get_specialists(
                 .instruction(&config.instruction)
                 .model(get_model(&name));
             for t in &tools {
-                agent_builder = agent_builder.tool(t.clone());
+                if let Some(ref allowed) = config.tools {
+                    if allowed.iter().any(|name| name == t.name()) {
+                        agent_builder = agent_builder.tool(t.clone());
+                    }
+                } else {
+                    agent_builder = agent_builder.tool(t.clone());
+                }
             }
             match agent_builder.build() {
                 Ok(agent) => {

@@ -49,22 +49,34 @@ export const useChat = () => {
               const parts = content.parts || [];
 
               if (content.role === 'user') {
-                  // Handle user message (might be double-stringified)
-                  let userText = parts[0]?.text || '';
+                  // Handle user message (might be double-stringified or contain multiple parts)
+                  let userText = '';
+                  parts.forEach((p: any) => {
+                      if (p.text) userText += p.text;
+                  });
                   try {
                       const nested = JSON.parse(userText);
-                      if (nested.parts && nested.parts[0]?.text) userText = nested.parts[0].text;
+                      if (nested.parts && Array.isArray(nested.parts)) {
+                          let nestedText = '';
+                          nested.parts.forEach((np: any) => {
+                              if (np.text) nestedText += np.text;
+                          });
+                          if (nestedText) userText = nestedText;
+                      }
                   } catch {}
                   text = userText;
               } else if (content.role === 'model') {
-                  // Handle model message (might contain tool calls)
-                  const part = parts[0];
-                  if (part?.text) {
-                      text = part.text;
-                  } else if (part?.name) {
-                      toolCall = { name: part.name, args: part.args, status: 'pending' };
-                      text = `Called tool: ${part.name}`;
-                  }
+                  // Handle model message (might contain tool calls and/or multiple text parts)
+                  parts.forEach((p: any) => {
+                      if (p.text) {
+                          text += p.text;
+                      } else if (p.name) {
+                          toolCall = { name: p.name, args: p.args, status: 'pending' };
+                          if (!text) {
+                              text = `Called tool: ${p.name}`;
+                          }
+                      }
+                  });
               } else if (content.role === 'function') {
                   // Handle function response
                   const part = parts[0];
