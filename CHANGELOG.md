@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.9.27] - 2026-06-24
+
+### Changed
+
+- **Filter Out Empty Sessions**: Updated the session listing query in [api.rs](file:///D:/Projects/AIProject/namiclaw/src/modes/api.rs) to only return sessions that contain at least one message/event. This prevents listing recent sessions with empty conversations in the WebUI sidebar.
+
 ## [0.9.27] - 2026-06-09
 
 ### Added
