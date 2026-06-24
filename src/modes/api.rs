@@ -3,7 +3,7 @@ use axum::{
     http::{StatusCode, header::HeaderValue},
     middleware::{self, Next},
     response::IntoResponse,
-    routing::{get, post},
+    routing::{get, post, delete},
     Json, Router,
 };
 use serde_json::json;
@@ -126,6 +126,10 @@ pub fn api_router() -> Router {
         .route("/api/sessions/create", post(create_session_handler))
         .route("/api/sessions/list", get(list_sessions))
         .route("/api/sessions/{session_id}/messages", get(get_session_messages))
+        .route("/api/scheduler", get(list_scheduler_tasks))
+        .route("/api/scheduler/add", post(add_scheduler_task))
+        .route("/api/scheduler/{id}", delete(delete_scheduler_task))
+        .route("/api/scheduler/{id}/toggle", post(toggle_scheduler_task))
         .route("/api/workspaces", get(get_workspaces))
         .route("/api/workspaces/select", post(select_workspace))
         .route("/api/workspaces/add", post(add_workspace))
@@ -423,4 +427,98 @@ struct WorkspaceSelectPayload {
 async fn select_workspace(Json(payload): Json<WorkspaceSelectPayload>) -> impl IntoResponse {
     // No-op success for backward compatibility with frontend WebUI
     Json(json!({ "status": "success", "active": payload.index_or_path })).into_response()
+}
+
+use crate::tools::scheduler::{load_schedule, save_schedule, ScheduledTask};
+use cron::Schedule;
+use std::str::FromStr;
+use uuid::Uuid;
+
+#[tracing::instrument]
+async fn list_scheduler_tasks() -> impl IntoResponse {
+    match load_schedule().await {
+        Ok(tasks) => Json(json!({ "tasks": tasks })).into_response(),
+        Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, format!("Failed to load schedule: {}", e)).into_response(),
+    }
+}
+
+#[derive(serde::Deserialize, Debug)]
+struct AddTaskPayload {
+    goal: String,
+    cron_expr: String,
+}
+
+#[tracing::instrument(skip(payload))]
+async fn add_scheduler_task(Json(payload): Json<AddTaskPayload>) -> impl IntoResponse {
+    // Validate cron expression
+    if let Err(e) = Schedule::from_str(&payload.cron_expr) {
+        return (StatusCode::BAD_REQUEST, format!("Invalid cron expression: {}", e)).into_response();
+    }
+
+    let mut tasks = match load_schedule().await {
+        Ok(t) => t,
+        Err(e) => return (StatusCode::INTERNAL_SERVER_ERROR, format!("Failed to load schedule: {}", e)).into_response(),
+    };
+
+    let id = Uuid::new_v4().to_string();
+    let new_task = ScheduledTask {
+        id: id.clone(),
+        goal: payload.goal,
+        cron_expr: payload.cron_expr,
+        last_run: None,
+        is_active: true,
+    };
+
+    tasks.push(new_task);
+
+    match save_schedule(&tasks).await {
+        Ok(_) => Json(json!({ "status": "success", "id": id })).into_response(),
+        Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, format!("Failed to save schedule: {}", e)).into_response(),
+    }
+}
+
+#[tracing::instrument]
+async fn delete_scheduler_task(Path(id): Path<String>) -> impl IntoResponse {
+    let mut tasks = match load_schedule().await {
+        Ok(t) => t,
+        Err(e) => return (StatusCode::INTERNAL_SERVER_ERROR, format!("Failed to load schedule: {}", e)).into_response(),
+    };
+
+    let original_len = tasks.len();
+    tasks.retain(|t| t.id != id);
+
+    if tasks.len() == original_len {
+        return (StatusCode::NOT_FOUND, "Task not found").into_response();
+    }
+
+    match save_schedule(&tasks).await {
+        Ok(_) => Json(json!({ "status": "success" })).into_response(),
+        Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, format!("Failed to save schedule: {}", e)).into_response(),
+    }
+}
+
+#[tracing::instrument]
+async fn toggle_scheduler_task(Path(id): Path<String>) -> impl IntoResponse {
+    let mut tasks = match load_schedule().await {
+        Ok(t) => t,
+        Err(e) => return (StatusCode::INTERNAL_SERVER_ERROR, format!("Failed to load schedule: {}", e)).into_response(),
+    };
+
+    let mut found = false;
+    for task in tasks.iter_mut() {
+        if task.id == id {
+            task.is_active = !task.is_active;
+            found = true;
+            break;
+        }
+    }
+
+    if !found {
+        return (StatusCode::NOT_FOUND, "Task not found").into_response();
+    }
+
+    match save_schedule(&tasks).await {
+        Ok(_) => Json(json!({ "status": "success" })).into_response(),
+        Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, format!("Failed to save schedule: {}", e)).into_response(),
+    }
 }

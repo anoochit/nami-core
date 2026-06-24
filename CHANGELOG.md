@@ -2,6 +2,11 @@
 
 ## [0.9.27] - 2026-06-24
 
+### Added
+
+- **Scheduler Configuration in WebUI**: Added a fully featured background task scheduler configuration panel directly in the WebUI sidebar. Users can now view active schedules, register repeating tasks using custom Cron expressions, utilize quick preset helpers, delete schedules, and toggle active status in real-time.
+- **Scheduler Axum REST API Endpoints**: Created full supporting REST API endpoints (`GET /api/scheduler`, `POST /api/scheduler/add`, `DELETE /api/scheduler/{id}`, and `POST /api/scheduler/{id}/toggle`) in the Rust backend to manage `scheduler.json` files and sync instantly with the scheduler loop.
+
 ### Changed
 
 - **Filter Out Empty Sessions**: Updated the session listing query in [api.rs](file:///D:/Projects/AIProject/namiclaw/src/modes/api.rs) to only return sessions that contain at least one message/event. This prevents listing recent sessions with empty conversations in the WebUI sidebar.

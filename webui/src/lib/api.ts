@@ -257,4 +257,53 @@ export const api = {
       const data = await response.json();
       return data.messages;
   },
+
+  listSchedulerTasks: async (): Promise<Array<{ id: string; goal: string; cron_expr: string; last_run: string | null; is_active: boolean }>> => {
+    const response = await fetch(`${BASE_URL}/api/scheduler`, {
+      headers: getHeaders()
+    });
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.message || errorData.error || `Failed to list scheduler tasks (${response.status})`);
+    }
+    const data = await response.json();
+    return data.tasks;
+  },
+
+  addSchedulerTask: async (goal: string, cronExpr: string): Promise<{ status: string; id: string }> => {
+    const response = await fetch(`${BASE_URL}/api/scheduler/add`, {
+      method: 'POST',
+      headers: getHeaders({ 'Content-Type': 'application/json' }),
+      body: JSON.stringify({ goal, cron_expr: cronExpr })
+    });
+    if (!response.ok) {
+      const errorData = await response.text();
+      throw new Error(errorData || `Failed to add scheduler task (${response.status})`);
+    }
+    return response.json();
+  },
+
+  deleteSchedulerTask: async (id: string): Promise<{ status: string }> => {
+    const response = await fetch(`${BASE_URL}/api/scheduler/${id}`, {
+      method: 'DELETE',
+      headers: getHeaders()
+    });
+    if (!response.ok) {
+      const errorData = await response.text();
+      throw new Error(errorData || `Failed to delete scheduler task (${response.status})`);
+    }
+    return response.json();
+  },
+
+  toggleSchedulerTask: async (id: string): Promise<{ status: string }> => {
+    const response = await fetch(`${BASE_URL}/api/scheduler/${id}/toggle`, {
+      method: 'POST',
+      headers: getHeaders()
+    });
+    if (!response.ok) {
+      const errorData = await response.text();
+      throw new Error(errorData || `Failed to toggle scheduler task (${response.status})`);
+    }
+    return response.json();
+  },
 };

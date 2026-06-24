@@ -6,9 +6,10 @@ import { FileExplorer } from './components/FileExplorer';
 import { useChat } from './hooks/useChat';
 // import { ServerStatusIndicator } from './components/ServerStatusIndicator';
 import { Group, Panel, Separator } from 'react-resizable-panels';
-import { FolderTreeIcon, MessageSquare, BookOpen } from 'lucide-react';
+import { FolderTreeIcon, MessageSquare, BookOpen, CalendarRange } from 'lucide-react';
 import { Titlebar } from './components/Titlebar';
 import { WikiExplorer } from './components/WikiExplorer';
+import { SchedulerExplorer } from './components/SchedulerExplorer';
 
 
 export default function App() {
@@ -36,9 +37,9 @@ export default function App() {
     messageQueue
   } = useChat();
 
-  const [activeTab, setActiveTab] = useState<'files' | 'wiki' | 'sessions'>('files');
+  const [activeTab, setActiveTab] = useState<'files' | 'wiki' | 'sessions' | 'scheduler'>('files');
 
-  const handleTabClick = (tab: 'files' | 'wiki' | 'sessions') => {
+  const handleTabClick = (tab: 'files' | 'wiki' | 'sessions' | 'scheduler') => {
     if (activeTab === tab) {
       setSidebarOpen(!sidebarOpen);
     } else {
@@ -116,6 +117,26 @@ export default function App() {
             )}
             <MessageSquare size={20} />
           </button>
+
+          {/* Scheduler Icon */}
+          <button
+            onClick={() => handleTabClick('scheduler')}
+            className={cn(
+              "relative p-3 rounded-xl transition-all duration-200 group flex items-center justify-center",
+              activeTab === 'scheduler' && sidebarOpen
+                ? "text-sky-600 bg-sky-50/60"
+                : "text-slate-500 hover:text-slate-800 hover:bg-slate-100/50"
+            )}
+            title="Task Scheduler"
+          >
+            {activeTab === 'scheduler' && sidebarOpen && (
+              <>
+                <div className="absolute left-0 top-3 bottom-3 w-0.5 bg-sky-500 rounded-r lg:block hidden" />
+                <div className="absolute top-0 left-3 right-3 h-0.5 bg-sky-500 rounded-b lg:hidden block" />
+              </>
+            )}
+            <CalendarRange size={20} />
+          </button>
         </div>
 
         <div className="flex-col items-center gap-4 lg:flex hidden">
@@ -140,6 +161,7 @@ export default function App() {
               {activeTab === 'files' && 'File Explorer'}
               {activeTab === 'wiki' && 'Wiki Vault'}
               {activeTab === 'sessions' && 'Recent Sessions'}
+              {activeTab === 'scheduler' && 'Task Scheduler'}
             </span>
           </div>
 
@@ -182,6 +204,9 @@ export default function App() {
                   )}
                 </div>
               </div>
+            )}
+            {activeTab === 'scheduler' && (
+              <SchedulerExplorer />
             )}
           </div>
 
