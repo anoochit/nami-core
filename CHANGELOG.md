@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.9.27] - 2026-06-26
+
+### Added
+
+- **TODOs Management in WebUI**: Added a beautifully integrated, fully featured TODOs configuration and management panel inside the WebUI sidebar. Users can now view pending and completed tasks, check/uncheck items, add new items with a quick form, and delete items from their workspace tasks instantly.
+- **TODOs Axum REST API Endpoints**: Created Axiom-based supporting REST API endpoints (`GET /api/todos`, `POST /api/todos`, `POST /api/todos/{id}/toggle`, and `DELETE /api/todos/{id}`) in the Rust backend to read and write `todos.json` files, fully integrated with standard tracing instrumentation.
+
 ## [0.9.27] - 2026-06-24
 
 ### Added

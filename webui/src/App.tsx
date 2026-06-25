@@ -6,10 +6,11 @@ import { FileExplorer } from './components/FileExplorer';
 import { useChat } from './hooks/useChat';
 // import { ServerStatusIndicator } from './components/ServerStatusIndicator';
 import { Group, Panel, Separator } from 'react-resizable-panels';
-import { FolderTreeIcon, MessageSquare, BookOpen, CalendarRange } from 'lucide-react';
+import { FolderTreeIcon, MessageSquare, BookOpen, CalendarRange, ListTodo } from 'lucide-react';
 import { Titlebar } from './components/Titlebar';
 import { WikiExplorer } from './components/WikiExplorer';
 import { SchedulerExplorer } from './components/SchedulerExplorer';
+import { TodoExplorer } from './components/TodoExplorer';
 
 
 export default function App() {
@@ -37,9 +38,9 @@ export default function App() {
     messageQueue
   } = useChat();
 
-  const [activeTab, setActiveTab] = useState<'files' | 'wiki' | 'sessions' | 'scheduler'>('files');
+  const [activeTab, setActiveTab] = useState<'files' | 'wiki' | 'sessions' | 'scheduler' | 'todos'>('files');
 
-  const handleTabClick = (tab: 'files' | 'wiki' | 'sessions' | 'scheduler') => {
+  const handleTabClick = (tab: 'files' | 'wiki' | 'sessions' | 'scheduler' | 'todos') => {
     if (activeTab === tab) {
       setSidebarOpen(!sidebarOpen);
     } else {
@@ -137,6 +138,26 @@ export default function App() {
             )}
             <CalendarRange size={20} />
           </button>
+
+          {/* TODOs Icon */}
+          <button
+            onClick={() => handleTabClick('todos')}
+            className={cn(
+              "relative p-3 rounded-xl transition-all duration-200 group flex items-center justify-center",
+              activeTab === 'todos' && sidebarOpen
+                ? "text-sky-600 bg-sky-50/60"
+                : "text-slate-500 hover:text-slate-800 hover:bg-slate-100/50"
+            )}
+            title="TODO List"
+          >
+            {activeTab === 'todos' && sidebarOpen && (
+              <>
+                <div className="absolute left-0 top-3 bottom-3 w-0.5 bg-sky-500 rounded-r lg:block hidden" />
+                <div className="absolute top-0 left-3 right-3 h-0.5 bg-sky-500 rounded-b lg:hidden block" />
+              </>
+            )}
+            <ListTodo size={20} />
+          </button>
         </div>
 
         <div className="flex-col items-center gap-4 lg:flex hidden">
@@ -162,6 +183,7 @@ export default function App() {
               {activeTab === 'wiki' && 'Wiki Vault'}
               {activeTab === 'sessions' && 'Recent Sessions'}
               {activeTab === 'scheduler' && 'Task Scheduler'}
+              {activeTab === 'todos' && 'TODO list'}
             </span>
           </div>
 
@@ -207,6 +229,9 @@ export default function App() {
             )}
             {activeTab === 'scheduler' && (
               <SchedulerExplorer />
+            )}
+            {activeTab === 'todos' && (
+              <TodoExplorer />
             )}
           </div>
 

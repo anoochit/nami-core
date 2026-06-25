@@ -33,7 +33,7 @@ pub async fn run_serve(
 
     let cors = CorsLayer::new()
         .allow_origin(tower_http::cors::Any)
-        .allow_methods([Method::GET, Method::POST, Method::OPTIONS])
+        .allow_methods([Method::GET, Method::POST, Method::DELETE, Method::OPTIONS])
         .allow_headers([header::CONTENT_TYPE, header::HeaderName::from_static("x-api-key")]);
 
     let app = Launcher::new(agent)
