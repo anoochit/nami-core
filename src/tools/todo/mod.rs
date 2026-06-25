@@ -9,10 +9,10 @@ use std::sync::Arc;
 use tokio::fs;
 
 #[derive(Serialize, Deserialize, JsonSchema, Clone)]
-struct Todo {
-    id: usize,
-    description: String,
-    done: bool,
+pub struct Todo {
+    pub id: usize,
+    pub description: String,
+    pub done: bool,
 }
 
 #[derive(Deserialize, JsonSchema)]
@@ -27,11 +27,11 @@ struct TodoIdArgs {
     id: usize,
 }
 
-async fn get_todo_file() -> std::result::Result<PathBuf, AdkError> {
+pub async fn get_todo_file() -> std::result::Result<PathBuf, AdkError> {
     Ok(get_nami_dir().join("todos.json"))
 }
 
-async fn load_todos() -> std::result::Result<Vec<Todo>, AdkError> {
+pub async fn load_todos() -> std::result::Result<Vec<Todo>, AdkError> {
     let path = get_todo_file().await?;
     if !path.exists() {
         return Ok(Vec::new());
@@ -43,7 +43,7 @@ async fn load_todos() -> std::result::Result<Vec<Todo>, AdkError> {
         .map_err(|e| AdkError::tool(format!("Failed to parse todos: {}", e)))
 }
 
-async fn save_todos(todos: &[Todo]) -> std::result::Result<(), AdkError> {
+pub async fn save_todos(todos: &[Todo]) -> std::result::Result<(), AdkError> {
     let path = get_todo_file().await?;
     let content = serde_json::to_string_pretty(todos)
         .map_err(|e| AdkError::tool(format!("Failed to serialize todos: {}", e)))?;

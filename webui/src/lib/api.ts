@@ -306,4 +306,52 @@ export const api = {
     }
     return response.json();
   },
+
+  listTodos: async (): Promise<{ todos: Array<{ id: number; description: string; done: boolean }> }> => {
+    const response = await fetch(`${BASE_URL}/api/todos`, {
+      headers: getHeaders()
+    });
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.message || errorData.error || `Failed to list todos (${response.status})`);
+    }
+    return response.json();
+  },
+
+  addTodo: async (description: string): Promise<{ status: string; todo: { id: number; description: string; done: boolean } }> => {
+    const response = await fetch(`${BASE_URL}/api/todos`, {
+      method: 'POST',
+      headers: getHeaders({ 'Content-Type': 'application/json' }),
+      body: JSON.stringify({ description })
+    });
+    if (!response.ok) {
+      const errorData = await response.text();
+      throw new Error(errorData || `Failed to add todo (${response.status})`);
+    }
+    return response.json();
+  },
+
+  toggleTodo: async (id: number): Promise<{ status: string }> => {
+    const response = await fetch(`${BASE_URL}/api/todos/${id}/toggle`, {
+      method: 'POST',
+      headers: getHeaders()
+    });
+    if (!response.ok) {
+      const errorData = await response.text();
+      throw new Error(errorData || `Failed to toggle todo (${response.status})`);
+    }
+    return response.json();
+  },
+
+  deleteTodo: async (id: number): Promise<{ status: string }> => {
+    const response = await fetch(`${BASE_URL}/api/todos/${id}`, {
+      method: 'DELETE',
+      headers: getHeaders()
+    });
+    if (!response.ok) {
+      const errorData = await response.text();
+      throw new Error(errorData || `Failed to delete todo (${response.status})`);
+    }
+    return response.json();
+  },
 };

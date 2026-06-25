@@ -130,6 +130,9 @@ pub fn api_router() -> Router {
         .route("/api/scheduler/add", post(add_scheduler_task))
         .route("/api/scheduler/{id}", delete(delete_scheduler_task))
         .route("/api/scheduler/{id}/toggle", post(toggle_scheduler_task))
+        .route("/api/todos", get(list_todos_handler).post(add_todo_handler))
+        .route("/api/todos/{id}/toggle", post(toggle_todo_handler))
+        .route("/api/todos/{id}", delete(delete_todo_handler))
         .route("/api/workspaces", get(get_workspaces))
         .route("/api/workspaces/select", post(select_workspace))
         .route("/api/workspaces/add", post(add_workspace))
@@ -520,5 +523,85 @@ async fn toggle_scheduler_task(Path(id): Path<String>) -> impl IntoResponse {
     match save_schedule(&tasks).await {
         Ok(_) => Json(json!({ "status": "success" })).into_response(),
         Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, format!("Failed to save schedule: {}", e)).into_response(),
+    }
+}
+
+#[derive(serde::Deserialize, Debug)]
+struct AddTodoPayload {
+    description: String,
+}
+
+#[tracing::instrument]
+async fn list_todos_handler() -> impl IntoResponse {
+    match crate::tools::todo::load_todos().await {
+        Ok(todos) => Json(json!({ "todos": todos })).into_response(),
+        Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, format!("Failed to load todos: {}", e)).into_response(),
+    }
+}
+
+#[tracing::instrument]
+async fn add_todo_handler(Json(payload): Json<AddTodoPayload>) -> impl IntoResponse {
+    let mut todos = match crate::tools::todo::load_todos().await {
+        Ok(t) => t,
+        Err(e) => return (StatusCode::INTERNAL_SERVER_ERROR, format!("Failed to load todos: {}", e)).into_response(),
+    };
+
+    let next_id = todos.iter().map(|t| t.id).max().unwrap_or(0) + 1;
+    let new_todo = crate::tools::todo::Todo {
+        id: next_id,
+        description: payload.description.clone(),
+        done: false,
+    };
+    todos.push(new_todo.clone());
+
+    match crate::tools::todo::save_todos(&todos).await {
+        Ok(_) => Json(json!({ "status": "success", "todo": new_todo })).into_response(),
+        Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, format!("Failed to save todos: {}", e)).into_response(),
+    }
+}
+
+#[tracing::instrument]
+async fn toggle_todo_handler(Path(id): Path<usize>) -> impl IntoResponse {
+    let mut todos = match crate::tools::todo::load_todos().await {
+        Ok(t) => t,
+        Err(e) => return (StatusCode::INTERNAL_SERVER_ERROR, format!("Failed to load todos: {}", e)).into_response(),
+    };
+
+    let mut found = false;
+    for todo in todos.iter_mut() {
+        if todo.id == id {
+            todo.done = !todo.done;
+            found = true;
+            break;
+        }
+    }
+
+    if !found {
+        return (StatusCode::NOT_FOUND, "Todo item not found").into_response();
+    }
+
+    match crate::tools::todo::save_todos(&todos).await {
+        Ok(_) => Json(json!({ "status": "success" })).into_response(),
+        Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, format!("Failed to save todos: {}", e)).into_response(),
+    }
+}
+
+#[tracing::instrument]
+async fn delete_todo_handler(Path(id): Path<usize>) -> impl IntoResponse {
+    let mut todos = match crate::tools::todo::load_todos().await {
+        Ok(t) => t,
+        Err(e) => return (StatusCode::INTERNAL_SERVER_ERROR, format!("Failed to load todos: {}", e)).into_response(),
+    };
+
+    let original_len = todos.len();
+    todos.retain(|t| t.id != id);
+
+    if todos.len() == original_len {
+        return (StatusCode::NOT_FOUND, "Todo item not found").into_response();
+    }
+
+    match crate::tools::todo::save_todos(&todos).await {
+        Ok(_) => Json(json!({ "status": "success" })).into_response(),
+        Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, format!("Failed to save todos: {}", e)).into_response(),
     }
 }
