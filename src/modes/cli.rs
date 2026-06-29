@@ -65,7 +65,7 @@ impl Completer for NamiHelper {
         if word.starts_with('/') {
             let mut matches = Vec::new();
             let commands = vec![
-                "/exit", "/quit", "/clear", "/new", "/tasks", "/status", "/version", "/help"
+                "/exit", "/quit", "/clear", "/new", "/tasks", "/status", "/version"
             ];
             
             for cmd in commands {
