@@ -11,8 +11,33 @@ interface QueuedMessage {
 }
 
 export const useChat = () => {
-  const [threads, setThreads] = useState<Thread[]>([{ id: '1', title: 'Conversation', messages: [] }]);
-  const [activeThreadId, setActiveThreadId] = useState<string>('1');
+  const [threads, setThreads] = useState<Thread[]>(() => {
+    try {
+      const saved = localStorage.getItem('nami_chat_threads');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          return parsed;
+        }
+      }
+    } catch (e) {
+      console.error("Failed to load threads from localStorage", e);
+    }
+    return [{ id: '1', title: 'Conversation', messages: [] }];
+  });
+
+  const [activeThreadId, setActiveThreadId] = useState<string>(() => {
+    try {
+      const savedId = localStorage.getItem('nami_active_thread_id');
+      if (savedId) {
+        return savedId;
+      }
+    } catch (e) {
+      console.error("Failed to load activeThreadId from localStorage", e);
+    }
+    return '1';
+  });
+
   const [input, setInput] = useState('');
   const [attachments, setAttachments] = useState<Attachment[]>([]);
   const [messageQueue, setMessageQueue] = useState<QueuedMessage[]>([]);
@@ -23,101 +48,15 @@ export const useChat = () => {
   const [activePreviewWikiPath, setActivePreviewWikiPath] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [sessionHistory, setSessionHistory] = useState<Array<{session_id: string, app_name: string, user_id: string, created_at: string}>>([]);
 
-  const fetchSessions = useCallback(async () => {
-    try {
-      const sessions = await api.listSessions();
-      setSessionHistory(sessions);
-    } catch (e) {
-      console.error("Failed to fetch sessions", e);
-    }
-  }, []);
-
-  const loadSession = useCallback(async (sessionId: string) => {
-    setIsLoading(true);
-    setError(null);
-    try {
-      const messagesFromApi = await api.getSessionMessages(sessionId);
-      const formattedMessages: Message[] = messagesFromApi.map(m => {
-          let text = '';
-          let toolCall: Message['toolCall'] = undefined;
-          
-          try {
-              const parsed = JSON.parse(m.llm_response);
-              const content = parsed.content || {};
-              const parts = content.parts || [];
-
-              if (content.role === 'user') {
-                  // Handle user message (might be double-stringified or contain multiple parts)
-                  let userText = '';
-                  parts.forEach((p: any) => {
-                      if (p.text) userText += p.text;
-                  });
-                  try {
-                      const nested = JSON.parse(userText);
-                      if (nested.parts && Array.isArray(nested.parts)) {
-                          let nestedText = '';
-                          nested.parts.forEach((np: any) => {
-                              if (np.text) nestedText += np.text;
-                          });
-                          if (nestedText) userText = nestedText;
-                      }
-                  } catch {}
-                  text = userText;
-              } else if (content.role === 'model') {
-                  // Handle model message (might contain tool calls and/or multiple text parts)
-                  parts.forEach((p: any) => {
-                      if (p.text) {
-                          text += p.text;
-                      } else if (p.name) {
-                          toolCall = { name: p.name, args: p.args, status: 'pending' };
-                          if (!text) {
-                              text = `Called tool: ${p.name}`;
-                          }
-                      }
-                  });
-              } else if (content.role === 'function') {
-                  // Handle function response
-                  const part = parts[0];
-                  if (part?.functionResponse) {
-                      text = `Function result: ${part.functionResponse.name}`;
-                      toolCall = { name: part.functionResponse.name, status: 'complete', result: part.functionResponse.response };
-                  }
-              } else {
-                  text = JSON.stringify(parsed);
-              }
-          } catch (e) {
-              console.error("JSON parse error:", e);
-              text = m.llm_response;
-          }
-          
-          return {
-              id: Date.now().toString() + Math.random(),
-              sender: m.author === 'user' ? 'user' : 'agent',
-              text: text,
-              toolCall,
-          };
-      });
-      const newThread: Thread = {
-          id: Date.now().toString(),
-          title: 'Loaded Conversation',
-          messages: formattedMessages,
-          sessionId: sessionId
-      };
-      setThreads(prev => [newThread, ...prev]);
-      setActiveThreadId(newThread.id);
-    } catch (e) {
-      console.error("Failed to load session", e);
-      setError("Failed to load session");
-    } finally {
-      setIsLoading(false);
-    }
-  }, []);
+  // Save to localStorage on any changes
+  useEffect(() => {
+    localStorage.setItem('nami_chat_threads', JSON.stringify(threads));
+  }, [threads]);
 
   useEffect(() => {
-    fetchSessions();
-  }, [fetchSessions]);
+    localStorage.setItem('nami_active_thread_id', activeThreadId);
+  }, [activeThreadId]);
 
   const threadsRef = useRef(threads);
   useEffect(() => {
@@ -147,9 +86,9 @@ export const useChat = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeThreadId]); 
 
-const updateActiveThread = useCallback((updater: (thread: Thread) => Thread) => {
-  updateThreadById(activeThreadId, updater);
-}, [activeThreadId, updateThreadById]);
+  const updateActiveThread = useCallback((updater: (thread: Thread) => Thread) => {
+    updateThreadById(activeThreadId, updater);
+  }, [activeThreadId, updateThreadById]);
 
   const addAttachments = async (files: FileList | File[]) => {
     const newAttachments: Attachment[] = Array.from(files).map(file => ({
@@ -315,7 +254,13 @@ const updateActiveThread = useCallback((updater: (thread: Thread) => Thread) => 
         attachments: currentAttachments
     };
     
-    updateThreadById(targetThreadId, t => ({ ...t, messages: [...t.messages, newUserMessage] }));
+    updateThreadById(targetThreadId, t => {
+      const messages = [...t.messages, newUserMessage];
+      const title = t.title === 'Conversation' && originalInput
+        ? (originalInput.substring(0, 30) + (originalInput.length > 30 ? '...' : ''))
+        : t.title;
+      return { ...t, messages, title };
+    });
 
     setMessageQueue(prev => [...prev, {
       text: originalInput,
@@ -348,6 +293,21 @@ const updateActiveThread = useCallback((updater: (thread: Thread) => Thread) => 
       setError(msg);
     }
   };
+
+  const deleteThread = useCallback((idToKill: string) => {
+    setThreads(prev => {
+      const filtered = prev.filter(t => t.id !== idToKill);
+      if (filtered.length === 0) {
+        const newDefault = { id: Date.now().toString(), title: 'Conversation', messages: [] };
+        setActiveThreadId(newDefault.id);
+        return [newDefault];
+      }
+      if (activeThreadId === idToKill) {
+        setActiveThreadId(filtered[0].id);
+      }
+      return filtered;
+    });
+  }, [activeThreadId]);
 
   const navigateHistory = (direction: 'up' | 'down') => {
     if (promptHistory.length === 0) return;
@@ -384,9 +344,6 @@ const updateActiveThread = useCallback((updater: (thread: Thread) => Thread) => 
     activePreviewWikiPath,
     isLoading,
     error,
-    sessionHistory,
-    fetchSessions,
-    loadSession,
     setActiveThreadId,
     setInput,
     setSidebarOpen,
@@ -394,6 +351,7 @@ const updateActiveThread = useCallback((updater: (thread: Thread) => Thread) => 
     setActivePreviewWikiPath,
     sendMessage,
     createNewThread,
+    deleteThread,
     navigateHistory,
     clearMessages,
     attachments,

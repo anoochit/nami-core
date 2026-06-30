@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.9.29] - 2026-06-30
+
+### Added
+
+- **Persistent Multi-Thread WebUI Chat**: Implemented client-side local-storage-backed multi-thread conversation management in the WebUI. Users can now create, delete, and switch between separate chats. Thread titles are automatically generated from the first 30 characters of the initial user prompt.
+
+### Changed
+
+- **Upgraded ADK Crate Dependencies**: Bumped all core `adk-*` dependencies (`adk-core`, `adk-memory`, `adk-runner`, `adk-rust`, `adk-session`, `adk-telemetry`, `adk-tool`) to `1.0.0` from `0.9.1` in `Cargo.toml`.
+
 ## [0.9.28] - 2026-06-26
 
 ### Added

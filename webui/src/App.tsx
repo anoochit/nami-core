@@ -6,7 +6,7 @@ import { FileExplorer } from './components/FileExplorer';
 import { useChat } from './hooks/useChat';
 // import { ServerStatusIndicator } from './components/ServerStatusIndicator';
 import { Group, Panel, Separator } from 'react-resizable-panels';
-import { FolderTreeIcon, MessageSquare, BookOpen, CalendarRange, ListTodo } from 'lucide-react';
+import { FolderTreeIcon, MessageSquare, BookOpen, CalendarRange, ListTodo, Trash2 } from 'lucide-react';
 import { Titlebar } from './components/Titlebar';
 import { WikiExplorer } from './components/WikiExplorer';
 import { SchedulerExplorer } from './components/SchedulerExplorer';
@@ -15,15 +15,17 @@ import { TodoExplorer } from './components/TodoExplorer';
 
 export default function App() {
   const {
+    threads,
     activeThread,
+    activeThreadId,
     input,
     sidebarOpen,
     activePreviewPath,
     activePreviewWikiPath,
     isLoading,
     error,
-    sessionHistory,
-    loadSession,
+    setActiveThreadId,
+    deleteThread,
     setInput,
     setSidebarOpen,
     setActivePreviewPath,
@@ -202,25 +204,44 @@ export default function App() {
             {activeTab === 'sessions' && (
               <div className="h-full overflow-hidden p-3 bg-white">
                 <div className="font-display font-semibold text-[10px] text-slate-400 uppercase tracking-wider mb-3 px-1">
-                  Recent Sessions
+                  Active Chats
                 </div>
                 <div className="overflow-y-auto h-[calc(100vh-140px)] space-y-1.5 pr-1 scrollbar-thin">
-                  {sessionHistory.length === 0 ? (
+                  {threads.length === 0 ? (
                     <div className="text-center text-xs text-slate-400 py-8 italic font-sans">
                       No active sessions yet.
                     </div>
                   ) : (
-                    sessionHistory.map(session => (
-                      <div key={session.session_id} 
-                           onClick={() => loadSession(session.session_id)}
-                           className="group p-2.5 rounded-lg border border-slate-100 bg-slate-50/30 text-sm cursor-pointer hover:bg-slate-50 hover:border-slate-200/80 transition-all duration-200 shadow-sm/5">
-                         <div className="font-mono text-xs font-medium text-slate-700 truncate group-hover:text-slate-900 transition-colors">
-                           {session.session_id.substring(0, 12)}...
+                    threads.map(thread => (
+                      <div key={thread.id} 
+                           onClick={() => setActiveThreadId(thread.id)}
+                           className={cn(
+                             "group p-2.5 rounded-lg border text-sm cursor-pointer hover:bg-slate-50 transition-all duration-200 shadow-sm/5 flex justify-between items-center",
+                             activeThreadId === thread.id 
+                               ? "border-sky-200 bg-sky-50/20" 
+                               : "border-slate-100 bg-slate-50/30"
+                           )}>
+                         <div className="min-w-0 flex-1 pr-2">
+                           <div className="font-medium text-slate-700 truncate group-hover:text-slate-900 transition-colors">
+                             {thread.title}
+                           </div>
+                           <div className="text-[10px] text-slate-400 mt-1 flex gap-2 items-center font-mono">
+                             <span>ID: {thread.id.substring(0, 8)}</span>
+                             {thread.messages.length > 0 && (
+                               <span>• {thread.messages.length} msgs</span>
+                             )}
+                           </div>
                          </div>
-                         <div className="text-[10px] text-slate-400 mt-1 flex justify-between items-center">
-                           <span>{new Date(session.created_at).toLocaleDateString()}</span>
-                           <span className="opacity-0 group-hover:opacity-100 transition-opacity text-slate-500 font-sans text-[10px] font-medium">Load &rarr;</span>
-                         </div>
+                         <button
+                           onClick={(e) => {
+                             e.stopPropagation();
+                             deleteThread(thread.id);
+                           }}
+                           className="opacity-0 group-hover:opacity-100 p-1 text-slate-400 hover:text-rose-500 hover:bg-rose-50 rounded-md transition-all shrink-0"
+                           title="Delete Thread"
+                         >
+                           <Trash2 size={14} />
+                         </button>
                       </div>
                     ))
                   )}
