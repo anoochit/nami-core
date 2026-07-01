@@ -1,13 +1,23 @@
 # Changelog
 
-## [0.9.29] - 2026-06-30
+## [0.9.30] - 2026-07-01
 
 ### Added
 
+- **Strip Autocomplete `@` Prefix (WebUI)**: Added `stripAtPrefixes` client-side clean utility to automatically strip leading `@` prefixes from file/wiki mentions (e.g. converting `@test_file.txt` to `test_file.txt`), resolving a file-reading error where backend tools couldn't find the file.
+
+## [0.9.29] - 2026-07-01
+
+### Added
+
+- **Explicit Thread Timestamps (WebUI)**: Added a `createdAt` timestamp property to the `Thread` interface to store the creation datetime explicitly and cleanly.
+- **Formatted Thread Datetime in Sidebar**: Replaced the raw sidebar thread ID display under Active Chats with a beautifully formatted localized datetime (e.g., `Jul 1, 08:34`), utilizing a fallback to `thread.id` for backward-compatible parsing and a hover tooltip showing the full timestamp.
+- **Text & Base64 Multimedia Support for Filesystem Tool**: Upgraded the `read_file` tool to support explicit and automatic encoding detection (`text` vs. `base64`) along with mime-type guessing using `mime_guess` (returning `"encoding"` and `"mime_type"` fields), allowing seamless reading of plain text as well as multimedia files (images, audio, video).
 - **Persistent Multi-Thread WebUI Chat**: Implemented client-side local-storage-backed multi-thread conversation management in the WebUI. Users can now create, delete, and switch between separate chats. Thread titles are automatically generated from the first 30 characters of the initial user prompt.
 
 ### Changed
 
+- **Standardized Session ID Display**: Fixed an issue where the displayed thread ID under "Recent Sessions / Active Chats" was different from the backend/header session UUID. It now correctly renders the thread's backend `sessionId` UUID instead of the local client-side `thread.id` timestamp.
 - **Upgraded ADK Crate Dependencies**: Bumped all core `adk-*` dependencies (`adk-core`, `adk-memory`, `adk-runner`, `adk-rust`, `adk-session`, `adk-telemetry`, `adk-tool`) to `1.0.0` from `0.9.1` in `Cargo.toml`.
 
 ## [0.9.28] - 2026-06-26

@@ -23,7 +23,7 @@ export const useChat = () => {
     } catch (e) {
       console.error("Failed to load threads from localStorage", e);
     }
-    return [{ id: '1', title: 'Conversation', messages: [] }];
+    return [{ id: '1', title: 'Conversation', messages: [], createdAt: Date.now() }];
   });
 
   const [activeThreadId, setActiveThreadId] = useState<string>(() => {
@@ -283,7 +283,8 @@ export const useChat = () => {
         id: Date.now().toString(), 
         title: 'Conversation', 
         messages: [],
-        sessionId: session.session_id 
+        sessionId: session.session_id,
+        createdAt: Date.now()
       };
       setThreads(prev => [newThread, ...prev]);
       setActiveThreadId(newThread.id);
@@ -298,7 +299,7 @@ export const useChat = () => {
     setThreads(prev => {
       const filtered = prev.filter(t => t.id !== idToKill);
       if (filtered.length === 0) {
-        const newDefault = { id: Date.now().toString(), title: 'Conversation', messages: [] };
+        const newDefault = { id: Date.now().toString(), title: 'Conversation', messages: [], createdAt: Date.now() };
         setActiveThreadId(newDefault.id);
         return [newDefault];
       }

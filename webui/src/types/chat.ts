@@ -25,6 +25,7 @@ export interface Thread {
   title: string;
   messages: Message[];
   sessionId?: string;
+  createdAt?: number;
 }
 
 export interface Session {

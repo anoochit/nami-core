@@ -15,17 +15,71 @@ use tokio::process::Command;
 struct PathArgs {
     /// Path relative to the workspace/ directory
     path: String,
+    /// Optional encoding format: "text" or "base64". If omitted, auto-detects by trying text and falling back to base64.
+    encoding: Option<String>,
 }
 
-/// Reads the contents of a file at the specified path within the workspace.
+/// Reads the contents of a file at the specified path within the workspace. Supports returning plain text or Base64-encoded multimedia files.
 #[tool]
 async fn read_file(args: PathArgs) -> std::result::Result<Value, AdkError> {
     let path = sandbox(&args.path).await?;
-    let content = fs::read_to_string(&path)
-        .await
-        .map_err(|e| AdkError::tool(format!("Read failed: {}", e)))?;
+    
+    // Get MIME type based on file extension
+    let mime_type = mime_guess::from_path(&path)
+        .first_or_octet_stream()
+        .to_string();
 
-    Ok(json!({ "content": content }))
+    let encoding_req = args.encoding.as_deref().unwrap_or("auto");
+
+    match encoding_req {
+        "text" => {
+            let content = fs::read_to_string(&path)
+                .await
+                .map_err(|e| AdkError::tool(format!("Read failed: {}", e)))?;
+            Ok(json!({
+                "content": content,
+                "encoding": "text",
+                "mime_type": mime_type
+            }))
+        }
+        "base64" => {
+            let bytes = fs::read(&path)
+                .await
+                .map_err(|e| AdkError::tool(format!("Read failed: {}", e)))?;
+            use base64::Engine as _;
+            let b64 = base64::prelude::BASE64_STANDARD.encode(&bytes);
+            Ok(json!({
+                "content": b64,
+                "encoding": "base64",
+                "mime_type": mime_type
+            }))
+        }
+        _ => {
+            // Auto-detect: try reading as UTF-8 first
+            match fs::read_to_string(&path).await {
+                Ok(content) => {
+                    Ok(json!({
+                        "content": content,
+                        "encoding": "text",
+                        "mime_type": mime_type
+                    }))
+                }
+                Err(_) => {
+                    // Fallback to reading as binary and encoding to base64
+                    let bytes = fs::read(&path)
+                        .await
+                        .map_err(|e| AdkError::tool(format!("Read failed: {}", e)))?;
+                    use base64::Engine as _;
+                    let b64 = base64::prelude::BASE64_STANDARD.encode(&bytes);
+                    Ok(json!({
+                        "content": b64,
+                        "encoding": "base64",
+                        "mime_type": mime_type
+                    }))
+                }
+            }
+        }
+    }
 }
 
 #[derive(Deserialize, JsonSchema)]
@@ -322,9 +376,23 @@ mod tests {
         // Read the file back
         let read_args = PathArgs {
             path: "test_file.txt".to_string(),
+            encoding: None,
         };
         let read_result = read_file(read_args).await.unwrap();
         assert_eq!(read_result["content"], "hello world");
+        assert_eq!(read_result["encoding"], "text");
+        assert_eq!(read_result["mime_type"], "text/plain");
+
+        // Test explicit base64 encoding read
+        let read_args_b64 = PathArgs {
+            path: "test_file.txt".to_string(),
+            encoding: Some("base64".to_string()),
+        };
+        let read_result_b64 = read_file(read_args_b64).await.unwrap();
+        use base64::Engine as _;
+        let decoded_bytes = base64::prelude::BASE64_STANDARD.decode(read_result_b64["content"].as_str().unwrap()).unwrap();
+        assert_eq!(String::from_utf8(decoded_bytes).unwrap(), "hello world");
+        assert_eq!(read_result_b64["encoding"], "base64");
 
         // Replace text
         let replace_args = ReplaceArgs {
@@ -337,6 +405,7 @@ mod tests {
         // Verify replacement
         let read_args_after = PathArgs {
             path: "test_file.txt".to_string(),
+            encoding: None,
         };
         let read_result_after = read_file(read_args_after).await.unwrap();
         assert_eq!(read_result_after["content"], "hello gemini");

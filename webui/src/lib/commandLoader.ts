@@ -40,10 +40,17 @@ export function getRegistry(): CommandDefinition[] {
   return registry;
 }
 
-export function processSlashCommand(input: string): string {
-  if (!input.startsWith('/')) return input;
+export function stripAtPrefixes(text: string): string {
+  // Matches '@' preceded by a non-word boundary (like space, start of string, quotes, parens)
+  // followed by typical path characters (word characters, dots, slashes, or hyphens)
+  return text.replace(/\B@([\w./\-]+)/g, '$1');
+}
 
-  const parts = input.trim().split(' ');
+export function processSlashCommand(input: string): string {
+  const cleanInput = stripAtPrefixes(input);
+  if (!cleanInput.startsWith('/')) return cleanInput;
+
+  const parts = cleanInput.trim().split(' ');
   const commandName = parts[0];
   const args = parts.slice(1).join(' ');
 
@@ -72,7 +79,7 @@ export function processSlashCommand(input: string): string {
     return result;
   }
 
-  return input;
+  return cleanInput;
 }
 
 function generateHelpMessage(): string {

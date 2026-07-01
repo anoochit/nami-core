@@ -225,12 +225,22 @@ export default function App() {
                            <div className="font-medium text-slate-700 truncate group-hover:text-slate-900 transition-colors">
                              {thread.title}
                            </div>
-                           <div className="text-[10px] text-slate-400 mt-1 flex gap-2 items-center font-mono">
-                             <span>ID: {thread.id.substring(0, 8)}</span>
-                             {thread.messages.length > 0 && (
-                               <span>• {thread.messages.length} msgs</span>
-                             )}
-                           </div>
+                            <div className="text-[10px] text-slate-400 mt-1 flex gap-2 items-center font-mono font-medium">
+                              {(() => {
+                                const ts = thread.createdAt;
+                                if (!ts || isNaN(ts)) return null;
+                                return (
+                                  <span title={new Date(ts).toLocaleString()}>
+                                    {new Date(ts).toLocaleString(undefined, {
+                                      month: 'short',
+                                      day: 'numeric',
+                                      hour: '2-digit',
+                                      minute: '2-digit'
+                                    })}
+                                  </span>
+                                );
+                              })()}
+                            </div>
                          </div>
                          <button
                            onClick={(e) => {
