@@ -33,11 +33,33 @@ impl CommandRegistry {
             }
         }
 
+        // Ensure default core commands exist if not present in the user's config file
+        if !commands.contains_key("/pev") && !commands.contains_key("pev") {
+            commands.insert("/pev".to_string(), Command {
+                template: "plan_create(name='auto', objective='{args}')".to_string(),
+                help: "Plan, Execute, and Verify a task (PEV)".to_string(),
+            });
+        }
+        if !commands.contains_key("/plan") && !commands.contains_key("plan") {
+            commands.insert("/plan".to_string(), Command {
+                template: "plan_create(name='auto', objective='{args}')".to_string(),
+                help: "Create an AI research plan".to_string(),
+            });
+        }
+
         Ok(CommandRegistry { commands })
     }
 
     pub fn get_command(&self, name: &str) -> Option<&Command> {
-        self.commands.get(name)
+        if let Some(cmd) = self.commands.get(name) {
+            return Some(cmd);
+        }
+        if name.starts_with('/') {
+            self.commands.get(&name[1..])
+        } else {
+            let with_slash = format!("/{}", name);
+            self.commands.get(&with_slash)
+        }
     }
 
     pub fn format_prompt(&self, name: &str, args: &str) -> Option<String> {

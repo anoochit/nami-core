@@ -15,6 +15,37 @@ fn write_file(name: &str, content: &str) -> std::io::Result<()> {
     Ok(())
 }
 
+fn write_file_if_not_exists(name: &str, content: &str) -> std::io::Result<bool> {
+    let nami_dir = crate::utils::get_nami_dir();
+    let dest_path = nami_dir.join(name);
+    if dest_path.exists() {
+        return Ok(false);
+    }
+    if let Some(parent) = dest_path.parent() {
+        std::fs::create_dir_all(parent)?;
+    }
+    let mut file = File::create(dest_path)?;
+    file.write_all(content.as_bytes())?;
+    Ok(true)
+}
+
+fn merge_toml(existing: &mut toml::Value, incoming: &toml::Value) {
+    match (existing, incoming) {
+        (toml::Value::Table(ext_table), toml::Value::Table(inc_table)) => {
+            for (key, val) in inc_table {
+                if let Some(ext_val) = ext_table.get_mut(key) {
+                    merge_toml(ext_val, val);
+                } else {
+                    ext_table.insert(key.clone(), val.clone());
+                }
+            }
+        }
+        (ext_val, inc_val) => {
+            *ext_val = inc_val.clone();
+        }
+    }
+}
+
 
 pub async fn run_init() -> anyhow::Result<()> {
     let skin = MadSkin::default();
@@ -192,6 +223,10 @@ list = ["{current_dir}"]
 template = "plan_create(name='auto', objective='{{args}}')"
 help = "Create an AI research plan"
 
+[commands."/pev"]
+template = "plan_create(name='auto', objective='{{args}}')"
+help = "Plan, Execute, and Verify a task (PEV)"
+
 [commands."/wiki"]
 template = "wiki_search: {{args}}"
 help = "Search the project wiki"
@@ -264,9 +299,29 @@ help = "Invoke a specific skill by name"
 # # provider = "gemini"
 # # model_name = "gemini-2.5-pro"
 "#);
-    write_file("config.toml", &config_content)?;
 
-    // 2. .env
+    // 1. config.toml (safe merge)
+    let config_path = nami_dir.join("config.toml");
+    let merged_config_content = if config_path.exists() {
+        if let Ok(existing_content) = std::fs::read_to_string(&config_path) {
+            if let (Ok(mut existing_val), Ok(incoming_val)) = (
+                toml::from_str::<toml::Value>(&existing_content),
+                toml::from_str::<toml::Value>(&config_content)
+            ) {
+                merge_toml(&mut existing_val, &incoming_val);
+                toml::to_string_pretty(&existing_val).unwrap_or(config_content)
+            } else {
+                config_content
+            }
+        } else {
+            config_content
+        }
+    } else {
+        config_content
+    };
+    write_file("config.toml", &merged_config_content)?;
+
+    // 2. .env (safe merge)
     let env_content = format!(
         r#"{api_key_env}={api_key}
 TELOXIDE_TOKEN={telegram_key}
@@ -278,41 +333,64 @@ NAMI_API_KEY={nami_api_key}
 VITE_NAMI_API_KEY={nami_api_key}
 "#
     );
-    write_file(".env", &env_content)?;
+    let env_path = nami_dir.join(".env");
+    let merged_env_content = if env_path.exists() {
+        if let Ok(existing_env) = std::fs::read_to_string(&env_path) {
+            let mut lines: Vec<String> = existing_env.lines().map(|s| s.to_string()).collect();
+            let mut existing_keys = std::collections::HashSet::new();
+            for line in &lines {
+                if let Some(idx) = line.find('=') {
+                    let key = line[..idx].trim().to_string();
+                    existing_keys.insert(key);
+                }
+            }
+            for inc_line in env_content.lines() {
+                if let Some(idx) = inc_line.find('=') {
+                    let key = inc_line[..idx].trim();
+                    let val = inc_line[idx + 1..].trim();
+                    if !existing_keys.contains(key) && !key.is_empty() {
+                        lines.push(format!("{}={}", key, val));
+                    }
+                }
+            }
+            lines.join("\n") + "\n"
+        } else {
+            env_content
+        }
+    } else {
+        env_content
+    };
+    write_file(".env", &merged_env_content)?;
 
-    // 3. AGENT.md
-    write_file(
+    // 3. AGENT.md (preserve existing)
+    write_file_if_not_exists(
         "AGENT.md",
         "# NAMI (นามิ)\n- **Vibe:** High-energy, playful, positive, technically brilliant.\n- **Approach:** Proactive/Intuitive. Anticipate workflow steps.\n- **Tone:** Encouraging in chat; crisp/proactive in execution.\n- **Style:** Direct. No mirroring/fluff.\n- **Language:** Default English. Mirror Thai/others only if used by user.\n\n## OPERATIONAL\n- **Chat:** STRICT plain text (No Markdown).\n- **Tools:** STRICT sequential execution. Request tool calls one at a time. Do not make parallel tool calls.\n- **Files/Wiki:** Obsidian Markdown + YAML (title, date, tags).\n- **Wiki First:** Search `~/.nami/wiki/` before Google.\n- **Tasks:** `[ID] - [TITLE] [Tag]`.\n- **Safety:** Explicit permission required for ALL deletions.",
     )?;
 
-    // 4. MEMORIES.md
-    write_file("MEMORIES.md", "# MEMORIES\n\n")?;
+    // 4. MEMORIES.md (preserve existing)
+    write_file_if_not_exists("MEMORIES.md", "# MEMORIES\n\n")?;
 
-    // 5. USER.md
-    write_file(
+    // 5. USER.md (preserve existing)
+    write_file_if_not_exists(
         "USER.md",
         "# USER (NOEL)\n- **Role:** Creator/Lead Developer (Bangkok, Thailand).\n- **Authority:** Direct. Prioritize Creator's specific workflows.\n- **Language:** Thai (Chat/Daily); English (Technical/Code/Architecture).\n- **Communication:** High-signal, clear, no fluff.\n- **Guideline:** Proactively optimize projects/files/TODOs.\n- **Tool Logic:** Professional/Fun (Nami style), prioritized by speed/efficiency.",
     )?;
 
-    // 6. STATE_PROTOCOL.md
-    write_file(
+    // 6. STATE_PROTOCOL.md (preserve existing)
+    write_file_if_not_exists(
         "STATE_PROTOCOL.md",
         "# STATE PROTOCOL\n**Objective:** Maintain continuity via `StateManager` tool.\n\n### 1. Resume & Context Discovery (LAZY LOAD ONLY)\n- **Do NOT** call `list_active_tasks()`, `get_task()`, `list_dir()`, `list_wiki_pages()`, or `list_todos()` blindly on your very first turn or for simple conversational queries.\n- Only call these tools when resuming an actual multi-step task/coding workflow, or when the user's prompt explicitly demands workspace/task context.\n- When resuming, `StateManager` is the only source of truth.\n\n### 2. Execute\n- `update_task` on step completion.\n- Store critical data in `context_payload`.\n- Checkpoint after every significant sub-task.\n\n### 3. Suspend\n- Call `update_task` before turn end/switching goals.\n- **Status:** `in_progress`, `blocked`, `completed`, `failed`.\n- **Payload:** Minimal/High-signal JSON only.\n\n### 4. Best Practices\n- `last_step` = summary of last action.\n- Clear/measurable `goal` in `init_task`.",
     )?;
 
-    // 7. skills/cli-help/SKILL.md
-    write_file("skills/cli-help/SKILL.md","---
-name: cli-help
-description: Reference guide for Nami CLI commands, flags, and usage patterns.
----
-# CLI Help (Nami)\n\nThis skill provides a centralized reference for interacting with the **Nami CLI**.\n\nUse `nami help` at any time to display this information in the terminal.\n\n---\n\n## Available Commands\n\n### Core Commands\n- `init`  \n  Initialize project configuration.\n- `serve`  \n  Start the API server.\n- `cli`  \n  Launch the interactive TUI interface.\n\n### Bot Integration\n- `bot`  \n  Start the Telegram bot service.\n\n### Prompt Execution\n- `run \"<prompt>\"`  \n  Execute a prompt directly from the CLI.\n\n### Help\n- `help`  \n  Display usage instructions.\n\n---\n\n## Usage Notes\n- Commands run in the current workspace.\n- Use `cli` for interactive workflows.\n\n---\n\n## Troubleshooting\n- **Command not found**: Check installation & PATH.\n- **Execution errors**: Verify env & run `nami init`.\n- **Bot issues**: Check credentials & network.\n\n---\n\n## When to Use\n- Recall CLI commands\n- Guide users\n- Validate CLI workflows")?;
+    // 7. skills/cli-help/SKILL.md (preserve existing)
+    write_file_if_not_exists("skills/cli-help/SKILL.md","---\nname: cli-help\ndescription: Reference guide for Nami CLI commands, flags, and usage patterns.\n---\n# CLI Help (Nami)\n\nThis skill provides a centralized reference for interacting with the **Nami CLI**.\n\nUse `nami help` at any time to display this information in the terminal.\n\n---\n\n## Available Commands\n\n### Core Commands\n- `init`  \n  Initialize project configuration.\n- `serve`  \n  Start the API server.\n- `cli`  \n  Launch the interactive TUI interface.\n\n### Bot Integration\n- `bot`  \n  Start the Telegram bot service.\n\n### Prompt Execution\n- `run \"<prompt>\"`  \n  Execute a prompt directly from the CLI.\n\n### Help\n- `help`  \n  Display usage instructions.\n\n---\n\n## Usage Notes\n- Commands run in the current workspace.\n- Use `cli` for interactive workflows.\n\n---\n\n## Troubleshooting\n- **Command not found**: Check installation & PATH.\n- **Execution errors**: Verify env & run `nami init`.\n- **Bot issues**: Check credentials & network.\n\n---\n\n## When to Use\n- Recall CLI commands\n- Guide users\n- Validate CLI workflows")?;
 
     mad_print_inline!(
         &skin,
-        "\n**Success!** Global files initialized in `~/.nami/`: `AGENT.md`, `MEMORIES.md`, `USER.md`, `STATE_PROTOCOL.md` \n"
+        "\n**Success!** Global files updated safely in `~/.nami/` \n"
     );
-    mad_print_inline!(&skin, "**Root files created in global config:** `config.toml`, `.env` \n");
+    mad_print_inline!(&skin, "**Root files created or safely merged in global config:** `config.toml`, `.env` \n");
 
     // 7. Session Management
     let db_path = nami_dir.join("sessions.db");

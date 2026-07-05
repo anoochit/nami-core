@@ -748,7 +748,7 @@ pub async fn handle_slash_command(
         "/version" => {
             println!(
                 "{} {}\n",
-                style::style("Nami CLI").magenta().bold(),
+                style::style("Nami CLI").bold(),
                 env!("CARGO_PKG_VERSION")
             );
         }

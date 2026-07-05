@@ -53,11 +53,31 @@ impl std::str::FromStr for TaskStatus {
     }
 }
 
+#[derive(Serialize, Deserialize, JsonSchema, Clone, Debug, PartialEq)]
+#[serde(tag = "type", rename_all = "snake_case")]
+pub enum VerificationMethod {
+    Llm {
+        criteria: String,
+    },
+    Command {
+        command: String,
+        expected_output: Option<String>,
+        #[serde(default)]
+        allow_failure: bool,
+    },
+    FileExists {
+        path: String,
+        contains_pattern: Option<String>,
+    },
+}
+
 #[derive(Serialize, Deserialize, JsonSchema, Clone, Debug)]
 pub struct Step {
     pub description: String,
     pub completed: bool,
     pub verification_criteria: Option<String>,
+    #[serde(default)]
+    pub verification_method: Option<VerificationMethod>,
 }
 
 #[derive(Serialize, Deserialize, JsonSchema, Clone, Debug)]
@@ -207,7 +227,8 @@ impl Tool for InitTask {
                                 "type": "object",
                                 "properties": {
                                     "description": { "type": "string" },
-                                    "verification_criteria": { "type": "string" }
+                                    "verification_criteria": { "type": "string" },
+                                    "verification_method": { "type": "object", "description": "Optional structured verification method definition." }
                                 },
                                 "required": ["description"]
                             }
@@ -250,12 +271,14 @@ impl Tool for InitTask {
                         description: s.to_string(),
                         completed: false,
                         verification_criteria: None,
+                        verification_method: None,
                     })
                 } else {
                     #[derive(Deserialize)]
                     struct StepInput {
                         description: String,
                         verification_criteria: Option<String>,
+                        verification_method: Option<VerificationMethod>,
                     }
                     let input: StepInput = serde_json::from_value(v)
                         .map_err(|e| AdkError::tool(format!("Invalid step format: {}", e)))?;
@@ -263,6 +286,7 @@ impl Tool for InitTask {
                         description: input.description,
                         completed: false,
                         verification_criteria: input.verification_criteria,
+                        verification_method: input.verification_method,
                     })
                 }
             })
@@ -312,7 +336,8 @@ impl Tool for UpdateTask {
                         "properties": {
                             "description": { "type": "string" },
                             "completed": { "type": "boolean" },
-                            "verification_criteria": { "type": "string" }
+                            "verification_criteria": { "type": "string" },
+                            "verification_method": { "type": "object" }
                         },
                         "required": ["description"]
                     },
@@ -600,12 +625,39 @@ mod tests {
             description: "Test".to_string(),
             completed: false,
             verification_criteria: Some("Criteria".to_string()),
+            verification_method: None,
         };
         let json = serde_json::to_value(&step).unwrap();
         assert_eq!(json["verification_criteria"], json!("Criteria"));
 
         let deserialized: Step = serde_json::from_value(json).unwrap();
         assert_eq!(deserialized.verification_criteria, Some("Criteria".to_string()));
+    }
+
+    #[test]
+    fn test_step_verification_method() {
+        let step = Step {
+            description: "Run unit tests".to_string(),
+            completed: false,
+            verification_criteria: None,
+            verification_method: Some(VerificationMethod::Command {
+                command: "cargo test".to_string(),
+                expected_output: Some("ok".to_string()),
+                allow_failure: false,
+            }),
+        };
+        let json = serde_json::to_value(&step).unwrap();
+        assert_eq!(json["verification_method"]["type"], json!("command"));
+        assert_eq!(json["verification_method"]["command"], json!("cargo test"));
+
+        let deserialized: Step = serde_json::from_value(json).unwrap();
+        if let Some(VerificationMethod::Command { command, expected_output, allow_failure }) = deserialized.verification_method {
+            assert_eq!(command, "cargo test");
+            assert_eq!(expected_output, Some("ok".to_string()));
+            assert!(!allow_failure);
+        } else {
+            panic!("Expected Command variant");
+        }
     }
 }
 

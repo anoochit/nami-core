@@ -4,24 +4,26 @@ use adk_rust::serde::Deserialize;
 use adk_tool::tool;
 use schemars::JsonSchema;
 use serde_json::{Value, json};
-use std::process::Stdio;
 use std::sync::Arc;
 use tokio::fs;
-use tokio::process::Command;
 
 // ─── Tools ────────────────────────────────────────────────────────────────────
 
 #[derive(Deserialize, JsonSchema)]
-struct PathArgs {
+struct ReadFileArgs {
     /// Path relative to the workspace/ directory
     path: String,
     /// Optional encoding format: "text" or "base64". If omitted, auto-detects by trying text and falling back to base64.
     encoding: Option<String>,
+    /// Optional 1-indexed start line (inclusive) for text files. Defaults to 1.
+    start_line: Option<usize>,
+    /// Optional 1-indexed end line (inclusive) for text files. Defaults to start_line + 799.
+    end_line: Option<usize>,
 }
 
 /// Reads the contents of a file at the specified path within the workspace. Supports returning plain text or Base64-encoded multimedia files.
 #[tool]
-async fn read_file(args: PathArgs) -> std::result::Result<Value, AdkError> {
+async fn read_file(args: ReadFileArgs) -> std::result::Result<Value, AdkError> {
     let path = sandbox(&args.path).await?;
     
     // Get MIME type based on file extension
@@ -36,10 +38,47 @@ async fn read_file(args: PathArgs) -> std::result::Result<Value, AdkError> {
             let content = fs::read_to_string(&path)
                 .await
                 .map_err(|e| AdkError::tool(format!("Read failed: {}", e)))?;
+            
+            let lines: Vec<&str> = content.lines().collect();
+            let total_lines = lines.len();
+
+            let start_line = args.start_line.unwrap_or(1);
+            let end_line = args.end_line.unwrap_or(start_line + 799);
+
+            if start_line == 0 {
+                return Err(AdkError::tool("start_line must be 1-indexed (greater than 0)".to_string()));
+            }
+            if end_line < start_line {
+                return Err(AdkError::tool("end_line must be greater than or equal to start_line".to_string()));
+            }
+
+            if total_lines == 0 {
+                return Ok(json!({
+                    "content": "",
+                    "encoding": "text",
+                    "mime_type": mime_type,
+                    "start_line": start_line,
+                    "end_line": end_line,
+                    "total_lines": 0,
+                    "truncated": false
+                }));
+            }
+
+            let start_idx = (start_line - 1).min(total_lines - 1);
+            let end_idx = (end_line - 1).min(total_lines - 1);
+
+            let sliced_lines = &lines[start_idx..=end_idx];
+            let joined = sliced_lines.join("\n");
+            let truncated = total_lines > (end_idx + 1) || start_idx > 0;
+
             Ok(json!({
-                "content": content,
+                "content": joined,
                 "encoding": "text",
-                "mime_type": mime_type
+                "mime_type": mime_type,
+                "start_line": start_idx + 1,
+                "end_line": end_idx + 1,
+                "total_lines": total_lines,
+                "truncated": truncated
             }))
         }
         "base64" => {
@@ -58,10 +97,46 @@ async fn read_file(args: PathArgs) -> std::result::Result<Value, AdkError> {
             // Auto-detect: try reading as UTF-8 first
             match fs::read_to_string(&path).await {
                 Ok(content) => {
+                    let lines: Vec<&str> = content.lines().collect();
+                    let total_lines = lines.len();
+
+                    let start_line = args.start_line.unwrap_or(1);
+                    let end_line = args.end_line.unwrap_or(start_line + 799);
+
+                    if start_line == 0 {
+                        return Err(AdkError::tool("start_line must be 1-indexed (greater than 0)".to_string()));
+                    }
+                    if end_line < start_line {
+                        return Err(AdkError::tool("end_line must be greater than or equal to start_line".to_string()));
+                    }
+
+                    if total_lines == 0 {
+                        return Ok(json!({
+                            "content": "",
+                            "encoding": "text",
+                            "mime_type": mime_type,
+                            "start_line": start_line,
+                            "end_line": end_line,
+                            "total_lines": 0,
+                            "truncated": false
+                        }));
+                    }
+
+                    let start_idx = (start_line - 1).min(total_lines - 1);
+                    let end_idx = (end_line - 1).min(total_lines - 1);
+
+                    let sliced_lines = &lines[start_idx..=end_idx];
+                    let joined = sliced_lines.join("\n");
+                    let truncated = total_lines > (end_idx + 1) || start_idx > 0;
+
                     Ok(json!({
-                        "content": content,
+                        "content": joined,
                         "encoding": "text",
-                        "mime_type": mime_type
+                        "mime_type": mime_type,
+                        "start_line": start_idx + 1,
+                        "end_line": end_idx + 1,
+                        "total_lines": total_lines,
+                        "truncated": truncated
                     }))
                 }
                 Err(_) => {
@@ -103,6 +178,12 @@ async fn write_file(args: WriteFileArgs) -> std::result::Result<Value, AdkError>
         .map_err(|e| AdkError::tool(format!("Write failed: {}", e)))?;
 
     Ok(json!({ "status": "success", "path": args.path }))
+}
+
+#[derive(Deserialize, JsonSchema)]
+struct PathArgs {
+    /// Path relative to the workspace/ directory
+    path: String,
 }
 
 /// Lists the names of files and directories within the specified path in the workspace.
@@ -156,6 +237,9 @@ pub(crate) struct ExecArgs {
 /// Executes a shell command within the workspace.
 #[tool]
 pub(crate) async fn exec_command(args: ExecArgs) -> std::result::Result<Value, AdkError> {
+    use std::process::Stdio;
+    use tokio::process::Command;
+
     let root: std::path::PathBuf = get_workspace_dir().await?;
     let run_dir = match args.cwd {
         Some(c) => sandbox(&c).await?,
@@ -214,9 +298,15 @@ struct ReplaceArgs {
     path: String,
     old_string: String,
     new_string: String,
+    /// If true, multiple occurrences of `old_string` will be replaced. If false (default), multiple occurrences will return an error to prevent accidental collateral edits.
+    allow_multiple: Option<bool>,
+    /// Optional 1-indexed start line (inclusive) to limit the search/replace range.
+    start_line: Option<usize>,
+    /// Optional 1-indexed end line (inclusive) to limit the search/replace range.
+    end_line: Option<usize>,
 }
 
-/// Replaces all occurrences of `old_string` with `new_string` in a specified file.
+/// Replaces occurrences of `old_string` with `new_string` in a specified file with optional boundaries and occurrence checks.
 #[tool]
 async fn replace_text(args: ReplaceArgs) -> std::result::Result<Value, AdkError> {
     let path = sandbox(&args.path).await?;
@@ -224,42 +314,135 @@ async fn replace_text(args: ReplaceArgs) -> std::result::Result<Value, AdkError>
         .await
         .map_err(|e| AdkError::tool(format!("Read failed: {}", e)))?;
 
-    if !content.contains(&args.old_string) {
-        return Err(AdkError::tool("Old string not found in file".to_string()));
+    let lines: Vec<&str> = content.split('\n').collect();
+    let total_lines = lines.len();
+
+    let start_line = args.start_line.unwrap_or(1);
+    if start_line == 0 {
+        return Err(AdkError::tool("start_line must be 1-indexed (greater than 0)".to_string()));
     }
 
-    let new_content = content.replace(&args.old_string, &args.new_string);
-    fs::write(&path, new_content)
+    let start_idx = (start_line - 1).min(total_lines);
+    let end_idx = match args.end_line {
+        Some(e) => e.min(total_lines),
+        None => total_lines,
+    };
+
+    if start_idx > end_idx {
+        return Err(AdkError::tool("start_line cannot be greater than end_line".to_string()));
+    }
+
+    let pre_lines = &lines[0..start_idx];
+    let target_lines = &lines[start_idx..end_idx];
+    let post_lines = &lines[end_idx..];
+
+    let target_block = target_lines.join("\n");
+
+    let matches: Vec<_> = target_block.matches(&args.old_string).collect();
+    let count = matches.len();
+
+    if count == 0 {
+        return Err(AdkError::tool("old_string not found in the specified line range".to_string()));
+    }
+
+    let allow_multiple = args.allow_multiple.unwrap_or(false);
+    if count > 1 && !allow_multiple {
+        return Err(AdkError::tool(format!(
+            "Found {} occurrences of old_string in the specified line range, but allow_multiple is false",
+            count
+        )));
+    }
+
+    let new_target_block = if allow_multiple {
+        target_block.replace(&args.old_string, &args.new_string)
+    } else {
+        target_block.replacen(&args.old_string, &args.new_string, 1)
+    };
+
+    let mut final_lines = Vec::new();
+    final_lines.extend(pre_lines.iter().copied());
+    final_lines.push(&new_target_block);
+    final_lines.extend(post_lines.iter().copied());
+
+    let final_content = final_lines.join("\n");
+
+    fs::write(&path, final_content)
         .await
         .map_err(|e| AdkError::tool(format!("Write failed: {}", e)))?;
 
-    Ok(json!({ "status": "success" }))
+    Ok(json!({ "status": "success", "replaced_occurrences": count }))
 }
 
 #[derive(Deserialize, JsonSchema)]
 struct GrepArgs {
     pattern: String,
-    _include_pattern: Option<String>,
+    /// Optional subdirectory within workspace to restrict the search.
+    path: Option<String>,
+    /// Case-insensitive search. Defaults to false.
+    case_insensitive: Option<bool>,
 }
 
-/// Searches for a regular expression pattern within files in the workspace.
+/// Searches recursively for a regular expression pattern within text files natively.
 #[tool]
 async fn grep_search(args: GrepArgs) -> std::result::Result<Value, AdkError> {
-    let root: std::path::PathBuf = get_workspace_dir().await?;
-    let mut command = Command::new("grep");
-    // Ensure the grep command operates strictly within the workspace root
-    command.arg("-r").arg(&args.pattern).arg(".");
+    let search_root = match args.path {
+        Some(p) => sandbox(&p).await?,
+        None => get_workspace_dir().await?,
+    };
 
-    let output = command
-        .current_dir(&root)
-        .stdout(Stdio::piped())
-        .spawn()
-        .map_err(|e| AdkError::tool(e.to_string()))?
-        .wait_with_output()
-        .await
-        .map_err(|e| AdkError::tool(e.to_string()))?;
+    let is_case_insensitive = args.case_insensitive.unwrap_or(false);
+    let re = regex::RegexBuilder::new(&args.pattern)
+        .case_insensitive(is_case_insensitive)
+        .build()
+        .map_err(|e| AdkError::tool(format!("Invalid regex pattern: {}", e)))?;
 
-    Ok(json!({ "results": String::from_utf8_lossy(&output.stdout) }))
+    let mut results = Vec::new();
+    let mut total_matches = 0;
+    let max_matches = 100; // safety limit to keep tokens safe
+
+    for entry in walkdir::WalkDir::new(&search_root)
+        .into_iter()
+        .filter_entry(|e| {
+            let name = e.file_name().to_string_lossy();
+            name != ".git" && name != "target" && name != "node_modules" && name != ".gemini" && name != "build" && name != "dist"
+        })
+        .filter_map(|e| e.ok())
+    {
+        if entry.file_type().is_file() {
+            let file_path = entry.path();
+            // Let's read the file contents
+            if let Ok(content) = std::fs::read_to_string(file_path) {
+                // If it contains null bytes, it's probably binary. Skip it.
+                if content.contains('\0') {
+                    continue;
+                }
+                
+                let rel_path = file_path.strip_prefix(&search_root)
+                    .unwrap_or(file_path)
+                    .to_string_lossy()
+                    .to_string();
+
+                for (idx, line) in content.lines().enumerate() {
+                    if re.is_match(line) {
+                        total_matches += 1;
+                        if results.len() < max_matches {
+                            results.push(json!({
+                                "path": rel_path.clone(),
+                                "line": idx + 1,
+                                "content": line.to_string(),
+                            }));
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    Ok(json!({
+        "results": results,
+        "total_matches": total_matches,
+        "truncated": total_matches > max_matches,
+    }))
 }
 
 #[derive(Deserialize, JsonSchema)]
@@ -269,7 +452,7 @@ struct GlobArgs {
     cwd: Option<String>,
 }
 
-/// Finds files matching a specific glob pattern within the workspace.
+/// Finds files matching a specific glob pattern within the workspace natively.
 #[tool]
 async fn glob_find(args: GlobArgs) -> std::result::Result<Value, AdkError> {
     let search_root = match args.cwd {
@@ -277,22 +460,31 @@ async fn glob_find(args: GlobArgs) -> std::result::Result<Value, AdkError> {
         None => get_workspace_dir().await?,
     };
 
-    let mut command = Command::new("find");
-    // Use -wholename to allow path separators in the pattern
-    command
-        .arg(&search_root)
-        .arg("-wholename")
-        .arg(format!("*{}*", &args.pattern));
+    let glob = globset::Glob::new(&args.pattern)
+        .map_err(|e| AdkError::tool(format!("Invalid glob pattern: {}", e)))?
+        .compile_matcher();
 
-    let output = command
-        .stdout(Stdio::piped())
-        .spawn()
-        .map_err(|e| AdkError::tool(e.to_string()))?
-        .wait_with_output()
-        .await
-        .map_err(|e| AdkError::tool(e.to_string()))?;
+    let mut files = Vec::new();
 
-    Ok(json!({ "files": String::from_utf8_lossy(&output.stdout) }))
+    for entry in walkdir::WalkDir::new(&search_root)
+        .into_iter()
+        .filter_entry(|e| {
+            let name = e.file_name().to_string_lossy();
+            name != ".git" && name != "target" && name != "node_modules" && name != ".gemini"
+        })
+        .filter_map(|e| e.ok())
+    {
+        if entry.file_type().is_file() {
+            let path = entry.path();
+            if let Ok(rel_path) = path.strip_prefix(&search_root) {
+                if glob.is_match(rel_path) {
+                    files.push(rel_path.to_string_lossy().to_string());
+                }
+            }
+        }
+    }
+
+    Ok(json!({ "files": files }))
 }
 
 #[derive(Deserialize, JsonSchema)]
@@ -374,9 +566,11 @@ mod tests {
         write_file(write_args).await.unwrap();
 
         // Read the file back
-        let read_args = PathArgs {
+        let read_args = ReadFileArgs {
             path: "test_file.txt".to_string(),
             encoding: None,
+            start_line: None,
+            end_line: None,
         };
         let read_result = read_file(read_args).await.unwrap();
         assert_eq!(read_result["content"], "hello world");
@@ -384,9 +578,11 @@ mod tests {
         assert_eq!(read_result["mime_type"], "text/plain");
 
         // Test explicit base64 encoding read
-        let read_args_b64 = PathArgs {
+        let read_args_b64 = ReadFileArgs {
             path: "test_file.txt".to_string(),
             encoding: Some("base64".to_string()),
+            start_line: None,
+            end_line: None,
         };
         let read_result_b64 = read_file(read_args_b64).await.unwrap();
         use base64::Engine as _;
@@ -399,13 +595,18 @@ mod tests {
             path: "test_file.txt".to_string(),
             old_string: "world".to_string(),
             new_string: "gemini".to_string(),
+            allow_multiple: None,
+            start_line: None,
+            end_line: None,
         };
         replace_text(replace_args).await.unwrap();
 
         // Verify replacement
-        let read_args_after = PathArgs {
+        let read_args_after = ReadFileArgs {
             path: "test_file.txt".to_string(),
             encoding: None,
+            start_line: None,
+            end_line: None,
         };
         let read_result_after = read_file(read_args_after).await.unwrap();
         assert_eq!(read_result_after["content"], "hello gemini");

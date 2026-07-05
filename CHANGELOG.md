@@ -1,8 +1,14 @@
 # Changelog
 
-## [0.9.30] - 2026-07-01
+## [0.9.31] - 2026-07-05
 
 ### Added
+
+- **Token-Safe Native Filesystem Tools**: Upgraded filesystem tools (`read_file`, `write_to_file`, `replace_text`, `grep_search`, `glob_find`) to be native, cross-platform (robust on Windows using `walkdir` and `globset`), and token-safe via paged reads, line-bound edits, unique-match validations, and path boundary enforcement.
+- **`/pev` Default Slash Command**: Added `/pev` slash command to all CLI modes and registries, including default autocomplete suggestions and configuration templates.
+- **Safe Incremental Merges in `nami init`**: Upgraded `nami init` logic to perform non-destructive merges on `config.toml` (TOML table merge) and `.env` (key appends) while preserving existing markdown instructions (e.g., `rules.md`).
+
+## [0.9.30] - 2026-07-01
 
 - **Strip Autocomplete `@` Prefix (WebUI)**: Added `stripAtPrefixes` client-side clean utility to automatically strip leading `@` prefixes from file/wiki mentions (e.g. converting `@test_file.txt` to `test_file.txt`), resolving a file-reading error where backend tools couldn't find the file.
 

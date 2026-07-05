@@ -10,7 +10,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::fs;
 use futures::StreamExt;
-use crate::tools::state_manager::{InitTask, UpdateTask, GetTask};
+use crate::tools::state_manager::{InitTask, UpdateTask, GetTask, VerificationMethod};
 
 /// Utility function to clean markdown fences and extract a JSON substring if necessary.
 fn clean_json_string(s: &str) -> String {
@@ -449,6 +449,56 @@ impl Tool for PlanUpdate {
     }
 }
 
+async fn run_llm_verification(
+    _model: &Arc<dyn Llm>,
+    verifier: &Arc<dyn Tool>,
+    ctx: Arc<dyn ToolContext>,
+    goal: &str,
+    step_desc: &str,
+    step_criteria: Option<&str>,
+    exec_output: &str,
+) -> (bool, String) {
+    let verify_prompt = format!(
+        "OBJECTIVE: {}\nSTEP: {}\nCRITERIA: {}\nOUTPUT TO VERIFY: {}\n\n\
+        Analyze the output against the criteria. You MUST respond with a JSON object of this structure:\n\
+        {{\n\
+          \"verified\": true or false,\n\
+          \"reasoning\": \"Your detailed reasoning here\",\n\
+          \"suggested_fixes\": \"Suggestions for the executor if not verified\"\n\
+        }}\n\
+        Ensure the JSON is well-formed.",
+        goal,
+        step_desc,
+        step_criteria.unwrap_or("Use your best judgment."),
+        exec_output
+    );
+
+    match verifier.execute(ctx, json!({"input": verify_prompt})).await {
+        Ok(verify_res) => {
+            let verify_output = verify_res.to_string();
+            let clean_verify = clean_json_string(&verify_output);
+            if let Ok(verify_json) = serde_json::from_str::<Value>(&clean_verify) {
+                let verified = verify_json.get("verified").and_then(|v| v.as_bool()).unwrap_or(false);
+                let reasoning = verify_json.get("reasoning").and_then(|r| r.as_str()).unwrap_or("");
+                let suggested_fixes = verify_json.get("suggested_fixes").and_then(|sf| sf.as_str()).unwrap_or("");
+                
+                let reason = if verified {
+                    reasoning.to_string()
+                } else {
+                    format!("Reasoning: {}\nSuggested Fixes: {}", reasoning, suggested_fixes)
+                };
+                (verified, reason)
+            } else {
+                log::warn!("Failed to parse verifier output as JSON. Falling back to substring matching.");
+                let lower_output = verify_output.to_lowercase();
+                let verified = lower_output.contains("verified") || lower_output.contains("\"verified\": true") || lower_output.contains("true");
+                (verified, verify_output)
+            }
+        }
+        Err(e) => (false, format!("Verifier error: {}", e))
+    }
+}
+
 #[derive(Deserialize, JsonSchema)]
 pub struct PlanExecuteArgs {
     /// The name of the plan to execute.
@@ -540,9 +590,9 @@ impl Tool for PlanExecute {
                 break;
             };
 
-            let (step_desc, step_criteria) = {
+            let (step_desc, step_criteria, step_method) = {
                 let step = &task.steps[idx];
-                (step.description.clone(), step.verification_criteria.clone())
+                (step.description.clone(), step.verification_criteria.clone(), step.verification_method.clone())
             };
             log::info!("Plan Execution Iteration {}: Executing step: {}", iterations, step_desc);
 
@@ -557,43 +607,80 @@ impl Tool for PlanExecute {
             let exec_res = executor.execute(ctx.clone(), json!({"input": exec_prompt})).await?;
             let exec_output = exec_res.to_string();
 
-            // 4. VERIFY WITH STRUCTURED JSON PROMPT
-            let verify_prompt = format!(
-                "OBJECTIVE: {}\nSTEP: {}\nCRITERIA: {}\nOUTPUT TO VERIFY: {}\n\n\
-                Analyze the output against the criteria. You MUST respond with a JSON object of this structure:\n\
-                {{\n\
-                  \"verified\": true or false,\n\
-                  \"reasoning\": \"Your detailed reasoning here\",\n\
-                  \"suggested_fixes\": \"Suggestions for the executor if not verified\"\n\
-                }}\n\
-                Ensure the JSON is well-formed.",
-                task.goal,
-                step_desc,
-                step_criteria.as_deref().unwrap_or("Use your best judgment."),
-                exec_output
-            );
-
-            let verify_res = verifier.execute(ctx.clone(), json!({"input": verify_prompt})).await?;
-            let verify_output = verify_res.to_string();
-
-            // Parse verification response with fallback
-            let clean_verify = clean_json_string(&verify_output);
-            let (is_verified, verify_reason) = if let Ok(verify_json) = serde_json::from_str::<Value>(&clean_verify) {
-                let verified = verify_json.get("verified").and_then(|v| v.as_bool()).unwrap_or(false);
-                let reasoning = verify_json.get("reasoning").and_then(|r| r.as_str()).unwrap_or("");
-                let suggested_fixes = verify_json.get("suggested_fixes").and_then(|sf| sf.as_str()).unwrap_or("");
-                
-                let reason = if verified {
-                    reasoning.to_string()
-                } else {
-                    format!("Reasoning: {}\nSuggested Fixes: {}", reasoning, suggested_fixes)
-                };
-                (verified, reason)
+            // 4. VERIFY USING ADVANCED METHODS
+            let (is_verified, verify_reason) = if let Some(method) = step_method {
+                match method {
+                    VerificationMethod::Command { command, expected_output, allow_failure } => {
+                        log::info!("Executing verification command: {}", command);
+                        let mut cmd = if cfg!(target_os = "windows") {
+                            let mut c = tokio::process::Command::new("powershell");
+                            c.arg("-Command").arg(&command);
+                            c
+                        } else {
+                            let mut c = tokio::process::Command::new("sh");
+                            c.arg("-c").arg(&command);
+                            c
+                        };
+                        match cmd.output().await {
+                            Ok(output) => {
+                                let stdout = String::from_utf8_lossy(&output.stdout).to_string();
+                                let stderr = String::from_utf8_lossy(&output.stderr).to_string();
+                                let code = output.status.code().unwrap_or(-1);
+                                log::info!("Verification command finished with exit code: {}", code);
+                                
+                                let status_ok = output.status.success() || allow_failure;
+                                let output_ok = if let Some(expected) = expected_output {
+                                    stdout.contains(&expected) || stderr.contains(&expected)
+                                } else {
+                                    true
+                                };
+                                
+                                if status_ok && output_ok {
+                                    (true, format!("Command successfully verified step.\nExit code: {}\nStdout: {}", code, stdout))
+                                } else {
+                                    let mut reason = format!("Command verification failed.\nExit code: {}\nStdout: {}\nStderr: {}", code, stdout, stderr);
+                                    if !output_ok {
+                                        reason.push_str("\nExpected output pattern not found.");
+                                    }
+                                    (false, reason)
+                                }
+                            }
+                            Err(e) => {
+                                (false, format!("Failed to run verification command: {}", e))
+                            }
+                        }
+                    }
+                    VerificationMethod::FileExists { path, contains_pattern } => {
+                        log::info!("Checking file existence: {}", path);
+                        let workspace_root = get_workspace_dir().await.unwrap_or_else(|_| std::path::PathBuf::from("."));
+                        let full_path = workspace_root.join(&path);
+                        if full_path.exists() {
+                            if let Some(pattern) = contains_pattern {
+                                match fs::read_to_string(&full_path).await {
+                                    Ok(content) => {
+                                        if content.contains(&pattern) {
+                                            (true, format!("File '{}' exists and correctly contains expected pattern '{}'.", path, pattern))
+                                        } else {
+                                            (false, format!("File '{}' exists but does not contain expected pattern '{}'.", path, pattern))
+                                        }
+                                    }
+                                    Err(e) => {
+                                        (false, format!("File '{}' exists but could not be read: {}", path, e))
+                                    }
+                                }
+                            } else {
+                                (true, format!("File '{}' exists.", path))
+                            }
+                        } else {
+                            (false, format!("Expected file '{}' was not found on disk.", path))
+                        }
+                    }
+                    VerificationMethod::Llm { criteria } => {
+                        run_llm_verification(&self.model, verifier, ctx.clone(), &task.goal, &step_desc, Some(&criteria), &exec_output).await
+                    }
+                }
             } else {
-                log::warn!("Failed to parse verifier output as JSON. Falling back to substring matching.");
-                let lower_output = verify_output.to_lowercase();
-                let verified = lower_output.contains("verified") || lower_output.contains("\"verified\": true") || lower_output.contains("true");
-                (verified, verify_output.clone())
+                run_llm_verification(&self.model, verifier, ctx.clone(), &task.goal, &step_desc, step_criteria.as_deref(), &exec_output).await
             };
 
             // 5. UPDATE STATE AND DYNAMICALLY REPLAN IF FAILED
@@ -679,14 +766,15 @@ impl Tool for PlanExecute {
                 let mut parsed_new_steps = Vec::new();
                 if let Some(arr) = replan_res_val.as_array() {
                     for v in arr {
-                        if let (Some(desc), Some(crit)) = (
-                            v.get("description").and_then(|d| d.as_str()),
-                            v.get("verification_criteria").and_then(|c| c.as_str())
-                        ) {
+                        if let Some(desc) = v.get("description").and_then(|d| d.as_str()) {
+                            let criteria = v.get("verification_criteria").and_then(|c| c.as_str()).map(|s| s.to_string());
+                            let method: Option<VerificationMethod> = v.get("verification_method")
+                                .and_then(|m| serde_json::from_value(m.clone()).ok());
                             parsed_new_steps.push(crate::tools::state_manager::Step {
                                 description: desc.to_string(),
                                 completed: false,
-                                verification_criteria: Some(crit.to_string()),
+                                verification_criteria: criteria,
+                                verification_method: method,
                             });
                         }
                     }
