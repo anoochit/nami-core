@@ -19,3 +19,4 @@ pub mod todo;
 pub mod weather;
 pub mod web_fetch;
 pub mod wiki;
+pub mod evolution;

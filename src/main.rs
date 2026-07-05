@@ -54,8 +54,6 @@ enum Commands {
         #[arg(long)]
         host: Option<String>,
     },
-    /// Upgrade nami to the latest version from GitHub releases.
-    Upgrade,
     /// Show current version.
     Version,
 }
@@ -277,10 +275,6 @@ async fn main() -> anyhow::Result<()> {
         Commands::Eval => {
             log::info!("Running evaluation mode");
             modes::eval::run_eval(agent, deps.sessions, deps.memory_adapter, model).await?;
-        }
-        Commands::Upgrade => {
-            log::info!("Running upgrade mode");
-            modes::upgrade::run_upgrade().await?;
         }
         Commands::Version => {
             println!("{}", env!("CARGO_PKG_VERSION"));

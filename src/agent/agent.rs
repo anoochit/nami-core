@@ -312,6 +312,7 @@ pub async fn create_agent(
     core_tools.extend(tools::todo::todo_tools());
     core_tools.extend(tools::web_fetch::web_fetch_tools());
     core_tools.extend(tools::wiki::wiki_tools());
+    core_tools.extend(tools::evolution::evolution_tools(model.clone()));
 
     // Load specialist models
     let mut specialist_models = HashMap::new();

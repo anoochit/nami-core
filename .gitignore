@@ -28,3 +28,5 @@ mlflow.db
 .antigravitycli
 x
 .npm/
+test*.txt
+test*.db
