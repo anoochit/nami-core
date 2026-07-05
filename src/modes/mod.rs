@@ -14,3 +14,4 @@ pub mod startup;
 pub mod scheduler;
 pub mod tui;
 pub mod eval;
+pub mod upgrade;
