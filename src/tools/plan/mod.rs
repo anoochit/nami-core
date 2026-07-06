@@ -159,20 +159,15 @@ impl Tool for PlanCreate {
         if autonomous_mode && self.model.is_some() {
             let model = self.model.as_ref().unwrap();
             let prompt = format!(
-                r#"You are a high-level Planner. Break down the following goal into a sequence of executable steps across four distinct sequential phases:
-                1. design: Formulate the architectural approach and inspect files. Steps in this phase MUST explicitly identify specific directories, files, or structures to read, explore, or inspect to establish full context.
-                2. implementation: Write, edit, or create code files. Steps in this phase MUST detail the files to be modified, functions to be added/updated, and ensure code style and existing comment preservation.
-                3. integration: Integrate, wire components, and configure dependencies. Steps in this phase MUST outline how the newly implemented parts connect to the existing system and state any required configuration updates.
-                4. verification: Run tests, execute verification scripts, or perform checks. Steps in this phase MUST specify exact verification commands (e.g. `cargo test`, `cargo run`), expected assertions, or automated checking steps to run.
+                r#"You are a high-level Planner. Break down the following goal into a sequence of sequential executable steps:
 
                 For EACH step, you MUST provide:
-                1. phase: One of "design", "implementation", "integration", "verification".
-                2. description: What needs to be done.
-                3. verification_criteria: Clear, objective, and specific criteria to judge if the step is finished correctly.
+                1. description: What needs to be done.
+                2. verification_criteria: Clear, objective, and specific criteria to judge if the step is finished correctly.
 
                 Goal: {}
 
-                Return a JSON array of objects: [{{"phase": "design|implementation|integration|verification", "description": "...", "verification_criteria": "..."}}]"#,
+                Return a JSON array of objects: [{{"description": "...", "verification_criteria": "..."}}]"#,
                 args.objective
             );
 
@@ -196,7 +191,6 @@ impl Tool for PlanCreate {
                     if let Some(arr) = steps_val.as_array() {
                         for item in arr {
                             steps.push(json!({
-                                "phase": item.get("phase").and_then(|v| v.as_str()).unwrap_or("implementation"),
                                 "description": item.get("description").and_then(|v| v.as_str()).unwrap_or(""),
                                 "verification_criteria": item.get("verification_criteria").and_then(|v| v.as_str()).unwrap_or("Use your best judgment.")
                             }));
@@ -245,7 +239,7 @@ impl Tool for PlanCreate {
                     if let Ok(Value::Array(arr)) = serde_json::from_str::<Value>(&cleaned) {
                         for val in arr {
                             if let Some(s) = val.as_str() {
-                                steps.push(json!({ "phase": "implementation", "description": s }));
+                                steps.push(json!({ "description": s }));
                             }
                         }
                     }
@@ -256,10 +250,9 @@ impl Tool for PlanCreate {
         // Absolute fallback to generic templates
         if steps.is_empty() {
             steps = vec![
-                json!({ "phase": "design", "description": format!("Analyze current implementation for: {}", args.objective) }),
-                json!({ "phase": "implementation", "description": "Implement core logic" }),
-                json!({ "phase": "integration", "description": "Integrate and handle errors/logging" }),
-                json!({ "phase": "verification", "description": "Verify and test the implementation" }),
+                json!({ "description": format!("Analyze current implementation for: {}", args.objective) }),
+                json!({ "description": "Implement core logic and integrate" }),
+                json!({ "description": "Verify and test the implementation" }),
             ];
         }
         
@@ -278,36 +271,17 @@ impl Tool for PlanCreate {
         
         let path = plans_dir.join(format!("{}.md", normalized_name));
         
-        let mut content = format!("# Plan: {}\n\n## Objective\n{}\n\n", args.name, args.objective);
+        let mut content = format!("# Plan: {}\n\n## Objective\n{}\n\n## Steps\n", args.name, args.objective);
         
-        let phases = vec![
-            ("design", "Design Phase"),
-            ("implementation", "Implementation Phase"),
-            ("integration", "Integration Phase"),
-            ("verification", "Verification Phase"),
-        ];
-
-        for (phase_key, phase_title) in phases {
-            let mut phase_steps = Vec::new();
-            for step in &steps {
-                let p = step.get("phase").and_then(|v| v.as_str()).unwrap_or("implementation").to_lowercase();
-                if p == phase_key {
-                    phase_steps.push(step);
-                }
-            }
-            if !phase_steps.is_empty() {
-                content.push_str(&format!("## {}\n", phase_title));
-                for (j, step) in phase_steps.iter().enumerate() {
-                    let desc = step.get("description").and_then(|v| v.as_str()).unwrap_or("");
-                    if let Some(criteria) = step.get("verification_criteria").and_then(|v| v.as_str()) {
-                        content.push_str(&format!("{}. {}\n   - *Verification Criteria*: {}\n", j + 1, desc, criteria));
-                    } else {
-                        content.push_str(&format!("{}. {}\n", j + 1, desc));
-                    }
-                }
-                content.push_str("\n");
+        for (j, step) in steps.iter().enumerate() {
+            let desc = step.get("description").and_then(|v| v.as_str()).unwrap_or("");
+            if let Some(criteria) = step.get("verification_criteria").and_then(|v| v.as_str()) {
+                content.push_str(&format!("{}. {}\n   - *Verification Criteria*: {}\n", j + 1, desc, criteria));
+            } else {
+                content.push_str(&format!("{}. {}\n", j + 1, desc));
             }
         }
+        content.push_str("\n");
         
         content.push_str("---\n*This plan is synced with an active task in the state manager.*");
         
@@ -619,63 +593,10 @@ impl Tool for PlanExecute {
             log::info!("Plan Execution Iteration {}: Executing step: {}", iterations, step_desc);
 
             let total_steps = task.steps.len();
-            let completed_steps = task.steps.iter().filter(|s| s.completed).count();
-            let pct = if total_steps > 0 { (completed_steps as f64 / total_steps as f64 * 100.0) as usize } else { 0 };
-            
-            // Sub-totals by phase
-            let mut phase_counts = std::collections::HashMap::new();
-            let mut phase_completes = std::collections::HashMap::new();
-            for step in &task.steps {
-                let phase_name = step.phase.to_string();
-                *phase_counts.entry(phase_name.clone()).or_insert(0) += 1;
-                if step.completed {
-                    *phase_completes.entry(phase_name).or_insert(0) += 1;
-                }
-            }
-
-            println!("\r\n{}", crossterm::style::style(format!("🚀 Plan Execution Progress: [{}%] ({} of {} steps completed)", pct, completed_steps, total_steps)).cyan().bold());
-            let filled_width = pct / 10;
-            let bar = format!("[{}{}]", "■".repeat(filled_width), " ".repeat(10 - filled_width));
-            println!("   Progress: {}", crossterm::style::style(bar).green());
-            
-            // Show sub-totals for each phase
-            let display_phases = vec![
-                crate::tools::state_manager::StepPhase::Design,
-                crate::tools::state_manager::StepPhase::Implementation,
-                crate::tools::state_manager::StepPhase::Integration,
-                crate::tools::state_manager::StepPhase::Verification,
-            ];
-            print!("   Phases: ");
-            let mut phase_strs = Vec::new();
-            for dp in display_phases {
-                let name = dp.to_string();
-                let total = *phase_counts.get(&name).unwrap_or(&0);
-                if total > 0 {
-                    let completed = *phase_completes.get(&name).unwrap_or(&0);
-                    let color_style = if completed == total {
-                        crossterm::style::style(format!("{}: {}/{} ✓", name, completed, total)).green()
-                    } else if completed > 0 {
-                        crossterm::style::style(format!("{}: {}/{}", name, completed, total)).yellow()
-                    } else {
-                        crossterm::style::style(format!("{}: {}/{}", name, completed, total)).dark_grey()
-                    };
-                    phase_strs.push(color_style);
-                }
-            }
-            for (i, p_style) in phase_strs.into_iter().enumerate() {
-                if i > 0 {
-                    print!(" | ");
-                }
-                print!("{}", p_style);
-            }
-            println!("\r\n");
-
-            let current_step_phase = task.steps[idx].phase.to_string();
-            println!("   {} Executing step {}: [{}] {}\r\n", 
-                crossterm::style::style("➔").cyan().bold(),
+            println!("\r\n➔ Executing Step {} of {}: {}\r\n", 
                 idx + 1,
-                crossterm::style::style(current_step_phase).magenta().bold(),
-                crossterm::style::style(&step_desc).yellow().italic()
+                total_steps,
+                crossterm::style::style(&step_desc).yellow().bold()
             );
 
             // 3. EXECUTE

@@ -205,9 +205,13 @@ async fn archive_tasks(tasks_to_archive: &[TaskState]) -> std::result::Result<()
 
     let content = serde_json::to_string_pretty(&archived)
         .map_err(|e| AdkError::tool(format!("Failed to serialize task states archive: {}", e)))?;
-    fs::write(&path, content)
+    let tmp_path = path.with_extension("tmp");
+    fs::write(&tmp_path, content)
         .await
-        .map_err(|e| AdkError::tool(format!("Failed to write task states archive: {}", e)))
+        .map_err(|e| AdkError::tool(format!("Failed to write task states archive: {}", e)))?;
+    fs::rename(&tmp_path, &path)
+        .await
+        .map_err(|e| AdkError::tool(format!("Failed to finalize task states archive (atomic rename failed): {}", e)))
 }
 
 async fn save_states(states: &[TaskState]) -> std::result::Result<(), AdkError> {
@@ -230,9 +234,13 @@ async fn save_states(states: &[TaskState]) -> std::result::Result<(), AdkError> 
     let path = get_states_file().await?;
     let content = serde_json::to_string_pretty(&active_states)
         .map_err(|e| AdkError::tool(format!("Failed to serialize task states: {}", e)))?;
-    fs::write(&path, content)
+    let tmp_path = path.with_extension("tmp");
+    fs::write(&tmp_path, content)
         .await
-        .map_err(|e| AdkError::tool(format!("Failed to write task states: {}", e)))
+        .map_err(|e| AdkError::tool(format!("Failed to write task states: {}", e)))?;
+    fs::rename(&tmp_path, &path)
+        .await
+        .map_err(|e| AdkError::tool(format!("Failed to finalize task states (atomic rename failed): {}", e)))
 }
 
 // --- Tools Implementation ---
