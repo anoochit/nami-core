@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.9.36] - 2026-07-06
+
+### Added
+
+- **Smart Environment Verification**: Optimized fallback flow for `nami init` during re-configuration to ensure all keys and settings default perfectly.
+
 ## [0.9.35] - 2026-07-06
 
 ### Added
