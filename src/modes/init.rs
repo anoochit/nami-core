@@ -1,5 +1,5 @@
 use adk_session::SqliteSessionService;
-use inquire::{Password, Select, Text};
+use inquire::{Confirm, Password, Select, Text};
 use std::fs::File;
 use std::io::Write;
 use termimad::{MadSkin, mad_print_inline};
@@ -183,6 +183,58 @@ pub async fn run_init() -> anyhow::Result<()> {
         .with_display_mode(inquire::PasswordDisplayMode::Masked)
         .prompt()?;
 
+    // --- 6. Image Generation Configuration ---
+    skin.print_text("\n### 6. Image Generation Configuration\n");
+    let configure_image_gen = Confirm::new("Do you want to configure Image Generation?")
+        .with_default(false)
+        .prompt()?;
+
+    let (image_provider, image_model_name, image_api_key_env) = if configure_image_gen {
+        let image_providers = vec!["gemini", "vertex", "custom"];
+        let provider_selection = Select::new("Choose Image Generation Provider:", image_providers).prompt()?;
+        let prov = if provider_selection == "custom" {
+            Text::new("Enter Custom Provider:").prompt()?
+        } else {
+            provider_selection.to_string()
+        };
+
+        let default_model = if prov == "vertex" {
+            "imagen-3.0-generate-002"
+        } else {
+            "models/gemini-2.5-flash-image-preview"
+        };
+        let model = Text::new("Enter Image Generation Model Name:")
+            .with_default(default_model)
+            .prompt()?;
+
+        let default_env = if prov == "vertex" {
+            ""
+        } else {
+            "GOOGLE_API_KEY"
+        };
+        let env_var = Text::new("Enter Environment Variable Name for Image API Key:")
+            .with_default(default_env)
+            .prompt()?;
+
+        (Some(prov), Some(model), Some(env_var))
+    } else {
+        (None, None, None)
+    };
+
+    let image_gen_section = if let (Some(prov), Some(model), Some(env)) = (&image_provider, &image_model_name, &image_api_key_env) {
+        format!(
+            "[image_generation]\nprovider = \"{}\"\nmodel_name = \"{}\"\napi_key_env = \"{}\"\n",
+            prov, model, env
+        )
+    } else {
+        r#"# [image_generation]
+# # Image generation is optimized for Gemini/Vertex providers.
+# provider = "gemini"
+# model_name = "models/gemini-2.5-flash-image-preview"
+# api_key_env = "GOOGLE_API_KEY"
+"#.to_string()
+    };
+
     // --- File Generation ---
 
     // Ensure global directory exists
@@ -210,11 +262,7 @@ location = "{location_str}"
 # Optional settings for OpenAI-compatible providers
 # base_url = "https://api.openai.com/v1"
 
-# [image_generation]
-# # Image generation is optimized for Gemini/Vertex providers.
-# provider = "gemini"
-# model_name = "models/gemini-2.5-flash-image-preview"
-# api_key_env = "GOOGLE_API_KEY"
+{image_gen_section}
 
 [workspaces]
 # The default active workspace path when Nami is run outside any registered workspaces
