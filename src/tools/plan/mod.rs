@@ -160,6 +160,10 @@ impl Tool for PlanCreate {
             let model = self.model.as_ref().unwrap();
             let prompt = format!(
                 r#"You are a high-level Planner. Break down the following goal into a sequence of executable steps.
+                You MUST structure the steps in two distinct phases:
+                1. Implementation Phase: Group all code-writing, creation, and modification steps first.
+                2. Verification Phase: Place a final, explicit testing and verification step at the very end to validate the entire implementation after it is complete.
+
                 For EACH step, you MUST provide:
                 1. description: What needs to be done.
                 2. verification_criteria: Clear, objective criteria to judge if the step is finished correctly.
