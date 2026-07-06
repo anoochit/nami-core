@@ -596,7 +596,7 @@ pub async fn handle_slash_command(
     trimmed: &str,
     runner: &mut Runner,
     sessions: &Arc<dyn SessionService>,
-    model: &Arc<dyn Llm>,
+    _model: &Arc<dyn Llm>,
     app_name: &str,
     user_id: &str,
     session_id: &mut String,

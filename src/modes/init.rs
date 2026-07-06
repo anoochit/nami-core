@@ -540,6 +540,14 @@ help = "Schedule a repeating task (goal | cron)"
 template = "recall_memory: {{args}}"
 help = "Recall information from memory"
 
+[commands."/learn"]
+template = "Analyze the recent conversation history, successes, and corrections to extract reusable rules, guidelines, or specialized skills. Save these insights to memory using add_memory so they can be recalled for future tasks. Context/Details: {{args}}"
+help = "Reflect on recent successes or corrections to capture reusable skills or rules"
+
+[commands."/grill"]
+template = "Conduct an interactive interview with the user to align on a plan. Ask clarifying questions one at a time, gather all requirements, design decisions, and user preferences, and then compile the aligned plan. Save the final compiled plan to the folder '~/.nami/plans/' (e.g. as a markdown file). Prompt: {args}"
+help = "Interview me to align on a plan and save it to '~/.nami/plans/'"
+
 [commands."/skill"]
 template = "Activate and execute the skill: {{args}}"
 help = "Invoke a specific skill by name"

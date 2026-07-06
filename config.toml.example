@@ -18,10 +18,6 @@ api_key_env = "GOOGLE_API_KEY"
 
 [commands]
 # Custom command definitions
-[commands."/plan"]
-template = "plan_create(name='auto', objective='{args}', autonomous=true)"
-help = "Create an AI research plan"
-
 [commands."/wiki"]
 template = "wiki_search: {args}"
 help = "Search the project wiki"
@@ -46,25 +42,13 @@ help = "Schedule a repeating task (goal | cron)"
 template = "recall_memory: {args}"
 help = "Recall information from memory"
 
-[commands."/pev"]
-template = "Please use PEV mode for this objective: {args}. First, use pev_init(goal='{args}', task_id='pev-{uuid}') to plan it, then use pev_run(task_id='pev-{uuid}') to execute and verify it."
-help = "Run the Planner-Executor-Verifier loop for a goal"
+[commands."/learn"]
+template = "Analyze the recent conversation history, successes, and corrections to extract reusable rules, guidelines, or specialized skills. Save these insights to memory using add_memory so they can be recalled for future tasks. Context/Details: {args}"
+help = "Reflect on recent successes or corrections to capture reusable skills or rules"
 
-[commands."/execute"]
-template = "plan_execute(name='{args}')"
-help = "Execute an existing plan by name"
-
-[commands."/test"]
-template = "Analyze the code in {args} and generate a unit test file in tests/."
-help = "Generate tests for a specific file or module"
-
-[commands."/doc"]
-template = "Examine {args} and update the corresponding documentation in docs/."
-help = "Update documentation for a specific feature"
-
-[commands."/refactor"]
-template = "Perform a code review and suggest refactorings for {args} to improve maintainability."
-help = "Request refactoring suggestions for a module"
+[commands."/grill"]
+template = "Conduct an interactive interview with the user to align on a plan. Ask clarifying questions one at a time, gather all requirements, design decisions, and user preferences, and then compile the aligned plan. Save the final compiled plan to the folder '~/.nami/plans/' (e.g. as a markdown file). Prompt: {args}"
+help = "Interview me to align on a plan and save it to '~/.nami/plans/'"
 
 [commands."/skill"]
 template = "Activate and execute the skill: {args}"

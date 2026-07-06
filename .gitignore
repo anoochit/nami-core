@@ -4,19 +4,8 @@
 sessions.db
 memory.db
 .cli*
-/workspace/*
-!/workspace/.skills/
-!/workspace/wiki/Templates/
-!/workspace/AGENT.md
-!/workspace/USER.md
-!/workspace/README.md
-!/workspace/STATE_PROTOCOL.md
-workspace/MEMORIES.md
+workspace/*
 /ref
-workspace/wiki/
-workspace/todos.json
-workspace/wiki/.obsidian
-workspace/.skills/create-pdf/libs
 .idea/
 idea/*
 note/*
@@ -30,3 +19,4 @@ x
 .npm/
 test*.txt
 test*.db
+.env
