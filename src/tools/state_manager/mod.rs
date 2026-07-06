@@ -71,6 +71,43 @@ pub enum VerificationMethod {
     },
 }
 
+#[derive(Serialize, Deserialize, JsonSchema, Clone, Copy, Debug, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum StepPhase {
+    Design,
+    Implementation,
+    Integration,
+    Verification,
+}
+
+impl std::fmt::Display for StepPhase {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            StepPhase::Design => write!(f, "Design"),
+            StepPhase::Implementation => write!(f, "Implementation"),
+            StepPhase::Integration => write!(f, "Integration"),
+            StepPhase::Verification => write!(f, "Verification"),
+        }
+    }
+}
+
+impl std::str::FromStr for StepPhase {
+    type Err = AdkError;
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s.to_lowercase().as_str() {
+            "design" => Ok(StepPhase::Design),
+            "implementation" | "implement" => Ok(StepPhase::Implementation),
+            "integration" | "integrate" => Ok(StepPhase::Integration),
+            "verification" | "verify" => Ok(StepPhase::Verification),
+            _ => Err(AdkError::tool(format!("Invalid step phase: {}", s))),
+        }
+    }
+}
+
+pub fn default_phase() -> StepPhase {
+    StepPhase::Implementation
+}
+
 #[derive(Serialize, Deserialize, JsonSchema, Clone, Debug)]
 pub struct Step {
     pub description: String,
@@ -78,6 +115,8 @@ pub struct Step {
     pub verification_criteria: Option<String>,
     #[serde(default)]
     pub verification_method: Option<VerificationMethod>,
+    #[serde(default = "default_phase")]
+    pub phase: StepPhase,
 }
 
 #[derive(Serialize, Deserialize, JsonSchema, Clone, Debug)]
@@ -227,6 +266,7 @@ impl Tool for InitTask {
                                 "type": "object",
                                 "properties": {
                                     "description": { "type": "string" },
+                                    "phase": { "type": "string", "enum": ["design", "implementation", "integration", "verification"] },
                                     "verification_criteria": { "type": "string" },
                                     "verification_method": { "type": "object", "description": "Optional structured verification method definition." }
                                 },
@@ -272,11 +312,14 @@ impl Tool for InitTask {
                         completed: false,
                         verification_criteria: None,
                         verification_method: None,
+                        phase: StepPhase::Implementation,
                     })
                 } else {
                     #[derive(Deserialize)]
                     struct StepInput {
                         description: String,
+                        #[serde(default = "default_phase")]
+                        phase: StepPhase,
                         verification_criteria: Option<String>,
                         verification_method: Option<VerificationMethod>,
                     }
@@ -287,6 +330,7 @@ impl Tool for InitTask {
                         completed: false,
                         verification_criteria: input.verification_criteria,
                         verification_method: input.verification_method,
+                        phase: input.phase,
                     })
                 }
             })
@@ -336,6 +380,7 @@ impl Tool for UpdateTask {
                         "properties": {
                             "description": { "type": "string" },
                             "completed": { "type": "boolean" },
+                            "phase": { "type": "string", "enum": ["design", "implementation", "integration", "verification"] },
                             "verification_criteria": { "type": "string" },
                             "verification_method": { "type": "object" }
                         },
@@ -626,6 +671,7 @@ mod tests {
             completed: false,
             verification_criteria: Some("Criteria".to_string()),
             verification_method: None,
+            phase: StepPhase::Implementation,
         };
         let json = serde_json::to_value(&step).unwrap();
         assert_eq!(json["verification_criteria"], json!("Criteria"));
@@ -645,6 +691,7 @@ mod tests {
                 expected_output: Some("ok".to_string()),
                 allow_failure: false,
             }),
+            phase: StepPhase::Implementation,
         };
         let json = serde_json::to_value(&step).unwrap();
         assert_eq!(json["verification_method"]["type"], json!("command"));
