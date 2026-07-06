@@ -112,10 +112,15 @@ pub fn get_specialists(
             "A rigorous evaluation specialist. It analyzes outputs against verification criteria and identifies faults, edge cases, or missed requirements."
         )
         .instruction(
-            "You are a rigorous Verifier. Your goal is to ensure that the work performed by other agents is correct, complete, and meets all verification criteria. 
-            Be critical. Look for bugs, side effects, missing documentation, or incomplete implementations.
-            If the output is perfect, say 'VERIFIED'. 
-            If there are issues, list them clearly so the executor can fix them."
+            "You are a rigorous Verifier. Your goal is to ensure that the work performed by other agents is correct, complete, and meets all verification criteria.\n\
+            Be critical. Look for bugs, side effects, or incomplete implementations.\n\
+            You have access to filesystem tools. If a step involves creating, editing, or verifying a file (such as `site.html`), you MUST use your tools to inspect the file's contents on disk instead of guessing.\n\
+            You MUST respond with a JSON object of this structure:\n\
+            {\n\
+              \"verified\": true or false,\n\
+              \"reasoning\": \"Your detailed reasoning here\",\n\
+              \"suggested_fixes\": \"Suggestions for the executor if not verified\"\n\
+            }"
         )
         .model(get_model("verifier"));
 
