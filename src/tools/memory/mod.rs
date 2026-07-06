@@ -22,6 +22,71 @@ pub struct AddMemoryArgs {
     pub text: String,
 }
 
+fn tokenize(text: &str) -> Vec<String> {
+    text.to_lowercase()
+        .split(|c: char| !c.is_alphanumeric())
+        .filter(|s| !s.is_empty())
+        .map(|s| s.to_string())
+        .collect()
+}
+
+fn rank_memories(query: &str, memories: &mut Vec<Value>) {
+    if memories.is_empty() {
+        return;
+    }
+
+    let query_tokens = tokenize(query);
+    if query_tokens.is_empty() {
+        return;
+    }
+
+    let n_docs = memories.len();
+    let docs_tokens: Vec<Vec<String>> = memories
+        .iter()
+        .map(|m| {
+            let text = m["text"].as_str().unwrap_or("");
+            tokenize(text)
+        })
+        .collect();
+
+    // Calculate document frequencies for query terms
+    let mut df = std::collections::HashMap::new();
+    for token in &query_tokens {
+        let count = docs_tokens
+            .iter()
+            .filter(|doc| doc.contains(token))
+            .count();
+        df.insert(token.clone(), count);
+    }
+
+    // Calculate scores
+    let mut scored_memories: Vec<(f64, Value)> = memories
+        .drain(..)
+        .enumerate()
+        .map(|(i, memory)| {
+            let doc = &docs_tokens[i];
+            let mut score = 0.0;
+            if !doc.is_empty() {
+                for token in &query_tokens {
+                    let tf = doc.iter().filter(|t| *t == token).count() as f64 / doc.len() as f64;
+                    let doc_freq = *df.get(token).unwrap_or(&0);
+                    let idf = ((1.0 + n_docs as f64) / (1.0 + doc_freq as f64)).ln();
+                    score += tf * idf;
+                }
+            }
+            (score, memory)
+        })
+        .collect();
+
+    // Sort by score descending (using stable sort to preserve order for equal scores)
+    scored_memories.sort_by(|a, b| b.0.partial_cmp(&a.0).unwrap_or(std::cmp::Ordering::Equal));
+
+    // Put them back into memories vector
+    for (_, memory) in scored_memories {
+        memories.push(memory);
+    }
+}
+
 /// Search long-term memory for relevant past conversations or facts.
 #[tool]
 async fn recall_memory(args: RecallArgs) -> std::result::Result<Value, AdkError> {
@@ -39,7 +104,7 @@ async fn recall_memory(args: RecallArgs) -> std::result::Result<Value, AdkError>
         .await
     {
         Ok(resp) => {
-            let memories: Vec<_> = resp
+            let mut memories: Vec<_> = resp
                 .memories
                 .iter()
                 .map(|m| {
@@ -51,6 +116,9 @@ async fn recall_memory(args: RecallArgs) -> std::result::Result<Value, AdkError>
                     })
                 })
                 .collect();
+            
+            rank_memories(&args.query, &mut memories);
+
             Ok(json!({
                 "query": args.query,
                 "found": memories.len(),
@@ -117,5 +185,20 @@ mod tests {
         
         assert_eq!(recall_result["found"], 1);
         assert!(recall_result["memories"][0]["text"].as_str().unwrap().contains("dark theme"));
+    }
+
+    #[test]
+    fn test_memory_tfidf_ranking() {
+        let mut memories = vec![
+            json!({"author": "user", "text": "This is completely irrelevant context about apples.", "timestamp": "2026-07-06T11:00:00Z"}),
+            json!({"author": "user", "text": "The theme is dark theme, which the user prefers.", "timestamp": "2026-07-06T11:01:00Z"}),
+            json!({"author": "user", "text": "A light theme is also an option, but not preferred.", "timestamp": "2026-07-06T11:02:00Z"}),
+        ];
+
+        rank_memories("dark theme preferred", &mut memories);
+
+        assert!(memories[0]["text"].as_str().unwrap().contains("dark theme"));
+        assert!(memories[1]["text"].as_str().unwrap().contains("light theme"));
+        assert!(memories[2]["text"].as_str().unwrap().contains("apples"));
     }
 }

@@ -1,4 +1,6 @@
-use std::sync::{Arc, OnceLock};
+use std::sync::{Arc, OnceLock, Mutex};
+use std::collections::HashMap;
+use std::time::{Duration, Instant};
 
 use adk_rust::Tool;
 use adk_rust::serde::Deserialize;
@@ -10,17 +12,28 @@ use serde_json::{Value, json};
 // Built once, reused across every call — avoids TLS handshake setup per request
 static CLIENT: OnceLock<Client> = OnceLock::new();
 
+struct CacheEntry {
+    result: Value,
+    cached_at: Instant,
+}
+
+static CACHE: OnceLock<Mutex<HashMap<String, CacheEntry>>> = OnceLock::new();
+
 fn get_client() -> Result<&'static Client, AdkError> {
     CLIENT.get_or_init(|| {
         Client::builder()
             .user_agent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) adk-rust-bot/1.0")
-            .connect_timeout(std::time::Duration::from_secs(10))
-            .timeout(std::time::Duration::from_secs(30))
+            .connect_timeout(Duration::from_secs(10))
+            .timeout(Duration::from_secs(30))
             .redirect(reqwest::redirect::Policy::limited(10))
             .build()
             .expect("Failed to build HTTP client")
     });
     CLIENT.get().ok_or_else(|| AdkError::tool("HTTP client unavailable"))
+}
+
+fn get_cache() -> &'static Mutex<HashMap<String, CacheEntry>> {
+    CACHE.get_or_init(|| Mutex::new(HashMap::new()))
 }
 
 // Anything that isn't text is useless to an LLM — skip reading the body entirely
@@ -40,15 +53,35 @@ struct WebFetchArgs {
     url: String,
     /// Maximum characters to return (default 50000, max 200000).
     max_chars: Option<usize>,
+    /// Bypass cache and force a fresh fetch
+    bypass_cache: Option<bool>,
 }
 
-/// Fetch content from a URL via HTTP GET. Use when you need to access a website,
+/// Fetch content from a URL via HTTP GET with intelligent TTL caching. Use when you need to access a website,
 /// summarize a page, or retrieve data from a URL.
 #[tool]
 async fn web_fetch(args: WebFetchArgs) -> std::result::Result<Value, AdkError> {
-    let client = get_client()?;
     let max_len = args.max_chars.unwrap_or(50_000).min(200_000);
+    let bypass = args.bypass_cache.unwrap_or(false);
 
+    let cache_key = format!("{}:{}", args.url, max_len);
+
+    // 1. Try checking the TTL cache (5-minute TTL)
+    if !bypass {
+        if let Ok(cache) = get_cache().lock() {
+            if let Some(entry) = cache.get(&cache_key) {
+                if entry.cached_at.elapsed() < Duration::from_secs(300) {
+                    let mut cached_res = entry.result.clone();
+                    cached_res["cached"] = json!(true);
+                    cached_res["ttl_remaining_secs"] = json!(300 - entry.cached_at.elapsed().as_secs());
+                    return Ok(cached_res);
+                }
+            }
+        }
+    }
+
+    // 2. Perform the actual fresh fetch if not cached or bypassed
+    let client = get_client()?;
     let response = client
         .get(&args.url)
         .send()
@@ -67,12 +100,13 @@ async fn web_fetch(args: WebFetchArgs) -> std::result::Result<Value, AdkError> {
 
     // Early exit — don't waste memory reading binary blobs
     if is_binary(&content_type) {
-        return Ok(json!({
+        let res = json!({
             "status": status,
             "url": args.url,
             "content_type": content_type,
             "error": "Binary content type — not readable as text"
-        }));
+        });
+        return Ok(res);
     }
 
     // Read as raw bytes so we control the UTF-8 boundary ourselves
@@ -101,11 +135,20 @@ async fn web_fetch(args: WebFetchArgs) -> std::result::Result<Value, AdkError> {
         "url": args.url,
         "content_type": content_type,
         "content": content,
+        "cached": false,
     });
 
     if truncated {
         result["truncated"] = json!(true);
         result["original_bytes"] = json!(bytes.len());
+    }
+
+    // 3. Cache the new result
+    if let Ok(mut cache) = get_cache().lock() {
+        cache.insert(cache_key, CacheEntry {
+            result: result.clone(),
+            cached_at: Instant::now(),
+        });
     }
 
     Ok(result)

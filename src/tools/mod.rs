@@ -11,7 +11,7 @@ pub mod parallel_tasks;
 pub mod plan;
 pub mod scheduler;
 pub mod search;
-// pub mod shell;
+pub mod shell;
 pub mod soul;
 pub mod state_manager;
 pub mod system_status;

@@ -111,6 +111,7 @@ struct WikiPageMetadata {
     tags: Vec<String>,
     links: Vec<String>, // Wikilinks parsed from the content: [[PageTitle]]
     frontmatter: HashMap<String, String>,
+    content: Option<String>,
 }
 
 struct WikiCache {
@@ -225,6 +226,7 @@ fn parse_wiki_file_sync(wiki_dir: &Path, path: &Path) -> anyhow::Result<WikiPage
         tags,
         links,
         frontmatter,
+        content: Some(content),
     })
 }
 
@@ -423,9 +425,19 @@ async fn get_wiki_page(args: WikiPageArgs) -> std::result::Result<Value, AdkErro
         return Err(AdkError::tool(format!("Wiki page '{}' not found.", args.title)));
     }
 
-    let full_content = fs::read_to_string(&path)
-        .await
-        .map_err(|e| AdkError::tool(format!("Failed to read wiki page: {}", e)))?;
+    ensure_cache_initialized(&wiki_dir).await?;
+
+    let cached_content = {
+        let cache = get_cache().read().map_err(|e| AdkError::tool(format!("Failed to acquire cache read lock: {}", e)))?;
+        cache.pages.get(&sanitized_title).and_then(|page| page.content.clone())
+    };
+
+    let full_content = match cached_content {
+        Some(content) => content,
+        None => fs::read_to_string(&path)
+            .await
+            .map_err(|e| AdkError::tool(format!("Failed to read wiki page: {}", e)))?,
+    };
 
     let lines: Vec<&str> = full_content.lines().collect();
     let total_lines = lines.len();

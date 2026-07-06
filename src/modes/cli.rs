@@ -912,7 +912,8 @@ pub async fn run_cli(
                     ),
                 )?;
 
-                let content = Content::new("user").with_text(enriched_prompt);
+                let content = Content::new("user").with_text(enriched_prompt.clone());
+                let start_thinking_time = std::time::Instant::now();
                 let mut stream = runner.run_str(user_id, &session_id, content).await?;
                 let mut response_buffer = String::new();
                 let mut function_response_buffer: Vec<Part> = Vec::new();
@@ -1052,6 +1053,22 @@ pub async fn run_cli(
                 terminal::disable_raw_mode()?;
                 clear_current_line(&mut io::stdout())?;
 
+                let duration_secs = start_thinking_time.elapsed().as_secs_f64();
+                let prompt_tokens = (enriched_prompt.len() as f64 / 4.0).round() as usize;
+                let response_tokens = (response_buffer.len() as f64 / 4.0).round() as usize;
+                let total_tokens = prompt_tokens + response_tokens;
+
+                // Save statistics to .nami/stats.json
+                save_agent_statistic(duration_secs, total_tokens);
+
+                // Print statistical summary directly underneath the 'Thinking Process:'
+                if started_thinking {
+                    println!("{}\r", style::style(format!("🧠 Thought for {:.1}s, {} tokens", duration_secs, total_tokens)).green().italic());
+                    println!("{}\r", style::style("──────────────────────────────────────────────────").dim());
+                } else {
+                    println!("{}\r", style::style(format!("🧠 Thought for {:.1}s, {} tokens", duration_secs, total_tokens)).green().italic());
+                }
+
                 if cancelled {
                     if !cancelled_by_esc {
                         println!();
@@ -1086,4 +1103,30 @@ pub async fn run_cli(
     }
 
 Ok(())
+}
+
+fn save_agent_statistic(duration_secs: f64, total_tokens: usize) {
+    let stats_path = get_nami_dir().join("stats.json");
+    
+    let new_entry = serde_json::json!({
+        "timestamp": chrono::Utc::now().to_rfc3339(),
+        "duration_seconds": duration_secs,
+        "tokens_consumed": total_tokens,
+    });
+
+    let mut stats_list = if stats_path.exists() {
+        if let Ok(content) = std::fs::read_to_string(&stats_path) {
+            serde_json::from_str::<Vec<serde_json::Value>>(&content).unwrap_or_default()
+        } else {
+            Vec::new()
+        }
+    } else {
+        Vec::new()
+    };
+
+    stats_list.push(new_entry);
+
+    if let Ok(serialized) = serde_json::to_string_pretty(&stats_list) {
+        let _ = std::fs::write(&stats_path, serialized);
+    }
 }

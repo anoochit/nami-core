@@ -2,6 +2,7 @@ use crate::utils::get_workspace_dir;
 use adk_rust::Tool;
 use adk_rust::serde::Deserialize;
 use adk_rust::tool::ToolContext;
+use crossterm::style::Stylize;
 use adk_rust::prelude::*;
 use adk_tool::AdkError;
 use schemars::JsonSchema;
@@ -596,6 +597,19 @@ impl Tool for PlanExecute {
             };
             log::info!("Plan Execution Iteration {}: Executing step: {}", iterations, step_desc);
 
+            let total_steps = task.steps.len();
+            let completed_steps = task.steps.iter().filter(|s| s.completed).count();
+            let pct = if total_steps > 0 { (completed_steps as f64 / total_steps as f64 * 100.0) as usize } else { 0 };
+            
+            println!("\r\n{}", crossterm::style::style(format!("🚀 Plan Execution Progress: [{}%] ({} of {} steps)", pct, completed_steps, total_steps)).cyan().bold());
+            let filled_width = pct / 10;
+            let bar = format!("[{}{}]", "■".repeat(filled_width), " ".repeat(10 - filled_width));
+            println!("   {} Executing step {}: {}\r\n", 
+                crossterm::style::style(bar).green(),
+                idx + 1,
+                crossterm::style::style(&step_desc).yellow().italic()
+            );
+
             // 3. EXECUTE
             let exec_prompt = format!(
                 "GOAL: {}\nSTEP: {}\nLAST FEEDBACK: {}\n\nPlease complete this step.",
@@ -687,6 +701,10 @@ impl Tool for PlanExecute {
             let update_tool = UpdateTask {};
             if is_verified {
                 log::info!("Plan Execution Iteration {}: Step VERIFIED", iterations);
+                println!("   {} {}\n", 
+                    crossterm::style::style("✓").green().bold(),
+                    crossterm::style::style("Step successfully verified!").green()
+                );
                 task.steps[idx].completed = true;
                 update_tool.execute(ctx.clone(), json!({
                     "task_id": normalized_name,
@@ -696,6 +714,10 @@ impl Tool for PlanExecute {
                 log_entries.push(format!("Step {}: VERIFIED", idx + 1));
             } else {
                 log::info!("Plan Execution Iteration {}: Step FAILED verification. Initiating dynamic replanning...", iterations);
+                println!("   {} {}\n", 
+                    crossterm::style::style("✗").red().bold(),
+                    crossterm::style::style("Step verification failed. Initiating dynamic replanning...").red()
+                );
                 
                 let replan_prompt = format!(
                     r#"You are a high-level Planner. A step in the execution of the high-level goal has FAILED verification.

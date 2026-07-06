@@ -317,6 +317,7 @@ pub async fn create_agent(
     core_tools.extend(tools::plan::plan_tools(model.clone()));
     core_tools.extend(tools::scheduler::scheduler_tools());
     core_tools.extend(tools::search::search_tools());
+    core_tools.extend(tools::shell::shell_tools());
     core_tools.extend(tools::soul::soul_tools());
     core_tools.extend(tools::state_manager::state_manager_tools());
     core_tools.extend(tools::system_status::system_status_tools());
