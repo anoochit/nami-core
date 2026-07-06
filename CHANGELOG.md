@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.9.35] - 2026-07-06
+
+### Added
+
+- **Interactive Image Generation Configuration**: Added an interactive Step 6 wizard prompt to `nami init` during initialization, enabling users to easily configure or choose to skip image generation settings (provider, model, and environment variable) with smart defaults.
+- **Flexible Re-configuration Mode**: Upgraded `nami init` to automatically detect existing `config.toml` and `.env` files. Users are presented with three choices: re-configure/edit existing settings using smart pre-loaded defaults (with convenient blank password/secret fallbacks to keep existing keys), keep files with a safe non-destructive merge of missing options, or overwrite completely.
+
 ## [0.9.34] - 2026-07-06
 
 ### Added
