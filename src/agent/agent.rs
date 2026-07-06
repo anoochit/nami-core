@@ -309,7 +309,7 @@ pub async fn create_agent(
         None
     };
 
-    let mut core_tools: Vec<Arc<dyn Tool>> = tools::weather::weather_tools();
+    let mut core_tools: Vec<Arc<dyn Tool>> = Vec::new();
     core_tools.extend(tools::current_datetime::datetime_tools());
     core_tools.extend(tools::filesystem::filesystem_tools());
     core_tools.extend(tools::image_generator::image_generator_tools(image_model));
@@ -320,7 +320,6 @@ pub async fn create_agent(
     core_tools.extend(tools::shell::shell_tools());
     core_tools.extend(tools::soul::soul_tools());
     core_tools.extend(tools::state_manager::state_manager_tools());
-    core_tools.extend(tools::system_status::system_status_tools());
     core_tools.extend(tools::todo::todo_tools());
     core_tools.extend(tools::web_fetch::web_fetch_tools());
     core_tools.extend(tools::wiki::wiki_tools());

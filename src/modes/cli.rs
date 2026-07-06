@@ -779,7 +779,7 @@ pub async fn handle_slash_command(
         }
 
         "/status" => {
-            run_system_prompt(runner, user_id, session_id, "get_system_status", nami_skin).await?;
+            run_system_prompt(runner, user_id, session_id, "Please retrieve and report the system status using your system_status skill.", nami_skin).await?;
         }
 
         _ => {

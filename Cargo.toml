@@ -18,6 +18,7 @@ dotenvy = "0.15"
 tokio = { version = "1", features = ["full"] }
 
 reqwest = { version = "0.13.3", features = ["json", "stream"] }
+zip = "2.2.0"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 serde_yaml = "0.9"
@@ -64,6 +65,7 @@ tui-textarea = { package = "tui-textarea-2", version = "0.11.0" }
 [profile.dev]
 opt-level = 0
 debug = true
+split-debuginfo = "unpacked" # Faster linking on supported platforms
 incremental = true
 
 [profile.dev.package."*"]
@@ -71,7 +73,9 @@ opt-level = 3
 
 [profile.release]
 opt-level = 3
-lto = true
+lto = "fat" # Performs LTO across all crates in dependency graph for maximum performance
 codegen-units = 1
 panic = "abort"
-strip = true
+strip = "symbols" # Strips symbols and debuginfo from the binary for minimal file size
+overflow-checks = false
+

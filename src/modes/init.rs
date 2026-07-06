@@ -139,7 +139,6 @@ location = ""
                 write_file_if_not_exists("MEMORIES.md", "# MEMORIES\n\n")?;
                 write_file_if_not_exists("USER.md", "# USER (NOEL)\n- **Role:** Creator/Lead Developer (Bangkok, Thailand).\n- **Authority:** Direct. Prioritize Creator's specific workflows.\n- **Language:** Thai (Chat/Daily); English (Technical/Code/Architecture).\n- **Communication:** High-signal, clear, no fluff.\n- **Guideline:** Proactively optimize projects/files/TODOs.\n- **Tool Logic:** Professional/Fun (Nami style), prioritized by speed/efficiency.")?;
                 write_file_if_not_exists("STATE_PROTOCOL.md", "# STATE PROTOCOL\n**Objective:** Maintain continuity via `StateManager` tool.\n\n### 1. Resume & Context Discovery (LAZY LOAD ONLY)\n- **Do NOT** call `list_active_tasks()`, `get_task()`, `list_dir()`, `list_wiki_pages()`, or `list_todos()` blindly on your very first turn or for simple conversational queries.\n- Only call these tools when resuming an actual multi-step task/coding workflow, or when the user's prompt explicitly demands workspace/task context.\n- When resuming, `StateManager` is the only source of truth.\n\n### 2. Execute\n- `update_task` on step completion.\n- Store critical data in `context_payload`.\n- Checkpoint after every significant sub-task.\n\n### 3. Suspend\n- Call `update_task` before turn end/switching goals.\n- **Status:** `in_progress`, `blocked`, `completed`, `failed`.\n- **Payload:** Minimal/High-signal JSON only.\n\n### 4. Best Practices\n- `last_step` = summary of last action.\n- Clear/measurable `goal` in `init_task`.")?;
-                write_file_if_not_exists("skills/cli-help/SKILL.md", "---\nname: cli-help\ndescription: Reference guide for Nami CLI commands, flags, and usage patterns.\n---\n# CLI Help (Nami)\n\nThis skill provides a centralized reference for interacting with the **Nami CLI**.\n\nUse `nami help` at any time to display this information in the terminal.\n\n---\n\n## Available Commands\n\n### Core Commands\n- `init`  \n  Initialize project configuration.\n- `serve`  \n  Start the API server.\n- `cli`  \n  Launch the interactive TUI interface.\n\n### Bot Integration\n- `bot`  \n  Start the Telegram bot service.\n\n### Prompt Execution\n- `run \"<prompt>\"`  \n  Execute a prompt directly from the CLI.\n\n### Help\n- `help`  \n  Display usage instructions.\n\n---\n\n## Usage Notes\n- Commands run in the current workspace.\n- Use `cli` for interactive workflows.\n\n---\n\n## Troubleshooting\n- **Command not found**: Check installation & PATH.\n- **Execution errors**: Verify env & run `nami init`.\n- **Bot issues**: Check credentials & network.\n\n---\n\n## When to Use\n- Recall CLI commands\n- Guide users\n- Validate CLI workflows")?;
 
                 mad_print_inline!(&skin, "\n**Success!** Configuration is fully up to date.\n");
                 let db_path = nami_dir.join("sessions.db");
@@ -679,10 +678,73 @@ VITE_NAMI_API_KEY={nami_api_key}
     let db_path = nami_dir.join("sessions.db");
     let db_url = format!("{}?mode=rwc", db_path.to_string_lossy());
     mad_print_inline!(&skin, "Initializing database at {}...", db_path.display());
-    let sessions = SqliteSessionService::new(&db_url).await?;
-    sessions.migrate().await?;
-    mad_print_inline!(&skin, "Database initialized successfully.");
+    let _sessions = SqliteSessionService::new(&db_url).await?;
+    mad_print_inline!(&skin, "Database initialized successfully.\n");
+
+    download_skills(&skin).await?;
 
     Ok(())
 }
+
+async fn download_skills(skin: &MadSkin) -> anyhow::Result<()> {
+    let nami_dir = crate::utils::get_nami_dir();
+    let skills_dir = nami_dir.join("skills");
+    std::fs::create_dir_all(&skills_dir)?;
+
+    if Confirm::new("Do you want to download/update official Nami skills from GitHub?")
+        .with_default(true)
+        .prompt()?
+    {
+        mad_print_inline!(skin, "\nDownloading skills from github.com/anoochit/nami-skills...\n");
+        
+        let client = reqwest::Client::new();
+        let response = client
+            .get("https://github.com/anoochit/nami-skills/archive/refs/heads/master.zip")
+            .header("User-Agent", "nami-cli")
+            .send()
+            .await?;
+            
+        if !response.status().is_success() {
+            anyhow::bail!("Failed to download skills: HTTP {}", response.status());
+        }
+        
+        let bytes = response.bytes().await?;
+        let reader = std::io::Cursor::new(bytes);
+        let mut archive = zip::ZipArchive::new(reader)?;
+        
+        for i in 0..archive.len() {
+            let mut file = archive.by_index(i)?;
+            let outpath = match file.enclosed_name() {
+                Some(path) => path,
+                None => continue,
+            };
+            
+            // Strip the top level directory (e.g. `nami-skills-main/`)
+            let mut components = outpath.components();
+            components.next(); // Skip root folder
+            let sub_path = components.as_path();
+            if sub_path.as_os_str().is_empty() {
+                continue;
+            }
+            
+            let dest_path = skills_dir.join(sub_path);
+            
+            if file.name().ends_with('/') {
+                std::fs::create_dir_all(&dest_path)?;
+            } else {
+                if let Some(p) = dest_path.parent() {
+                    if !p.exists() {
+                        std::fs::create_dir_all(p)?;
+                    }
+                }
+                let mut outfile = std::fs::File::create(&dest_path)?;
+                std::io::copy(&mut file, &mut outfile)?;
+            }
+        }
+        
+        mad_print_inline!(skin, "\n**Success!** Skills successfully downloaded and extracted into `~/.nami/skills/`.\n");
+    }
+    Ok(())
+}
+
 
