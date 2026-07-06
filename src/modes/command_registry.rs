@@ -36,8 +36,8 @@ impl CommandRegistry {
         // Ensure default core commands exist if not present in the user's config file
         if !commands.contains_key("/pev") && !commands.contains_key("pev") {
             commands.insert("/pev".to_string(), Command {
-                template: "plan_create(name='auto', objective='{args}')".to_string(),
-                help: "Plan, Execute, and Verify a task (PEV)".to_string(),
+                template: "First, create a structured plan using plan_create(name='pev-{uuid}', objective='{args}', autonomous=true). Once the plan is created, immediately execute and verify all steps using plan_execute(name='pev-{uuid}').".to_string(),
+                help: "Run the unified Planner-Executor-Verifier loop for a goal (PEV)".to_string(),
             });
         }
         if !commands.contains_key("/plan") && !commands.contains_key("plan") {
