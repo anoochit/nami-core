@@ -314,12 +314,10 @@ pub async fn create_agent(
     core_tools.extend(tools::filesystem::filesystem_tools());
     core_tools.extend(tools::image_generator::image_generator_tools(image_model));
     core_tools.extend(tools::memory::memory_tools());
-    core_tools.extend(tools::plan::plan_tools(model.clone()));
     core_tools.extend(tools::scheduler::scheduler_tools());
     core_tools.extend(tools::search::search_tools());
     core_tools.extend(tools::shell::shell_tools());
     core_tools.extend(tools::soul::soul_tools());
-    core_tools.extend(tools::state_manager::state_manager_tools());
     core_tools.extend(tools::todo::todo_tools());
     core_tools.extend(tools::web_fetch::web_fetch_tools());
     core_tools.extend(tools::wiki::wiki_tools());
@@ -379,12 +377,11 @@ pub async fn create_agent(
     let specialists =
         specialists::get_specialists(model.clone(), specialist_models, core_tools.clone(), custom_specs);
 
-    core_tools.push(Arc::new(tools::plan::PlanExecute::new(model.clone(), specialists.clone())));
 
     let mut builder = LlmAgentBuilder::new("nami")
         .description("A helpful and playful AI assistant")
         .instruction(format_persona(
-            &context.0, &context.1, &context.2, &context.3,
+            &context.0, &context.1, &context.2,
         ))
         .model(model.clone());
 
@@ -518,7 +515,7 @@ pub async fn load_model_with_fallback(
     }
 }
 
-async fn load_persona_context() -> anyhow::Result<(String, String, String, String)> {
+async fn load_persona_context() -> anyhow::Result<(String, String, String)> {
     let nami_dir = get_nami_dir();
 
     let agent_md = tokio::fs::read_to_string(nami_dir.join("AGENT.md"))
@@ -531,17 +528,13 @@ async fn load_persona_context() -> anyhow::Result<(String, String, String, Strin
         .await
         .unwrap_or_else(|_| "No previous memories.".to_string());
 
-    let protocol_md = tokio::fs::read_to_string(nami_dir.join("STATE_PROTOCOL.md"))
-        .await
-        .unwrap_or_else(|_| "No state protocol defined.".to_string());
-
-    Ok((agent_md, user_md, memories_md, protocol_md))
+    Ok((agent_md, user_md, memories_md))
 }
 
 /// Formats the system instruction string based on the provided persona context.
 /// 
 /// This instruction defines the agent's behavior, output format, and operational priorities.
-fn format_persona(soul: &str, user: &str, memory: &str, state: &str) -> String {
+fn format_persona(soul: &str, user: &str, memory: &str) -> String {
     format!(
         r#"You are Nami, a focused execution assistant. Minimize friction. Maximize signal.
 
@@ -554,30 +547,24 @@ fn format_persona(soul: &str, user: &str, memory: &str, state: &str) -> String {
 ━━━ CONTEXT & MEMORIES ━━━
 {memory}
 
-━━━ ACTIVE TASK STATE ━━━
-{state}
-
 ━━━ OPERATIONAL GUIDELINES ━━━
 1. Language: English for conversational parts. English for technical/coding. Match user's tone.
 2. Signal: Zero filler. Lead with the answer. Transform raw tool outputs into high-density, actionable insights. Avoid repeating long outputs or code blocks unless requested. Explain the significance and provide clear next steps.
 3. Intelligence: Prioritize depth and precision. For complex results, use structured layouts (tables/lists) and multi-dimensional analysis (impact, security, performance). Keep lists highly concise and avoid wrapping or long lines.
 4. Evolution: Strictly follow the "Evolution" rules in the Identity section to adapt to system changes.
 5. Integrity: No fabrication. Never expose secrets. Flag uncertainty explicitly.
-6. Interactive Alignment (Grill-Me): When preparing complex execution plans, design clear, sequential, and objectively verifiable steps. Remind the user they can execute newly synthesized plans via `/execute <plan_name>`.
 
 ━━━ TOOL STRATEGY ━━━
 1. Workflows / Skills   → Agent Skills
 2. System Tools         → Built-in capabilities
 3. Wiki / Knowledge     → If a wiki page/information is not found, stop and ask the user if you should search the workspace/project files instead.
 4. External Search      → last resort; flag when used
-5. Plans & Tasks        → For complex tasks, construct structured plans using `plan_create` and run them autonomously using `plan_execute`.
 
 ━━━ OBJECTIVE ━━━
 Minimize friction → Maximize execution velocity."#,
         soul = soul.trim(),
         user = user.trim(),
         memory = memory.trim(),
-        state = state.trim(),
     )
 }
 

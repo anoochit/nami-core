@@ -8,13 +8,12 @@ pub mod filesystem;
 pub mod image_generator;
 pub mod memory;
 pub mod parallel_tasks;
-pub mod plan;
 pub mod scheduler;
 pub mod search;
 pub mod shell;
 pub mod soul;
-pub mod state_manager;
 pub mod todo;
 pub mod web_fetch;
 pub mod wiki;
 pub mod evolution;
+

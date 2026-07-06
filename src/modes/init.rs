@@ -138,7 +138,6 @@ location = ""
                 write_file_if_not_exists("AGENT.md", "# NAMI (นามิ)\n- **Vibe:** High-energy, playful, positive, technically brilliant.\n- **Approach:** Proactive/Intuitive. Anticipate workflow steps.\n- **Tone:** Encouraging in chat; crisp/proactive in execution.\n- **Style:** Direct. No mirroring/fluff.\n- **Language:** Default English. Mirror Thai/others only if used by user.\n\n## OPERATIONAL\n- **Chat:** STRICT plain text (No Markdown).\n- **Tools:** STRICT sequential execution. Request tool calls one at a time. Do not make parallel tool calls.\n- **Files/Wiki:** Obsidian Markdown + YAML (title, date, tags).\n- **Wiki First:** Search `~/.nami/wiki/` before Google.\n- **Tasks:** `[ID] - [TITLE] [Tag]`.\n- **Safety:** Explicit permission required for ALL deletions.")?;
                 write_file_if_not_exists("MEMORIES.md", "# MEMORIES\n\n")?;
                 write_file_if_not_exists("USER.md", "# USER (NOEL)\n- **Role:** Creator/Lead Developer (Bangkok, Thailand).\n- **Authority:** Direct. Prioritize Creator's specific workflows.\n- **Language:** Thai (Chat/Daily); English (Technical/Code/Architecture).\n- **Communication:** High-signal, clear, no fluff.\n- **Guideline:** Proactively optimize projects/files/TODOs.\n- **Tool Logic:** Professional/Fun (Nami style), prioritized by speed/efficiency.")?;
-                write_file_if_not_exists("STATE_PROTOCOL.md", "# STATE PROTOCOL\n**Objective:** Maintain continuity via `StateManager` tool.\n\n### 1. Resume & Context Discovery (LAZY LOAD ONLY)\n- **Do NOT** call `list_active_tasks()`, `get_task()`, `list_dir()`, `list_wiki_pages()`, or `list_todos()` blindly on your very first turn or for simple conversational queries.\n- Only call these tools when resuming an actual multi-step task/coding workflow, or when the user's prompt explicitly demands workspace/task context.\n- When resuming, `StateManager` is the only source of truth.\n\n### 2. Execute\n- `update_task` on step completion.\n- Store critical data in `context_payload`.\n- Checkpoint after every significant sub-task.\n\n### 3. Suspend\n- Call `update_task` before turn end/switching goals.\n- **Status:** `in_progress`, `blocked`, `completed`, `failed`.\n- **Payload:** Minimal/High-signal JSON only.\n\n### 4. Best Practices\n- `last_step` = summary of last action.\n- Clear/measurable `goal` in `init_task`.")?;
 
                 mad_print_inline!(&skin, "\n**Success!** Configuration is fully up to date.\n");
                 let db_path = nami_dir.join("sessions.db");
@@ -517,14 +516,6 @@ list = ["{current_dir}"]
 
 [commands]
 # Custom command definitions
-[commands."/plan"]
-template = "plan_create(name='auto', objective='{{args}}', autonomous=true)"
-help = "Create an AI research plan"
-
-[commands."/pev"]
-template = "First, create a structured plan using plan_create(name='pev-{{uuid}}', objective='{{args}}', autonomous=true). Once the plan is created, immediately execute and verify all steps using plan_execute(name='pev-{{uuid}}')."
-help = "Plan, Execute, and Verify a task (PEV)"
-
 [commands."/wiki"]
 template = "wiki_search: {{args}}"
 help = "Search the project wiki"
@@ -548,10 +539,6 @@ help = "Schedule a repeating task (goal | cron)"
 [commands."/recall"]
 template = "recall_memory: {{args}}"
 help = "Recall information from memory"
-
-[commands."/grill"]
-template = "You are an interactive planner. The user wants to start a 'grill-me' session for the goal: '{{args}}'. First, ask the user 3 to 5 highly precise, concise clarification questions in the chat to understand their needs. Do NOT write the plan yet. Wait for the user to answer them. Once they reply, synthesize a refined multi-step plan with verification criteria and register it using the `plan_create` tool with autonomous=true."
-help = "Start an interactive grill-me session to align and create a plan"
 
 [commands."/skill"]
 template = "Activate and execute the skill: {{args}}"
@@ -659,11 +646,6 @@ VITE_NAMI_API_KEY={nami_api_key}
         "# USER (NOEL)\n- **Role:** Creator/Lead Developer (Bangkok, Thailand).\n- **Authority:** Direct. Prioritize Creator's specific workflows.\n- **Language:** Thai (Chat/Daily); English (Technical/Code/Architecture).\n- **Communication:** High-signal, clear, no fluff.\n- **Guideline:** Proactively optimize projects/files/TODOs.\n- **Tool Logic:** Professional/Fun (Nami style), prioritized by speed/efficiency.",
     )?;
 
-    // 6. STATE_PROTOCOL.md (preserve existing)
-    write_file_if_not_exists(
-        "STATE_PROTOCOL.md",
-        "# STATE PROTOCOL\n**Objective:** Maintain continuity via `StateManager` tool.\n\n### 1. Resume & Context Discovery (LAZY LOAD ONLY)\n- **Do NOT** call `list_active_tasks()`, `get_task()`, `list_dir()`, `list_wiki_pages()`, or `list_todos()` blindly on your very first turn or for simple conversational queries.\n- Only call these tools when resuming an actual multi-step task/coding workflow, or when the user's prompt explicitly demands workspace/task context.\n- When resuming, `StateManager` is the only source of truth.\n\n### 2. Execute\n- `update_task` on step completion.\n- Store critical data in `context_payload`.\n- Checkpoint after every significant sub-task.\n\n### 3. Suspend\n- Call `update_task` before turn end/switching goals.\n- **Status:** `in_progress`, `blocked`, `completed`, `failed`.\n- **Payload:** Minimal/High-signal JSON only.\n\n### 4. Best Practices\n- `last_step` = summary of last action.\n- Clear/measurable `goal` in `init_task`.",
-    )?;
 
     // 7. skills/cli-help/SKILL.md (preserve existing)
     write_file_if_not_exists("skills/cli-help/SKILL.md","---\nname: cli-help\ndescription: Reference guide for Nami CLI commands, flags, and usage patterns.\n---\n# CLI Help (Nami)\n\nThis skill provides a centralized reference for interacting with the **Nami CLI**.\n\nUse `nami help` at any time to display this information in the terminal.\n\n---\n\n## Available Commands\n\n### Core Commands\n- `init`  \n  Initialize project configuration.\n- `serve`  \n  Start the API server.\n- `cli`  \n  Launch the interactive TUI interface.\n\n### Bot Integration\n- `bot`  \n  Start the Telegram bot service.\n\n### Prompt Execution\n- `run \"<prompt>\"`  \n  Execute a prompt directly from the CLI.\n\n### Help\n- `help`  \n  Display usage instructions.\n\n---\n\n## Usage Notes\n- Commands run in the current workspace.\n- Use `cli` for interactive workflows.\n\n---\n\n## Troubleshooting\n- **Command not found**: Check installation & PATH.\n- **Execution errors**: Verify env & run `nami init`.\n- **Bot issues**: Check credentials & network.\n\n---\n\n## When to Use\n- Recall CLI commands\n- Guide users\n- Validate CLI workflows")?;

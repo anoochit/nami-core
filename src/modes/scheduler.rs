@@ -4,7 +4,6 @@ use adk_rust::prelude::*;
 use adk_rust::runner::Runner;
 use adk_session::{CreateRequest, GetRequest, SessionService};
 use crate::tools::scheduler::{load_schedule, save_schedule};
-use crate::tools::state_manager::{load_states, TaskStatus};
 use chrono::Utc;
 use futures::StreamExt;
 use std::sync::Arc;
@@ -62,27 +61,18 @@ pub async fn run_scheduler_loop_with_deps(
             };
 
             if should_run {
-                let states = load_states().await.unwrap_or_default();
-                let current_status = states
-                    .iter()
-                    .find(|s| s.goal == task.goal)
-                    .map(|s| s.status.clone())
-                    .unwrap_or(TaskStatus::InProgress);
+                log::info!("Scheduler triggering task: {}", task.goal);
 
-                if !current_status.is_terminal() {
-                    log::info!("Scheduler triggering task: {}", task.goal);
+                let content = Content::new("user").with_text(&format!(
+                    "SCHEDULED RUN: {}. Please continue working on this goal.",
+                    task.goal
+                ));
 
-                    let content = Content::new("user").with_text(&format!(
-                        "SCHEDULED RUN: {}. Please continue working on this goal.",
-                        task.goal
-                    ));
+                let mut stream = runner.run_str(user_id, session_id, content).await?;
+                while let Some(_) = stream.next().await {}
 
-                    let mut stream = runner.run_str(user_id, session_id, content).await?;
-                    while let Some(_) = stream.next().await {}
-
-                    task.last_run = Some(now);
-                    changed = true;
-                }
+                task.last_run = Some(now);
+                changed = true;
             }
         }
 
