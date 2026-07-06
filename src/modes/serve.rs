@@ -49,6 +49,7 @@ pub async fn run_serve(
         })))
         .fallback(static_handler)
         .layer(middleware::from_fn(intercept_ui))
+        .layer(middleware::from_fn(stats_middleware))
         .layer(cors);
 
     let addr = format!("{}:{}", host, port);
@@ -74,6 +75,43 @@ pub async fn intercept_ui(req: Request, next: Next) -> impl IntoResponse {
     let path = req.uri().path();
     if path == "/" || path == "/ui" || path.starts_with("/ui/") {
         static_handler(req.uri().clone()).await.into_response()
+    } else {
+        next.run(req).await
+    }
+}
+
+pub async fn stats_middleware(req: Request, next: Next) -> impl IntoResponse {
+    let path = req.uri().path().to_string();
+    let is_agent_run = path.contains("/api/run/");
+
+    if is_agent_run {
+        let start_time = std::time::Instant::now();
+        
+        let content_length = req.headers()
+            .get(header::CONTENT_LENGTH)
+            .and_then(|v| v.to_str().ok())
+            .and_then(|s| s.parse::<usize>().ok())
+            .unwrap_or(0);
+
+        let response = next.run(req).await;
+        
+        let duration_secs = start_time.elapsed().as_secs_f64();
+        
+        let resp_length = response.headers()
+            .get(header::CONTENT_LENGTH)
+            .and_then(|v| v.to_str().ok())
+            .and_then(|s| s.parse::<usize>().ok())
+            .unwrap_or(0);
+            
+        let final_resp_len = if resp_length > 0 { resp_length } else { 800 };
+
+        let prompt_tokens = (content_length as f64 / 4.0).round() as usize;
+        let response_tokens = (final_resp_len as f64 / 4.0).round() as usize;
+        let total_tokens = prompt_tokens + response_tokens;
+        
+        crate::utils::save_agent_statistic(duration_secs, total_tokens);
+        
+        response
     } else {
         next.run(req).await
     }

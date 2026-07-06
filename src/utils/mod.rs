@@ -264,6 +264,32 @@ pub async fn get_wiki_dir() -> std::result::Result<PathBuf, AdkError> {
     Ok(wiki_dir)
 }
 
+pub fn save_agent_statistic(duration_secs: f64, total_tokens: usize) {
+    let stats_path = get_nami_dir().join("stats.json");
+    
+    let new_entry = serde_json::json!({
+        "timestamp": chrono::Utc::now().to_rfc3339(),
+        "duration_seconds": duration_secs,
+        "tokens_consumed": total_tokens,
+    });
+
+    let mut stats_list = if stats_path.exists() {
+        if let Ok(content) = std::fs::read_to_string(&stats_path) {
+            serde_json::from_str::<Vec<serde_json::Value>>(&content).unwrap_or_default()
+        } else {
+            Vec::new()
+        }
+    } else {
+        Vec::new()
+    };
+
+    stats_list.push(new_entry);
+
+    if let Ok(serialized) = serde_json::to_string_pretty(&stats_list) {
+        let _ = std::fs::write(&stats_path, serialized);
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
