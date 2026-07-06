@@ -42,7 +42,7 @@ impl CommandRegistry {
         }
         if !commands.contains_key("/plan") && !commands.contains_key("plan") {
             commands.insert("/plan".to_string(), Command {
-                template: "plan_create(name='auto', objective='{args}')".to_string(),
+                template: "plan_create(name='auto', objective='{args}', autonomous=true)".to_string(),
                 help: "Create an AI research plan".to_string(),
             });
         }

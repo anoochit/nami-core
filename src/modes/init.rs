@@ -519,11 +519,11 @@ list = ["{current_dir}"]
 [commands]
 # Custom command definitions
 [commands."/plan"]
-template = "plan_create(name='auto', objective='{{args}}')"
+template = "plan_create(name='auto', objective='{{args}}', autonomous=true)"
 help = "Create an AI research plan"
 
 [commands."/pev"]
-template = "plan_create(name='auto', objective='{{args}}')"
+template = "First, create a structured plan using plan_create(name='pev-{{uuid}}', objective='{{args}}', autonomous=true). Once the plan is created, immediately execute and verify all steps using plan_execute(name='pev-{{uuid}}')."
 help = "Plan, Execute, and Verify a task (PEV)"
 
 [commands."/wiki"]

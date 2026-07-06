@@ -16,7 +16,7 @@ location = "global"
 [commands]
 # Custom command definitions
 [commands."/plan"]
-template = "plan_create(name='auto', objective='{args}')"
+template = "plan_create(name='auto', objective='{args}', autonomous=true)"
 help = "Create an AI research plan"
 
 [commands."/wiki"]
