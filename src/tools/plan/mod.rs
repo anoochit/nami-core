@@ -1,4 +1,4 @@
-use crate::utils::get_workspace_dir;
+use crate::utils::{get_workspace_dir, get_nami_dir};
 use adk_rust::Tool;
 use adk_rust::serde::Deserialize;
 use adk_rust::tool::ToolContext;
@@ -271,9 +271,7 @@ impl Tool for PlanCreate {
         let init_tool = InitTask {};
         init_tool.execute(ctx.clone(), init_args).await?;
         
-        // 3. Generate plan markdown document from task state
-        let root = get_workspace_dir().await?;
-        let plans_dir = root.join("plans");
+        let plans_dir = get_nami_dir().join("plans");
         fs::create_dir_all(&plans_dir).await.map_err(|e| AdkError::tool(e.to_string()))?;
         
         let path = plans_dir.join(format!("{}.md", normalized_name));
@@ -325,8 +323,7 @@ impl Tool for PlanShow {
     }
     async fn execute(&self, _ctx: Arc<dyn ToolContext>, args: Value) -> std::result::Result<Value, AdkError> {
         let args: PlanNameArgs = serde_json::from_value(args).map_err(|e| AdkError::tool(e.to_string()))?;
-        let root = get_workspace_dir().await?;
-        let path = root.join("plans").join(format!("{}.md", args.name.replace(" ", "-")));
+        let path = get_nami_dir().join("plans").join(format!("{}.md", args.name.replace(" ", "-")));
         
         let content = fs::read_to_string(&path).await.map_err(|e| AdkError::tool(e.to_string()))?;
         Ok(json!({"content": content}))
@@ -346,8 +343,7 @@ impl Tool for PlanList {
         Some(json!({"type": "object", "properties": {}}))
     }
     async fn execute(&self, _ctx: Arc<dyn ToolContext>, _args: Value) -> std::result::Result<Value, AdkError> {
-        let root = get_workspace_dir().await?;
-        let plans_dir = root.join("plans");
+        let plans_dir = get_nami_dir().join("plans");
         
         let mut entries = Vec::new();
         if let Ok(mut dir) = fs::read_dir(plans_dir).await {
@@ -382,8 +378,7 @@ impl Tool for PlanDelete {
     }
     async fn execute(&self, _ctx: Arc<dyn ToolContext>, args: Value) -> std::result::Result<Value, AdkError> {
         let args: PlanNameArgs = serde_json::from_value(args).map_err(|e| AdkError::tool(e.to_string()))?;
-        let root = get_workspace_dir().await?;
-        let path = root.join("plans").join(format!("{}.md", args.name.replace(" ", "-")));
+        let path = get_nami_dir().join("plans").join(format!("{}.md", args.name.replace(" ", "-")));
         
         if path.exists() {
             fs::remove_file(&path).await.map_err(|e| AdkError::tool(e.to_string()))?;
@@ -421,9 +416,8 @@ impl Tool for PlanUpdate {
     }
     async fn execute(&self, ctx: Arc<dyn ToolContext>, args: Value) -> std::result::Result<Value, AdkError> {
         let args: PlanUpdateArgs = serde_json::from_value(args).map_err(|e| AdkError::tool(e.to_string()))?;
-        let root = get_workspace_dir().await?;
         let normalized_name = args.name.replace(" ", "-");
-        let path = root.join("plans").join(format!("{}.md", normalized_name));
+        let path = get_nami_dir().join("plans").join(format!("{}.md", normalized_name));
         
         if !path.exists() {
             return Err(AdkError::tool(format!("Plan '{}' not found.", args.name)));
