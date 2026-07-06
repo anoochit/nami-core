@@ -319,11 +319,18 @@ fn print_tool_call(name: &str, args: &str) -> io::Result<()> {
         args.to_string()
     };
 
+    let formatted_args = if minified_args.chars().count() > 150 {
+        let truncated: String = minified_args.chars().take(150).collect();
+        format!("{}... (+{} chars)", truncated, minified_args.len() - truncated.len())
+    } else {
+        minified_args
+    };
+
     println!("{} {} {}({})\r", 
         style::style("🔨").magenta(),
         style::style("Tool Call:").dim().bold(),
         style::style(name).cyan(),
-        style::style(minified_args).dim()
+        style::style(formatted_args).dim()
     );
     io::stdout().flush()?;
     Ok(())
@@ -338,10 +345,17 @@ fn print_tool_response(response: &str) -> io::Result<()> {
         response.to_string()
     };
 
+    let formatted_resp = if minified_resp.chars().count() > 150 {
+        let truncated: String = minified_resp.chars().take(150).collect();
+        format!("{}... (+{} chars)", truncated, minified_resp.len() - truncated.len())
+    } else {
+        minified_resp
+    };
+
     println!("{} {} {}\r", 
         style::style("✅").green(),
         style::style("Tool Result:").dim().bold(),
-        style::style(minified_resp).dim()
+        style::style(formatted_resp).dim()
     );
 
     io::stdout().flush()?;
@@ -354,7 +368,7 @@ async fn run_system_prompt(
     session_id: &str,
     prompt: &str,
     nami_skin: &MadSkin,
-) -> anyhow::Result<()> {
+) -> anyhow::Result<String> {
     print_status_line(
         &mut io::stdout(),
         &format!(
@@ -461,7 +475,7 @@ async fn run_system_prompt(
             println!();
             println!("{}", style::style("🚀 Request cancelled").dim());
         }
-        return Ok(());
+        return Ok(String::new());
     }
 
     println!();
@@ -481,7 +495,7 @@ async fn run_system_prompt(
     println!("{}", rendered);
     println!();
 
-    Ok(())
+    Ok(response)
 }
 
 fn render_banner(provider: &str, model_name: &str, session_id: &str, mcp_count: usize, skill_count: usize) {
@@ -592,6 +606,222 @@ fn print_status_line(stdout: &mut io::Stdout, text: &str) -> io::Result<()> {
 }
 
 
+async fn execute_silent_prompt(
+    runner: &mut Runner,
+    user_id: &str,
+    session_id: &str,
+    prompt: &str,
+) -> anyhow::Result<String> {
+    let content = Content::new("user").with_text(prompt);
+    let mut stream = runner.run_str(user_id, session_id, content).await?;
+    let mut response = String::new();
+    while let Some(result) = stream.next().await {
+        let event = result?;
+        if let Some(content) = &event.llm_response.content {
+            for part in &content.parts {
+                if let Some(text) = part.text() {
+                    response.push_str(text);
+                }
+            }
+        }
+    }
+    Ok(response)
+}
+
+fn parse_plan_steps(plan: &str) -> Vec<String> {
+    let mut steps = Vec::new();
+    let mut in_steps_section = false;
+
+    for line in plan.lines() {
+        let trimmed = line.trim();
+        
+        if trimmed.starts_with('#') && (trimmed.to_lowercase().contains("step") || trimmed.to_lowercase().contains("plan")) {
+            in_steps_section = true;
+            continue;
+        }
+
+        if in_steps_section {
+            if trimmed.starts_with('-') || trimmed.starts_with('*') || (trimmed.chars().next().map_or(false, |c| c.is_digit(10)) && trimmed.contains('.')) {
+                let cleaned = trimmed
+                    .trim_start_matches(|c: char| c == '-' || c == '*' || c == ' ' || c == '[' || c == ']' || c == 'x' || c == 'X' || c.is_digit(10) || c == '.')
+                    .trim()
+                    .to_string();
+                
+                if !cleaned.is_empty() && cleaned.to_lowercase().contains("step") {
+                    let mut step_desc = cleaned;
+                    if let Some(colon_idx) = step_desc.find(':') {
+                        let potential_step = &step_desc[..colon_idx].to_lowercase();
+                        if potential_step.contains("step") {
+                            step_desc = step_desc[colon_idx + 1..].trim().to_string();
+                        }
+                    } else if let Some(dash_idx) = step_desc.find('-') {
+                        let potential_step = &step_desc[..dash_idx].to_lowercase();
+                        if potential_step.contains("step") {
+                            step_desc = step_desc[dash_idx + 1..].trim().to_string();
+                        }
+                    }
+                    if !step_desc.is_empty() {
+                        steps.push(step_desc);
+                    }
+                } else if !cleaned.is_empty() {
+                    steps.push(cleaned);
+                }
+            }
+        }
+    }
+
+    if steps.is_empty() {
+        for line in plan.lines() {
+            let trimmed = line.trim();
+            if trimmed.starts_with('-') || trimmed.starts_with('*') {
+                let cleaned = trimmed.trim_start_matches(|c| c == '-' || c == '*' || c == ' ' || c == '[' || c == ']').trim().to_string();
+                if cleaned.to_lowercase().contains("step") {
+                    if let Some(colon_idx) = cleaned.find(':') {
+                        steps.push(cleaned[colon_idx + 1..].trim().to_string());
+                    } else {
+                        steps.push(cleaned);
+                    }
+                }
+            }
+        }
+    }
+
+    steps
+}
+
+async fn run_grill_flow(
+    args: &str,
+    runner: &mut Runner,
+    user_id: &str,
+    session_id: &str,
+    nami_skin: &MadSkin,
+) -> anyhow::Result<()> {
+    if args.trim().is_empty() {
+        println!("{} Please provide a goal or topic. Usage: /grill <your goal>\n", style::style("⚠️").yellow());
+        return Ok(());
+    }
+
+    let generate_questions_prompt = format!(
+        "The user wants to plan the following goal: '{}'. \
+         Please generate 3 to 5 highly precise, concise clarification questions to help design this plan. \
+         Format your response ONLY as a plain list of questions, one per line, with each line starting with 'Q: ' and nothing else.",
+        args
+    );
+
+    println!("\n{} Analyzing goal and generating clarification questions...", style::style("🧠").magenta().bold());
+    let questions_resp = execute_silent_prompt(runner, user_id, session_id, &generate_questions_prompt).await?;
+    
+    let mut questions = Vec::new();
+    for line in questions_resp.lines() {
+        let trimmed = line.trim();
+        if trimmed.starts_with("Q:") {
+            let q = trimmed["Q:".len()..].trim().to_string();
+            if !q.is_empty() {
+                questions.push(q);
+            }
+        } else if trimmed.starts_with("Q: ") {
+            let q = trimmed["Q: ".len()..].trim().to_string();
+            if !q.is_empty() {
+                questions.push(q);
+            }
+        }
+    }
+
+    if questions.is_empty() {
+        for line in questions_resp.lines() {
+            let trimmed = line.trim();
+            if !trimmed.is_empty() && (trimmed.ends_with('?') || trimmed.starts_with('-') || trimmed.starts_with('*')) {
+                let q = trimmed.trim_start_matches(|c: char| c == '-' || c == '*' || c == ' ' || c.is_digit(10) || c == '.').trim().to_string();
+                if !q.is_empty() {
+                    questions.push(q);
+                }
+            }
+        }
+    }
+
+    if questions.is_empty() {
+        questions.push("Can you describe any specific requirements or preferences for this plan?".to_string());
+    }
+
+    let mut answers = Vec::new();
+    for (i, q) in questions.iter().enumerate() {
+        println!("\n{} {}/{} > {}", style::style("❓").magenta().bold(), i + 1, questions.len(), style::style(q).bold());
+        print!("Your Answer > ");
+        io::stdout().flush()?;
+        let mut answer = String::new();
+        io::stdin().read_line(&mut answer)?;
+        let trimmed_answer = answer.trim().to_string();
+        answers.push(format!("Q: {}\nA: {}", q, trimmed_answer));
+    }
+
+    println!("\n{} Synthesizing implementation plan...", style::style("⚙️").cyan().bold());
+    let qa_context = answers.join("\n\n");
+    let plan_prompt = format!(
+        "Based on the user's goal: '{}' and their answers to the clarification questions:\n\n{}\n\n\
+         Please synthesize a highly precise, step-by-step implementation plan. \
+         The plan MUST be formatted as a Markdown document. \
+         It MUST contain a section '## Implementation Steps' where each step is a checkbox list item of the exact format:\
+         '- [ ] Step N: <detailed task explanation>'\n\
+         For example:\
+         '- [ ] Step 1: Create the main function'\n\
+         '- [ ] Step 2: Implement error handling'\n\n\
+         Keep the steps concrete and actionable so they can be parsed and executed programmatically.",
+        args, qa_context
+    );
+
+    let plan_content = run_system_prompt(runner, user_id, session_id, &plan_prompt, nami_skin).await?;
+
+    let nami_dir = crate::utils::get_nami_dir();
+    let plans_dir = nami_dir.join("plans");
+    let _ = std::fs::create_dir_all(&plans_dir);
+    let timestamp = chrono::Local::now().format("%Y%m%d_%H%M%S").to_string();
+    let plan_filename = format!("plan_{}.md", timestamp);
+    let plan_path = plans_dir.join(&plan_filename);
+    let _ = std::fs::write(&plan_path, &plan_content);
+
+    println!("{} Plan saved to {}", style::style("💾").green(), style::style(plan_path.to_string_lossy()).underlined());
+
+    let steps = parse_plan_steps(&plan_content);
+    if steps.is_empty() {
+        println!("{} No executable steps could be parsed from the plan.\n", style::style("⚠️").yellow());
+        return Ok(());
+    }
+
+    println!("\n{} Parsed {} steps for execution.", style::style("📋").cyan().bold(), steps.len());
+    for (i, step) in steps.iter().enumerate() {
+        println!("  {}. {}", i + 1, step);
+    }
+
+    print!("\n{} Do you want to execute this plan? (y/n) > ", style::style("🤔").yellow().bold());
+    io::stdout().flush()?;
+    let mut confirm = String::new();
+    io::stdin().read_line(&mut confirm)?;
+    if confirm.trim().to_lowercase() != "y" && confirm.trim().to_lowercase() != "yes" {
+        println!("{} Plan execution cancelled.\n", style::style("❌").red());
+        return Ok(());
+    }
+
+    println!("\n{} Starting execution of plan steps...", style::style("🚀").green().bold());
+    for (i, step) in steps.iter().enumerate() {
+        let header = format!("🚀 Executing Step {} of {}: {}", i + 1, steps.len(), step);
+        println!("\n{}", style::style(&header).green().bold());
+        println!("{}", style::style("─".repeat(header.chars().count())).green().dim());
+        
+        let step_prompt = format!(
+            "Execute the following step of our plan. Retain full context of previous steps. \
+             Step {} of {}: {}",
+            i + 1, steps.len(), step
+        );
+
+        let _ = run_system_prompt(runner, user_id, session_id, &step_prompt, nami_skin).await?;
+    }
+
+    println!("\n{} All {} steps of the plan have been successfully executed! 🎉\n", style::style("✅").green().bold(), steps.len());
+
+    Ok(())
+}
+
+
 pub async fn handle_slash_command(
     trimmed: &str,
     runner: &mut Runner,
@@ -611,6 +841,16 @@ pub async fn handle_slash_command(
     let command_name = parts[0];
     let args = parts.get(1).unwrap_or(&"");
 
+    if command_name == "/grill" {
+        run_grill_flow(
+            args,
+            runner,
+            user_id,
+            session_id,
+            nami_skin,
+        ).await?;
+        return Ok(false);
+    }
 
     // Dynamic registry lookup
     if let Some(prompt) = registry.format_prompt(command_name, args) {
