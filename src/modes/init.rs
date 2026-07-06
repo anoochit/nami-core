@@ -545,7 +545,7 @@ template = "Analyze the recent conversation history, successes, and corrections 
 help = "Reflect on recent successes or corrections to capture reusable skills or rules"
 
 [commands."/grill"]
-template = "Conduct an interactive interview with the user to align on a plan. Ask clarifying questions one at a time, gather all requirements, design decisions, and user preferences, and then compile the aligned plan. Save the final compiled plan to the folder '~/.nami/plans/' (e.g. as a markdown file). Prompt: {args}"
+template = "Conduct an interactive interview with the user to align on a plan. Ask clarifying questions one at a time, gather all requirements, design decisions, and user preferences, and then compile the aligned plan. Save the final compiled plan to the folder '~/.nami/plans/' (e.g. as a markdown file). Prompt: {{args}}"
 help = "Interview me to align on a plan and save it to '~/.nami/plans/'"
 
 [commands."/skill"]
