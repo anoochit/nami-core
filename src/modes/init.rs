@@ -52,6 +52,161 @@ pub async fn run_init() -> anyhow::Result<()> {
 
     skin.print_text("# AI Agent Initializer\n");
 
+    let nami_dir = crate::utils::get_nami_dir();
+    let config_path = nami_dir.join("config.toml");
+    let env_path = nami_dir.join(".env");
+
+    let mut default_provider = "gemini".to_string();
+    let mut default_model_name = "gemini-2.5-flash".to_string();
+    let mut default_api_key = String::new();
+    let mut default_project_id = String::new();
+    let mut default_location = String::new();
+    let mut default_serper_api_key = String::new();
+    let mut default_telegram_key = String::new();
+    let mut default_line_secret = String::new();
+    let mut default_line_token = String::new();
+    let mut default_otel_collector = String::new();
+    let mut default_nami_api_key = String::new();
+    let mut default_image_provider = Some("gemini".to_string());
+    let mut default_image_model_name = Some("models/gemini-2.5-flash-image-preview".to_string());
+    let mut default_image_api_key_env = Some("GOOGLE_API_KEY".to_string());
+    let mut configure_image_gen_default = false;
+
+    let mut existing_config: Option<toml::Value> = None;
+    let mut existing_env = std::collections::HashMap::new();
+
+    if env_path.exists() {
+        if let Ok(content) = std::fs::read_to_string(&env_path) {
+            for line in content.lines() {
+                if let Some(idx) = line.find('=') {
+                    let k = line[..idx].trim().to_string();
+                    let v = line[idx + 1..].trim().to_string();
+                    existing_env.insert(k, v);
+                }
+            }
+        }
+    }
+
+    if config_path.exists() {
+        if let Ok(content) = std::fs::read_to_string(&config_path) {
+            existing_config = toml::from_str(&content).ok();
+        }
+    }
+
+    if config_path.exists() {
+        let choices = vec![
+            "Re-configure / Edit existing configuration",
+            "Keep existing files (safe merge new options only)",
+            "Overwrite completely (reset configuration)",
+        ];
+        let choice = Select::new("Existing configuration found. Choose an option:", choices).prompt()?;
+        match choice {
+            "Keep existing files (safe merge new options only)" => {
+                skin.print_text("Verifying and safely merging any missing configuration options...\n");
+                
+                let default_content = format!(
+                    r#"[model]
+provider = "gemini"
+model_name = "gemini-2.5-flash"
+api_key_env = "GOOGLE_API_KEY"
+project_id = ""
+location = ""
+
+# [image_generation]
+# provider = "gemini"
+# model_name = "models/gemini-2.5-flash-image-preview"
+# api_key_env = "GOOGLE_API_KEY"
+"#
+                );
+                
+                let merged_config_content = if let Ok(existing_content) = std::fs::read_to_string(&config_path) {
+                    if let (Ok(mut existing_val), Ok(incoming_val)) = (
+                        toml::from_str::<toml::Value>(&existing_content),
+                        toml::from_str::<toml::Value>(&default_content)
+                    ) {
+                        merge_toml(&mut existing_val, &incoming_val);
+                        toml::to_string_pretty(&existing_val).unwrap_or(existing_content)
+                    } else {
+                        existing_content
+                    }
+                } else {
+                    default_content
+                };
+                write_file("config.toml", &merged_config_content)?;
+                
+                std::fs::create_dir_all(nami_dir.join("skills/cli-help"))?;
+                write_file_if_not_exists("AGENT.md", "# NAMI (นามิ)\n- **Vibe:** High-energy, playful, positive, technically brilliant.\n- **Approach:** Proactive/Intuitive. Anticipate workflow steps.\n- **Tone:** Encouraging in chat; crisp/proactive in execution.\n- **Style:** Direct. No mirroring/fluff.\n- **Language:** Default English. Mirror Thai/others only if used by user.\n\n## OPERATIONAL\n- **Chat:** STRICT plain text (No Markdown).\n- **Tools:** STRICT sequential execution. Request tool calls one at a time. Do not make parallel tool calls.\n- **Files/Wiki:** Obsidian Markdown + YAML (title, date, tags).\n- **Wiki First:** Search `~/.nami/wiki/` before Google.\n- **Tasks:** `[ID] - [TITLE] [Tag]`.\n- **Safety:** Explicit permission required for ALL deletions.")?;
+                write_file_if_not_exists("MEMORIES.md", "# MEMORIES\n\n")?;
+                write_file_if_not_exists("USER.md", "# USER (NOEL)\n- **Role:** Creator/Lead Developer (Bangkok, Thailand).\n- **Authority:** Direct. Prioritize Creator's specific workflows.\n- **Language:** Thai (Chat/Daily); English (Technical/Code/Architecture).\n- **Communication:** High-signal, clear, no fluff.\n- **Guideline:** Proactively optimize projects/files/TODOs.\n- **Tool Logic:** Professional/Fun (Nami style), prioritized by speed/efficiency.")?;
+                write_file_if_not_exists("STATE_PROTOCOL.md", "# STATE PROTOCOL\n**Objective:** Maintain continuity via `StateManager` tool.\n\n### 1. Resume & Context Discovery (LAZY LOAD ONLY)\n- **Do NOT** call `list_active_tasks()`, `get_task()`, `list_dir()`, `list_wiki_pages()`, or `list_todos()` blindly on your very first turn or for simple conversational queries.\n- Only call these tools when resuming an actual multi-step task/coding workflow, or when the user's prompt explicitly demands workspace/task context.\n- When resuming, `StateManager` is the only source of truth.\n\n### 2. Execute\n- `update_task` on step completion.\n- Store critical data in `context_payload`.\n- Checkpoint after every significant sub-task.\n\n### 3. Suspend\n- Call `update_task` before turn end/switching goals.\n- **Status:** `in_progress`, `blocked`, `completed`, `failed`.\n- **Payload:** Minimal/High-signal JSON only.\n\n### 4. Best Practices\n- `last_step` = summary of last action.\n- Clear/measurable `goal` in `init_task`.")?;
+                write_file_if_not_exists("skills/cli-help/SKILL.md", "---\nname: cli-help\ndescription: Reference guide for Nami CLI commands, flags, and usage patterns.\n---\n# CLI Help (Nami)\n\nThis skill provides a centralized reference for interacting with the **Nami CLI**.\n\nUse `nami help` at any time to display this information in the terminal.\n\n---\n\n## Available Commands\n\n### Core Commands\n- `init`  \n  Initialize project configuration.\n- `serve`  \n  Start the API server.\n- `cli`  \n  Launch the interactive TUI interface.\n\n### Bot Integration\n- `bot`  \n  Start the Telegram bot service.\n\n### Prompt Execution\n- `run \"<prompt>\"`  \n  Execute a prompt directly from the CLI.\n\n### Help\n- `help`  \n  Display usage instructions.\n\n---\n\n## Usage Notes\n- Commands run in the current workspace.\n- Use `cli` for interactive workflows.\n\n---\n\n## Troubleshooting\n- **Command not found**: Check installation & PATH.\n- **Execution errors**: Verify env & run `nami init`.\n- **Bot issues**: Check credentials & network.\n\n---\n\n## When to Use\n- Recall CLI commands\n- Guide users\n- Validate CLI workflows")?;
+
+                mad_print_inline!(&skin, "\n**Success!** Configuration is fully up to date.\n");
+                let db_path = nami_dir.join("sessions.db");
+                let db_url = format!("{}?mode=rwc", db_path.to_string_lossy());
+                let sessions = SqliteSessionService::new(&db_url).await?;
+                sessions.migrate().await?;
+                return Ok(());
+            }
+            "Re-configure / Edit existing configuration" => {
+                if let Some(ref config) = existing_config {
+                    if let Some(model_table) = config.get("model") {
+                        if let Some(prov) = model_table.get("provider").and_then(|v| v.as_str()) {
+                            default_provider = prov.to_string();
+                        }
+                        if let Some(model) = model_table.get("model_name").and_then(|v| v.as_str()) {
+                            default_model_name = model.to_string();
+                        }
+                        if let Some(pid) = model_table.get("project_id").and_then(|v| v.as_str()) {
+                            default_project_id = pid.to_string();
+                        }
+                        if let Some(loc) = model_table.get("location").and_then(|v| v.as_str()) {
+                            default_location = loc.to_string();
+                        }
+                        if let Some(api_env) = model_table.get("api_key_env").and_then(|v| v.as_str()) {
+                            if let Some(val) = existing_env.get(api_env) {
+                                default_api_key = val.clone();
+                            }
+                        }
+                    }
+
+                    if let Some(img_table) = config.get("image_generation") {
+                        configure_image_gen_default = true;
+                        if let Some(prov) = img_table.get("provider").and_then(|v| v.as_str()) {
+                            default_image_provider = Some(prov.to_string());
+                        }
+                        if let Some(model) = img_table.get("model_name").and_then(|v| v.as_str()) {
+                            default_image_model_name = Some(model.to_string());
+                        }
+                        if let Some(api_env) = img_table.get("api_key_env").and_then(|v| v.as_str()) {
+                            default_image_api_key_env = Some(api_env.to_string());
+                        }
+                    }
+                }
+
+                if let Some(val) = existing_env.get("SERPER_API_KEY") {
+                    default_serper_api_key = val.clone();
+                }
+                if let Some(val) = existing_env.get("TELOXIDE_TOKEN") {
+                    default_telegram_key = val.clone();
+                }
+                if let Some(val) = existing_env.get("LINE_CHANNEL_SECRET") {
+                    default_line_secret = val.clone();
+                }
+                if let Some(val) = existing_env.get("LINE_CHANNEL_ACCESS_TOKEN") {
+                    default_line_token = val.clone();
+                }
+                if let Some(val) = existing_env.get("OTEL_COLLECTOR") {
+                    default_otel_collector = val.clone();
+                }
+                if let Some(val) = existing_env.get("NAMI_API_KEY") {
+                    default_nami_api_key = val.clone();
+                }
+            }
+            _ => {}
+        }
+    }
+
     // --- 1. LLM Configuration ---
     skin.print_text("### 1. LLM Configuration\n");
     let providers = vec![
@@ -64,10 +219,15 @@ pub async fn run_init() -> anyhow::Result<()> {
         "thaillm",
         "custom",
     ];
-    let provider_selection = Select::new("Choose LLM Provider:", providers).prompt()?;
+    let starting_index = providers.iter().position(|&p| p == default_provider).unwrap_or(1);
+    let provider_selection = Select::new("Choose LLM Provider:", providers)
+        .with_starting_cursor(starting_index)
+        .prompt()?;
 
     let provider = if provider_selection == "custom" {
-        Text::new("Enter Custom Provider:").prompt()?
+        Text::new("Enter Custom Provider:")
+            .with_default(&default_provider)
+            .prompt()?
     } else {
         provider_selection.to_string()
     };
@@ -117,25 +277,51 @@ pub async fn run_init() -> anyhow::Result<()> {
         _ => vec!["custom"],
     };
 
-    let model_selection = Select::new("Choose Model Name:", models).prompt()?;
+    let starting_model_index = models.iter().position(|&m| m == default_model_name).unwrap_or_else(|| {
+        if models.contains(&"custom") {
+            models.iter().position(|&m| m == "custom").unwrap_or(0)
+        } else {
+            0
+        }
+    });
+
+    let model_selection = Select::new("Choose Model Name:", models)
+        .with_starting_cursor(starting_model_index)
+        .prompt()?;
 
     let model_name = if model_selection == "custom" {
-        Text::new("Enter Model Name:").prompt()?
+        Text::new("Enter Model Name:")
+            .with_default(&default_model_name)
+            .prompt()?
     } else {
         model_selection.to_string()
     };
 
-    let api_key = if provider != "vertex" {
-        Password::new("Enter LLM API Key:")
+    let api_key_prompt = if default_api_key.is_empty() {
+        "Enter LLM API Key:".to_string()
+    } else {
+        "Enter LLM API Key (press Enter to keep existing):".to_string()
+    };
+    let api_key_input = if provider != "vertex" {
+        Password::new(&api_key_prompt)
             .with_display_mode(inquire::PasswordDisplayMode::Masked)
             .prompt()?
     } else {
         String::new()
     };
+    let api_key = if api_key_input.is_empty() {
+        default_api_key
+    } else {
+        api_key_input
+    };
 
     let (project_id, location) = if provider == "vertex" {
-        let pid = Text::new("Enter Google Cloud Project ID:").prompt()?;
-        let loc = Text::new("Enter Google Cloud Location (e.g., us-central1):").prompt()?;
+        let pid = Text::new("Enter Google Cloud Project ID:")
+            .with_default(&default_project_id)
+            .prompt()?;
+        let loc = Text::new("Enter Google Cloud Location (e.g., us-central1):")
+            .with_default(&default_location)
+            .prompt()?;
         (Some(pid), Some(loc))
     } else {
         (None, None)
@@ -154,66 +340,125 @@ pub async fn run_init() -> anyhow::Result<()> {
 
     // --- 2. Search Configuration ---
     skin.print_text("\n### 2. Search Configuration\n");
-    let serper_api_key = Password::new("Enter Serper API Key (optional):")
+    let serper_prompt = if default_serper_api_key.is_empty() {
+        "Enter Serper API Key (optional):".to_string()
+    } else {
+        "Enter Serper API Key (press Enter to keep existing):".to_string()
+    };
+    let serper_input = Password::new(&serper_prompt)
         .with_display_mode(inquire::PasswordDisplayMode::Masked)
         .prompt()?;
+    let serper_api_key = if serper_input.is_empty() {
+        default_serper_api_key
+    } else {
+        serper_input
+    };
 
     // --- 3. Bot Configuration ---
     skin.print_text("\n### 3. Bot Configuration\n");
-    let telegram_key = Password::new("Enter Telegram API Key (optional):")
+    let telegram_prompt = if default_telegram_key.is_empty() {
+        "Enter Telegram API Key (optional):".to_string()
+    } else {
+        "Enter Telegram API Key (press Enter to keep existing):".to_string()
+    };
+    let telegram_input = Password::new(&telegram_prompt)
         .with_display_mode(inquire::PasswordDisplayMode::Masked)
         .prompt()?;
+    let telegram_key = if telegram_input.is_empty() {
+        default_telegram_key
+    } else {
+        telegram_input
+    };
 
-    let line_secret = Password::new("Enter LINE Channel Secret (optional):")
+    let line_secret_prompt = if default_line_secret.is_empty() {
+        "Enter LINE Channel Secret (optional):".to_string()
+    } else {
+        "Enter LINE Channel Secret (press Enter to keep existing):".to_string()
+    };
+    let line_secret_input = Password::new(&line_secret_prompt)
         .with_display_mode(inquire::PasswordDisplayMode::Masked)
         .prompt()?;
+    let line_secret = if line_secret_input.is_empty() {
+        default_line_secret
+    } else {
+        line_secret_input
+    };
 
-    let line_token = Password::new("Enter LINE Channel Access Token (optional):")
+    let line_token_prompt = if default_line_token.is_empty() {
+        "Enter LINE Channel Access Token (optional):".to_string()
+    } else {
+        "Enter LINE Channel Access Token (press Enter to keep existing):".to_string()
+    };
+    let line_token_input = Password::new(&line_token_prompt)
         .with_display_mode(inquire::PasswordDisplayMode::Masked)
         .prompt()?;
+    let line_token = if line_token_input.is_empty() {
+        default_line_token
+    } else {
+        line_token_input
+    };
 
     // --- 4. Observability Configuration ---
     skin.print_text("\n### 4. Observability Configuration\n");
     let otel_collector = Text::new("Enter OTEL_COLLECTOR URL (e.g., http://localhost:4317) (optional):")
+        .with_default(&default_otel_collector)
         .prompt()?;
 
     // --- 5. Nami API Configuration ---
     skin.print_text("\n### 5. Nami API Configuration\n");
-    let nami_api_key = Password::new("Enter Nami API Key (optional):")
+    let nami_api_prompt = if default_nami_api_key.is_empty() {
+        "Enter Nami API Key (optional):".to_string()
+    } else {
+        "Enter Nami API Key (press Enter to keep existing):".to_string()
+    };
+    let nami_api_input = Password::new(&nami_api_prompt)
         .with_display_mode(inquire::PasswordDisplayMode::Masked)
         .prompt()?;
+    let nami_api_key = if nami_api_input.is_empty() {
+        default_nami_api_key
+    } else {
+        nami_api_input
+    };
 
     // --- 6. Image Generation Configuration ---
     skin.print_text("\n### 6. Image Generation Configuration\n");
     let configure_image_gen = Confirm::new("Do you want to configure Image Generation?")
-        .with_default(false)
+        .with_default(configure_image_gen_default)
         .prompt()?;
 
     let (image_provider, image_model_name, image_api_key_env) = if configure_image_gen {
         let image_providers = vec!["gemini", "vertex", "custom"];
-        let provider_selection = Select::new("Choose Image Generation Provider:", image_providers).prompt()?;
+        let default_img_prov = default_image_provider.unwrap_or_else(|| "gemini".to_string());
+        let img_starting_index = image_providers.iter().position(|&p| p == default_img_prov).unwrap_or(0);
+        let provider_selection = Select::new("Choose Image Generation Provider:", image_providers)
+            .with_starting_cursor(img_starting_index)
+            .prompt()?;
         let prov = if provider_selection == "custom" {
             Text::new("Enter Custom Provider:").prompt()?
         } else {
             provider_selection.to_string()
         };
 
-        let default_model = if prov == "vertex" {
-            "imagen-3.0-generate-002"
-        } else {
-            "models/gemini-2.5-flash-image-preview"
-        };
+        let default_model = default_image_model_name.unwrap_or_else(|| {
+            if prov == "vertex" {
+                "imagen-3.0-generate-002".to_string()
+            } else {
+                "models/gemini-2.5-flash-image-preview".to_string()
+            }
+        });
         let model = Text::new("Enter Image Generation Model Name:")
-            .with_default(default_model)
+            .with_default(&default_model)
             .prompt()?;
 
-        let default_env = if prov == "vertex" {
-            ""
-        } else {
-            "GOOGLE_API_KEY"
-        };
+        let default_env = default_image_api_key_env.unwrap_or_else(|| {
+            if prov == "vertex" {
+                "".to_string()
+            } else {
+                "GOOGLE_API_KEY".to_string()
+            }
+        });
         let env_var = Text::new("Enter Environment Variable Name for Image API Key:")
-            .with_default(default_env)
+            .with_default(&default_env)
             .prompt()?;
 
         (Some(prov), Some(model), Some(env_var))
