@@ -175,7 +175,7 @@ use sha2::{Digest, Sha256};
 use std::time::UNIX_EPOCH;
 use adk_rust::skill::{parse_instruction_markdown, SkillDocument, SkillIndex};
 
-/// Loads skills from `~/.agents/skills/` and `~/.nami/skills/`, prioritizing `~/.agents/skills/`.
+/// Loads skills from local workspace (`.skills/` and `skills/`) and global directories (`~/.agents/skills/` and `~/.nami/skills/`), prioritizing local workspace skills.
 pub fn load_global_skills() -> anyhow::Result<SkillIndex> {
     let home_dir = dirs::home_dir().unwrap_or_else(|| std::path::PathBuf::from("."));
     let agents_skills_dir = home_dir.join(".agents").join("skills");
@@ -184,8 +184,19 @@ pub fn load_global_skills() -> anyhow::Result<SkillIndex> {
     let mut skills = Vec::new();
     let mut loaded_names = std::collections::HashSet::new();
 
-    // Prioritize ~/.agents/skills first, then ~/.nami/skills
-    for dir in &[agents_skills_dir, nami_skills_dir] {
+    let mut search_dirs = Vec::new();
+    
+    // 1. Local workspace skills (highest priority)
+    if let Ok(cwd) = std::env::current_dir() {
+        search_dirs.push(cwd.join(".skills"));
+        search_dirs.push(cwd.join("skills"));
+    }
+    
+    // 2. Global skills
+    search_dirs.push(agents_skills_dir);
+    search_dirs.push(nami_skills_dir);
+
+    for dir in &search_dirs {
         if !dir.exists() || !dir.is_dir() {
             continue;
         }
@@ -552,12 +563,14 @@ fn format_persona(soul: &str, user: &str, memory: &str, state: &str) -> String {
 3. Intelligence: Prioritize depth and precision. For complex results, use structured layouts (tables/lists) and multi-dimensional analysis (impact, security, performance). Keep lists highly concise and avoid wrapping or long lines.
 4. Evolution: Strictly follow the "Evolution" rules in the Identity section to adapt to system changes.
 5. Integrity: No fabrication. Never expose secrets. Flag uncertainty explicitly.
+6. Interactive Alignment (Grill-Me): When preparing complex execution plans, design clear, sequential, and objectively verifiable steps. Remind the user they can execute newly synthesized plans via `/execute <plan_name>`.
 
 ━━━ TOOL STRATEGY ━━━
 1. Workflows / Skills   → Agent Skills
 2. System Tools         → Built-in capabilities
 3. Wiki / Knowledge     → If a wiki page/information is not found, stop and ask the user if you should search the workspace/project files instead.
 4. External Search      → last resort; flag when used
+5. Plans & Tasks        → For complex tasks, construct structured plans using `plan_create` and run them autonomously using `plan_execute`.
 
 ━━━ OBJECTIVE ━━━
 Minimize friction → Maximize execution velocity."#,

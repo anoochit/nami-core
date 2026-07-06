@@ -40,13 +40,32 @@ impl Tool for ImageGenerator {
 
         let model = if let Some(ref model) = self.model {
             model.clone()
+        } else if let Ok(api_key) = std::env::var("GOOGLE_API_KEY") {
+            Arc::new(
+                GeminiModel::new(&api_key, "gemini-3.1-flash-lite-image").map_err(|e| {
+                    AdkError::tool(format!("Failed to create Gemini client: {}", e))
+                })?,
+            )
         } else {
-            let api_key = std::env::var("GOOGLE_API_KEY")
-                .map_err(|_| AdkError::tool("GOOGLE_API_KEY environment variable not set"))?;
+            let project_id = std::env::var("GOOGLE_CLOUD_PROJECT")
+                .or_else(|_| std::env::var("GCP_PROJECT"))
+                .unwrap_or_default();
+            if project_id.is_empty() {
+                return Err(AdkError::tool(
+                    "Failed to initialize image generation. GOOGLE_API_KEY is not set, \
+                     and Vertex AI project ID (GOOGLE_CLOUD_PROJECT) is empty."
+                ));
+            }
+            let location = std::env::var("GOOGLE_CLOUD_REGION")
+                .or_else(|_| std::env::var("GCP_REGION"))
+                .unwrap_or_else(|_| "global".to_string());
 
             Arc::new(
-                GeminiModel::new(&api_key, "gemini-2.5-flash-image").map_err(|e| {
-                    AdkError::tool(format!("Failed to create Gemini client: {}", e))
+                GeminiModel::new_google_cloud_adc(&project_id, &location, "gemini-3.1-flash-lite-image").map_err(|e| {
+                    AdkError::tool(format!(
+                        "Failed to initialize image generation. GOOGLE_API_KEY is not set, \
+                         and Vertex AI initialization failed: {}", e
+                    ))
                 })?,
             )
         };
@@ -110,3 +129,6 @@ impl Tool for ImageGenerator {
 pub fn image_generator_tools(model: Option<Arc<dyn Llm>>) -> Vec<Arc<dyn Tool>> {
     vec![Arc::new(ImageGenerator { model })]
 }
+
+#[cfg(test)]
+mod tests;

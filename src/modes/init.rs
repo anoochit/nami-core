@@ -210,6 +210,12 @@ location = "{location_str}"
 # Optional settings for OpenAI-compatible providers
 # base_url = "https://api.openai.com/v1"
 
+# [image_generation]
+# # Image generation is optimized for Gemini/Vertex providers.
+# provider = "gemini"
+# model_name = "models/gemini-2.5-flash-image-preview"
+# api_key_env = "GOOGLE_API_KEY"
+
 [workspaces]
 # The default active workspace path when Nami is run outside any registered workspaces
 active = "{current_dir}"
