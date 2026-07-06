@@ -27,8 +27,6 @@ enum Commands {
     Bot,
     /// Run the interactive CLI mode.
     Cli,
-    /// Run the interactive TUI mode (Ratatui).
-    Tui,
     /// Initialize the project configuration and database.
     Init,
     /// Run automated evaluations against a dataset.
@@ -116,8 +114,8 @@ async fn main() -> anyhow::Result<()> {
     let is_tauri = std::env::var("TAURI_ENV").is_ok();
 
     if !is_tauri {
-        // If in CLI/TUI mode, log to file, otherwise stdout
-        let is_interactive = matches!(cli.command, Commands::Cli | Commands::Tui);
+        // If in CLI mode, log to file, otherwise stdout
+        let is_interactive = matches!(cli.command, Commands::Cli);
 
         if is_interactive {
             let log_path = nami::utils::get_nami_dir().join("nami.log");
@@ -224,20 +222,6 @@ async fn main() -> anyhow::Result<()> {
         Commands::Cli => {
             unsafe { std::env::set_var("RUST_LOG", "error") };
             modes::cli::run_cli(agent, deps.sessions, model, provider, model_name, mcp_count, skill_count).await?;
-        }
-        Commands::Tui => {
-            unsafe { std::env::set_var("RUST_LOG", "error") };
-            modes::tui::run_tui(
-                agent,
-                deps.sessions,
-                deps.memory_adapter,
-                model,
-                provider,
-                model_name,
-                mcp_count,
-                skill_count,
-            )
-            .await?;
         }
         Commands::Run { prompt } => {
             log::info!("Running in direct run mode");
