@@ -46,6 +46,12 @@ impl CommandRegistry {
                 help: "Create an AI research plan".to_string(),
             });
         }
+        if !commands.contains_key("/execute") && !commands.contains_key("execute") {
+            commands.insert("/execute".to_string(), Command {
+                template: "plan_execute(name='{args}')".to_string(),
+                help: "Execute an existing plan by name".to_string(),
+            });
+        }
 
         Ok(CommandRegistry { commands })
     }

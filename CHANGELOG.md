@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.9.34] - 2026-07-06
+
+### Added
+
+- **Fallback `/execute` Command**: Added `/execute` dynamic template command as a default fallback option in the dynamic command registry when not specified in user configurations.
+- **Aligned Plan Execution Hint**: Added a clear interactive user tip in the CLI right after successfully completing `/grill` (Interactive Alignment) showing how to immediately execute the newly registered plan.
+
 ## [0.9.33] - 2026-07-06
 
 ### Removed

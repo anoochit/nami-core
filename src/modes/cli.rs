@@ -375,6 +375,8 @@ async fn run_system_prompt(
     let spinner_chars = vec!["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];
     let mut spinner_idx = 0;
 
+    let mut started_thinking = false;
+
     terminal::enable_raw_mode()?;
 
     loop {
@@ -396,6 +398,24 @@ async fn run_system_prompt(
                     Some(Ok(event)) => {
                         if let Some(content) = &event.llm_response.content {
                             for part in &content.parts {
+                                if started_thinking && (part.text().is_some() || matches!(part, Part::FunctionCall { .. } | Part::FunctionResponse { .. })) {
+                                    clear_current_line(&mut io::stdout())?;
+                                    println!("{}\r", style::style("──────────────────────────────────────────────────").dim());
+                                    started_thinking = false;
+                                }
+
+                                if let Part::Thinking { thinking, .. } = part {
+                                    if !thinking.is_empty() {
+                                        clear_current_line(&mut io::stdout())?;
+                                        if !started_thinking {
+                                            println!("{}\r", style::style("🧠 Thinking Process:").dim().bold());
+                                            started_thinking = true;
+                                        }
+                                        print!("{}", style::style(thinking).dim().italic());
+                                        io::stdout().flush()?;
+                                    }
+                                }
+
                                 if let Some(text) = part.text() {
                                     response.push_str(text);
                                 }
@@ -663,6 +683,7 @@ async fn run_cli_grill(
                     println!("{}", markdown);
                 }
             }
+            println!("\n💡 To execute this plan, use: {}\n", style::style(format!("/execute {}", plan_name)).cyan().bold());
         }
         Err(e) => {
             println!("{} {}\n", style::style("Error registering plan:").red().bold(), e);
@@ -902,6 +923,8 @@ pub async fn run_cli(
                 let spinner_chars = vec!["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];
                 let mut spinner_idx = 0;
 
+                let mut started_thinking = false;
+
                 terminal::enable_raw_mode()?;
 
                 loop {
@@ -925,6 +948,24 @@ pub async fn run_cli(
                                         &event.llm_response.content
                                     {
                                         for part in &content.parts {
+                                            if started_thinking && (part.text().is_some() || matches!(part, Part::FunctionCall { .. } | Part::FunctionResponse { .. })) {
+                                                clear_current_line(&mut io::stdout())?;
+                                                println!("{}\r", style::style("──────────────────────────────────────────────────").dim());
+                                                started_thinking = false;
+                                            }
+
+                                            if let Part::Thinking { thinking, .. } = part {
+                                                if !thinking.is_empty() {
+                                                    clear_current_line(&mut io::stdout())?;
+                                                    if !started_thinking {
+                                                        println!("{}\r", style::style("🧠 Thinking Process:").dim().bold());
+                                                        started_thinking = true;
+                                                    }
+                                                    print!("{}", style::style(thinking).dim().italic());
+                                                    io::stdout().flush()?;
+                                                }
+                                            }
+
                                             if let Some(text) =
                                                 part.text()
                                             {
