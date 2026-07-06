@@ -10,6 +10,7 @@
 
 ### Added
 
+- **`nami upgrade` Command**: Added a secure, native binary self-upgrade mechanism from GitHub Releases, supporting automatic OS/Architecture detection, user confirmation prompts, and safe NTFS-friendly executable replacement.
 - **`nami version` Command**: Added a quiet, direct subcommand to display the current Nami version cleanly to standard output.
 
 ## [0.9.31] - 2026-07-05
