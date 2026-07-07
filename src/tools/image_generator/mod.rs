@@ -14,6 +14,10 @@ pub struct ImagenArgs {
     pub prompt: String,
     /// The aspect ratio for the image (e.g., "1:1", "16:9", "9:16"). Defaults to "1:1".
     pub aspect_ratio: Option<String>,
+    /// Optional path to an existing image file (e.g., "cover.png") to use as a reference for generation.
+    pub image_path: Option<String>,
+    /// Optional custom path to save the generated image to (e.g., "mock.png" or "output/image.png").
+    pub output_path: Option<String>,
 }
 
 pub struct ImageGenerator {
@@ -75,11 +79,47 @@ impl Tool for ImageGenerator {
             prompt = format!("{} Use aspect ratio {}.", prompt, ratio);
         }
 
+        let mut content = Content::new("user").with_text(prompt.clone());
+
+        let mut image_path = args.image_path.clone();
+        if image_path.is_none() {
+            if let Ok(re) = regex::Regex::new(r"([a-zA-Z0-9_\-./]+\.(?:png|jpg|jpeg|webp|gif))") {
+                for cap in re.captures_iter(&prompt) {
+                    let candidate = cap[1].to_string();
+                    if let Ok(abs_path) = sandbox(&candidate).await {
+                        if abs_path.exists() {
+                            image_path = Some(candidate);
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+
+        if let Some(ref path) = image_path {
+            let abs_path = sandbox(path).await?;
+            let data = tokio::fs::read(&abs_path)
+                .await
+                .map_err(|e| AdkError::tool(format!("Failed to read reference image at {}: {}", path, e)))?;
+            let mime_type = if path.ends_with(".png") {
+                "image/png".to_string()
+            } else if path.ends_with(".jpg") || path.ends_with(".jpeg") {
+                "image/jpeg".to_string()
+            } else if path.ends_with(".webp") {
+                "image/webp".to_string()
+            } else if path.ends_with(".gif") {
+                "image/gif".to_string()
+            } else {
+                "image/png".to_string()
+            };
+            content.parts.push(Part::InlineData { mime_type, data });
+        }
+
         let mut stream = model
             .generate_content(
                 LlmRequest::new(
                     "image".to_string(),
-                    vec![Content::new("user").with_text(prompt)],
+                    vec![content],
                 ),
                 false,
             )
@@ -100,27 +140,53 @@ impl Tool for ImageGenerator {
                 c.parts.iter().find_map(|part| {
                     if let Part::InlineData { mime_type, data } = part {
                         if mime_type.starts_with("image/") {
-                            return Some(general_purpose::STANDARD.decode(data));
+                            if is_valid_image(data) {
+                                return Some(Ok(data.clone()));
+                            }
+                            if let Ok(s) = std::str::from_utf8(data) {
+                                return Some(extract_image_bytes(s));
+                            }
+                            return Some(Ok(data.clone()));
                         }
                     }
                     None
                 })
             })
-            .ok_or_else(|| AdkError::tool("No image data in response"))?
-            .map_err(|e| AdkError::tool(format!("Failed to decode image base64: {}", e)))?;
+            .ok_or_else(|| AdkError::tool("No image data in response"))??;
 
-        let filename = format!("generated_{}.png", uuid::Uuid::new_v4());
-        let output_dir = "generated";
-        let abs_output_dir = sandbox(output_dir).await?;
-        tokio::fs::create_dir_all(&abs_output_dir).await.ok();
+        let mut output_path = args.output_path.clone();
+        if output_path.is_none() {
+            if let Ok(re) = regex::Regex::new(r"(?i)(?:save to|output to|as)\s+([a-zA-Z0-9_\-./]+\.(?:png|jpg|jpeg|webp|gif))") {
+                if let Some(cap) = re.captures(&prompt) {
+                    output_path = Some(cap[1].to_string());
+                }
+            }
+        }
 
-        tokio::fs::write(abs_output_dir.join(&filename), &image_bytes)
-            .await
-            .map_err(|e| AdkError::tool(format!("Failed to save image to disk: {}", e)))?;
+        let (saved_path, display_name) = if let Some(ref custom_path) = output_path {
+            let abs_path = sandbox(custom_path).await?;
+            if let Some(parent) = abs_path.parent() {
+                tokio::fs::create_dir_all(parent).await.ok();
+            }
+            tokio::fs::write(&abs_path, &image_bytes)
+                .await
+                .map_err(|e| AdkError::tool(format!("Failed to save image to custom path {}: {}", custom_path, e)))?;
+            (abs_path, custom_path.clone())
+        } else {
+            let filename = format!("generated_{}.png", uuid::Uuid::new_v4());
+            let output_dir = "generated";
+            let abs_output_dir = sandbox(output_dir).await?;
+            tokio::fs::create_dir_all(&abs_output_dir).await.ok();
+            let dest_path = abs_output_dir.join(&filename);
+            tokio::fs::write(&dest_path, &image_bytes)
+                .await
+                .map_err(|e| AdkError::tool(format!("Failed to save image to disk: {}", e)))?;
+            (dest_path, format!("{}/{}", output_dir, filename))
+        };
 
         Ok(json!({
             "status": "success",
-            "filename": format!("{}/{}", output_dir, filename),
+            "filename": display_name,
             "prompt": args.prompt
         }))
     }
@@ -128,6 +194,73 @@ impl Tool for ImageGenerator {
 
 pub fn image_generator_tools(model: Option<Arc<dyn Llm>>) -> Vec<Arc<dyn Tool>> {
     vec![Arc::new(ImageGenerator { model })]
+}
+
+fn extract_image_bytes(data: &str) -> std::result::Result<Vec<u8>, AdkError> {
+    // 1. Try robust base64 decode after filtering out any whitespaces/newlines
+    let cleaned: String = data.chars().filter(|c| !c.is_whitespace()).collect();
+    if let Ok(bytes) = general_purpose::STANDARD.decode(&cleaned) {
+        if is_valid_image(&bytes) {
+            return Ok(bytes);
+        }
+    }
+    if let Ok(bytes) = base64::engine::general_purpose::STANDARD_NO_PAD.decode(&cleaned) {
+        if is_valid_image(&bytes) {
+            return Ok(bytes);
+        }
+    }
+    if let Ok(bytes) = base64::engine::general_purpose::URL_SAFE.decode(&cleaned) {
+        if is_valid_image(&bytes) {
+            return Ok(bytes);
+        }
+    }
+    if let Ok(bytes) = base64::engine::general_purpose::URL_SAFE_NO_PAD.decode(&cleaned) {
+        if is_valid_image(&bytes) {
+            return Ok(bytes);
+        }
+    }
+
+    // 2. Fallback to raw bytes of the string (UTF-8 representation) if it contains the raw binary directly
+    let raw_bytes = data.as_bytes().to_vec();
+    if is_valid_image(&raw_bytes) {
+        return Ok(raw_bytes);
+    }
+
+    // 3. Fallback to char-by-char cast (Latin1 / ISO-8859-1 format)
+    let latin1_bytes: Vec<u8> = data.chars().map(|c| c as u8).collect();
+    if is_valid_image(&latin1_bytes) {
+        return Ok(latin1_bytes);
+    }
+
+    // If none of those match but base64 was successfully decoded, we still return the first decoded bytes
+    if let Ok(bytes) = general_purpose::STANDARD.decode(&cleaned) {
+        return Ok(bytes);
+    }
+
+    Err(AdkError::tool("Failed to decode image data as base64 or raw fallback bytes"))
+}
+
+fn is_valid_image(bytes: &[u8]) -> bool {
+    if bytes.len() < 4 {
+        return false;
+    }
+    // PNG Magic: 89 50 4E 47
+    if bytes[0] == 0x89 && bytes[1] == 0x50 && bytes[2] == 0x4E && bytes[3] == 0x47 {
+        return true;
+    }
+    // JPEG Magic: FF D8 FF
+    if bytes[0] == 0xFF && bytes[1] == 0xD8 && bytes[2] == 0xFF {
+        return true;
+    }
+    // GIF Magic: 47 49 46 ("GIF")
+    if bytes[0] == 0x47 && bytes[1] == 0x49 && bytes[2] == 0x46 {
+        return true;
+    }
+    // WebP Magic: RIFF .... WEBP
+    if bytes.len() >= 12 && &bytes[0..4] == b"RIFF" && &bytes[8..12] == b"WEBP" {
+        return true;
+    }
+    false
 }
 
 #[cfg(test)]

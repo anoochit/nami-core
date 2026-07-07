@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.9.36] - 2026-07-07
+
+### Added
+
+- **Multi-Modal / Reference Image Support (Image-to-Image)**: Upgraded `image_generator` to support a reference image (`image_path` parameter or `image_path` field in `ImagenArgs`).
+- **Custom Output Path**: Introduced support for specifying a custom output path (`output_path` parameter or `output_path` field in `ImagenArgs`) to save the generated image directly to that exact sandboxed file path.
+- **Intelligent Prompt Auto-Detection Fallback**: Added robust regex-based auto-detection to scan the user prompt text for reference image file names (e.g., `x/cover.png`) and output path instructions (e.g., `save to mock.png` or `as mock.png`), automatically linking and executing them even when structured parameters are not set by the model.
+
 ## [0.9.35] - 2026-07-06
 
 ### Added
