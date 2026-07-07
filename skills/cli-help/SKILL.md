@@ -20,44 +20,50 @@ Use `nami help` at any time to display this information in the terminal.
 | `run "<prompt>"` | Execute a single prompt directly from the terminal. |
 | `bot` | Start the Telegram bot service. |
 | `serve` | Start the HTTP API server. |
-| `browse` | Start server with embedded WebUI. |
+| `line` | Start the LINE bot webhook server. |
+| `eval` | Run automated evaluations against a dataset. |
+| `version` | Show current version. |
 | `help` | Display basic command-line usage instructions. |
 
 ---
 
 ## Interactive CLI Mode (`nami cli`)
 
-Once inside the interactive CLI, you can use the following **Slash Commands** for specialized functionality:
+Once inside the interactive CLI, you can use the following built-in and custom slash commands for specialized functionality:
 
-### 🧠 Task Management
-- `/plan <goal>`  
-  Initializes a structured task with specific steps and state tracking.
-- `/tasks`  
-  Lists all active, in-progress, or blocked tasks.
+### 🛠 Built-in Commands
 - `/status`  
   Displays the current agent status and system telemetry.
-
-### ⚡ Automation & Delegation
-- `/parallel "<task 1>" "<task 2>" ...`  
-  Orchestrates multiple specialized agents to perform tasks simultaneously.
-- `/goal <goal> | <stop condition>`  
-  Triggers the autonomous "Ralph Wiggum" loop agent, which persists through multiple iterations to achieve complex goals.
-- `/schedule <goal> | <cron expression>`  
-  Registers a persistent background task using standard cron syntax.
-
-### 📂 Knowledge & Memory
-- `@<file_path>`  
-  Reference files from the `workspace/` directly in the prompt using tab-completion.
-- `/wiki <query>`  
-  Searches your Obsidian-style Markdown vault.
-
-### 🛠 System
 - `/new`  
   Resets the current session while maintaining persistent memory.
+- `/clear`  
+  Clears the terminal screen.
+- `/version`  
+  Displays the CLI version.
 - `/exit` or `/quit`  
   Safely closes the CLI session.
-- `/?`  
-  Displays the in-CLI help menu.
+
+### 🧠 Custom & Dynamic Commands (Configurable via `config.toml`)
+- `/wiki <query>`  
+  Searches your Obsidian-style Markdown vault.
+- `/memo <info>`  
+  Saves user-specific preferences, rules, or information to long-term memory.
+- `/recall <query>`  
+  Recalls stored information or memories from vector storage.
+- `/parallel "<task 1>" "<task 2>" ...`  
+  Orchestrates multiple specialized agents to perform tasks simultaneously.
+- `/goal <goal> \| <stop condition>`  
+  Triggers the autonomous goal loop agent (Ralph Wiggum), which persists through multiple iterations to achieve complex goals.
+- `/schedule <goal> \| <cron expression>`  
+  Registers a persistent, repeating background task using standard cron syntax.
+- `/learn <args>`  
+  Analyzes recent conversation history, successes, and corrections to extract reusable rules or specialized skills into memory.
+- `/grill <prompt>`  
+  Conducts an interactive interview with the user to align on a plan, and saves the final compiled plan under `~/.nami/plans/`.
+- `/skill <args>`  
+  Invokes a specific skill by name.
+- `/mcp <args>`  
+  Queries connected Model Context Protocol (MCP) servers.
 
 ---
 
@@ -91,7 +97,7 @@ You > /goal "Research the best Rust HTTP libraries and create a comparison table
   - Verify your `.env` contains valid API keys.
 
 - **Access Denied**
-  - Files outside the `workspace/` or matched by `.namiignore` are restricted for safety.
+  - Files outside the active workspace or matched by `.namiignore` are restricted for safety.
 
 ---
 
