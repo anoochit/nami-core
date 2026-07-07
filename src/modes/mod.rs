@@ -4,6 +4,7 @@
 
 pub mod bot;
 pub mod cli;
+pub mod cli_helper;
 pub mod command_registry;
 pub mod init;
 pub mod api;
