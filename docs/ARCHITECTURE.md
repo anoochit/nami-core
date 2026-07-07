@@ -9,7 +9,7 @@ Nami follows a layered architecture that separates the user interface (modes) fr
 ```text
 ┌───────────────────────────────────────────────────────────┐
 │                      Interface Layer                      │
-│   (CLI, TUI, Bot, Serve, LINE, Scheduler)                 │
+│   (CLI, Bot, Serve, LINE, Scheduler)                      │
 ├───────────────────────────────────────────────────────────┤
 │                     Orchestration Layer                   │
 │         (AgentRunner, Session Management, Retries)        │

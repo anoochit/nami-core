@@ -34,5 +34,5 @@ Nami acts as an MCP client, allowing it to connect to external tool servers.
 -   **Filesystem**: `read_file`, `write_file`, `list_files`, `search_files`.
 -   **Web**: `web_fetch` (summarizes web content), `wiki` (manages knowledge base).
 -   **Memory**: `recall_memory`, `add_memory`.
--   **System**: `get_system_status`, `execute_command` (restricted).
--   **Soul**: `update_user_memory` (updates agent's view of the user).
+-   **System**: `execute_shell` (restricted).
+-   **Soul**: `update_user_memory` (updates agent's view of the user), `update_agent_soul` (evolves agent instructions/personality).

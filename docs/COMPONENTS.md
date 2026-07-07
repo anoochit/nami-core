@@ -17,7 +17,6 @@ The `Agent` is the central brain and identity of the system, constructed via `bu
   - `AGENT.md`: Core identity, tone, and behavioral rules.
   - `USER.md`: User profile and customized preferences.
   - `MEMORIES.md`: Synthesized long-term facts.
-  - `STATE_PROTOCOL.md`: Operating procedures and structured task flow instructions.
 - **Skill Discovery**: Automatically loads "Skills" (standalone agent executable logic) from the `workspace/` directory using `with_skills_from_root`.
 - **Specialists**: Manages a set of specialized sub-agents (e.g., Coder, Researcher) that can be invoked dynamically for specific workloads.
 
@@ -72,7 +71,6 @@ Nami is structured into four primary modules under `src/`. Below is a detailed b
 
 #### Architecture & Sub-files
 - **`cli.rs`**: Interactive CLI interface with rich formatting and command handling.
-- **`tui.rs`**: Interactive TUI interface (Ratatui) for full terminal experience.
 - **`bot.rs`**: Telegram integration using the `teloxide` framework.
 - **`line.rs`**: LINE Bot integration with webhook verification and messaging API support.
 - **`serve.rs`**: HTTP REST API for external integrations.
@@ -124,7 +122,6 @@ Nami is structured into four primary modules under `src/`. Below is a detailed b
 - **`search/`**: Web search integration using external APIs (e.g., Serper.dev) for real-time information retrieval.
 - **`shell/`** *(Disabled)*: Executes shell commands (currently disabled for security reasons).
 - **`soul/`**: Tools for managing and updating the agent's internal persona/soul and user memory.
-- **`state_manager/`**: Tracks the lifecycle, status, and steps of long-running tasks.
 - **`system_status/`**: Monitors and reports system health (CPU, memory, and general performance metrics).
 - **`todo/`**: A simple task/TODO list manager that persists items to `todos.json` in the workspace.
 - **`weather/`**: Queries real-time weather information for specified locations.
