@@ -153,6 +153,7 @@ async fn main() -> anyhow::Result<()> {
             image_generation: None,
             reflection: None,
             embedding: None,
+            tools: None,
         }
     });
 
