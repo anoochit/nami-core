@@ -7,6 +7,10 @@
 - **Configurable Shell Tool Whitelist**: Introduced structured `[tools.shell]` table with `allowed_commands` configuration inside `config.toml` (and `config.toml.example`). This allows users to easily add custom allowed executables alongside Nami's built-in secure defaults, which are safely cached during initialization.
 - **Pre-execution Task Planner (`/plan` command)**: Added a new `/plan` custom command template that guides Nami to formulate a structured implementation/execution plan as a markdown artifact before running any code.
 
+### Fixed
+
+- **AppConfig Initialization Compilation Error**: Added missing `tools` field to the manual `AppConfig` fallback initializer in `src/main.rs` to fix a compilation failure during `cargo check`.
+
 ## [0.9.37] - 2026-07-07
 
 ### Added
