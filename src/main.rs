@@ -225,7 +225,7 @@ async fn main() -> anyhow::Result<()> {
         }
         Commands::Run { prompt } => {
             log::info!("Running in direct run mode");
-            modes::run::run_direct(agent, &prompt).await?;
+            modes::run::run_direct(agent, deps.sessions.clone(), model, provider, model_name, &prompt).await?;
         }
         Commands::Serve { port, host } => {
             log::info!("Running in serve mode");

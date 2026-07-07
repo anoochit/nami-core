@@ -1,37 +1,34 @@
 use adk_rust::Agent;
 use adk_rust::prelude::*;
-use adk_rust::session::{CreateRequest, SessionService};
+use adk_session::SessionService;
 use futures::StreamExt;
-use std::collections::HashMap;
 use std::sync::Arc;
 
-pub async fn run_direct(agent: Arc<dyn Agent>, prompt: &str) -> anyhow::Result<()> {
+pub async fn run_direct(
+    agent: Arc<dyn Agent>,
+    sessions: Arc<dyn SessionService>,
+    model: Arc<dyn Llm>,
+    provider: String,
+    model_name: String,
+    prompt: &str,
+) -> anyhow::Result<()> {
     let app_name = "cli";
     let user_id = "default_user";
+    let session_id = "run_session";
 
-    let session_service = Arc::new(InMemorySessionService::new());
-
-    // Create session using the correct Rust ADK API
-    let session = session_service
-        .create(CreateRequest {
-            app_name: app_name.to_string(),
-            user_id: user_id.to_string(),
-            session_id: None, // let the service generate an ID
-            state: HashMap::new(),
-        })
-        .await?;
-
-    let session_id = session.id(); // use the generated session ID
+    crate::modes::cli::ensure_session(&sessions, app_name, user_id, session_id).await?;
 
     let runner = Runner::builder()
         .app_name(app_name)
         .agent(agent)
-        .session_service(session_service)
+        .session_service(sessions)
+        .compaction_config(crate::agent::get_compaction_config(model))
         .build()?;
 
     let user_content = Content::new("user").with_text(prompt);
 
-    let mut stream = runner.run_str(user_id, &session_id, user_content).await?;
+    let start_time = std::time::Instant::now();
+    let mut stream = runner.run_str(user_id, session_id, user_content).await?;
     let mut full_response = String::new();
 
     while let Some(event) = stream.next().await {
@@ -41,6 +38,7 @@ pub async fn run_direct(agent: Arc<dyn Agent>, prompt: &str) -> anyhow::Result<(
                     for part in &content.parts {
                         if let Some(text) = &part.text() {
                             print!("{}", text);
+                            std::io::Write::flush(&mut std::io::stdout())?;
                             full_response.push_str(text);
                         }
                     }
@@ -53,6 +51,14 @@ pub async fn run_direct(agent: Arc<dyn Agent>, prompt: &str) -> anyhow::Result<(
         }
     }
     println!();
+
+    let duration_secs = start_time.elapsed().as_secs_f64();
+    let prompt_tokens = (prompt.len() as f64 / 4.0).round() as usize;
+    let response_tokens = (full_response.len() as f64 / 4.0).round() as usize;
+    let total_tokens = prompt_tokens + response_tokens;
+
+    // Save statistics to .nami/stats.json
+    crate::utils::save_agent_statistic(&provider, &model_name, duration_secs, total_tokens);
 
     Ok(())
 }

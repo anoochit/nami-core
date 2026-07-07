@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.9.37] - 2026-07-07
+
+### Added
+
+- **Clipboard Support (`/copy` command)**: Added a new built-in `/copy` slash command in CLI mode that copies the last assistant response directly to the system clipboard using the `arboard` crate, featuring proper error handling.
+- **Provider & Model Tracking in Statistics**: Upgraded `save_agent_statistic` to receive and track model provider and name. These are written to `.nami/stats.json` for all execution modes (interactive CLI, plan execution steps, direct runs, and REST API server middleware).
+
+### Changed
+
+- **Refactored `nami run` Direct Mode Session Persistence**: Upgraded direct mode (`run_direct`) to share the persistent session storage layer instead of spawning an ephemeral in-memory service, enabling accurate token compaction, usage statistics tracking, and robust logging consistency.
+
 ## [0.9.36] - 2026-07-07
 
 ### Added

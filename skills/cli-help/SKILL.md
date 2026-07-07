@@ -40,6 +40,8 @@ Once inside the interactive CLI, you can use the following built-in and custom s
   Clears the terminal screen.
 - `/version`  
   Displays the CLI version.
+- `/copy`  
+  Copies the last assistant response to the system clipboard.
 - `/exit` or `/quit`  
   Safely closes the CLI session.
 

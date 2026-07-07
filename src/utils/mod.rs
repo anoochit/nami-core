@@ -264,11 +264,13 @@ pub async fn get_wiki_dir() -> std::result::Result<PathBuf, AdkError> {
     Ok(wiki_dir)
 }
 
-pub fn save_agent_statistic(duration_secs: f64, total_tokens: usize) {
+pub fn save_agent_statistic(provider: &str, model_name: &str, duration_secs: f64, total_tokens: usize) {
     let stats_path = get_nami_dir().join("stats.json");
     
     let new_entry = serde_json::json!({
         "timestamp": chrono::Utc::now().to_rfc3339(),
+        "provider": provider,
+        "model_name": model_name,
         "duration_seconds": duration_secs,
         "tokens_consumed": total_tokens,
     });

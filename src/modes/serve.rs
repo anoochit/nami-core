@@ -109,7 +109,11 @@ pub async fn stats_middleware(req: Request, next: Next) -> impl IntoResponse {
         let response_tokens = (final_resp_len as f64 / 4.0).round() as usize;
         let total_tokens = prompt_tokens + response_tokens;
         
-        crate::utils::save_agent_statistic(duration_secs, total_tokens);
+        let config = crate::agent::load_config_sync().ok();
+        let provider = config.as_ref().and_then(|c| c.model.provider.clone()).unwrap_or_else(|| "unknown".to_string());
+        let model_name = config.as_ref().map(|c| c.model.model_name.clone()).unwrap_or_else(|| "unknown".to_string());
+        
+        crate::utils::save_agent_statistic(&provider, &model_name, duration_secs, total_tokens);
         
         response
     } else {

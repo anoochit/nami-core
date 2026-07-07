@@ -534,6 +534,7 @@ async fn run_grill_flow(
     user_id: &str,
     session_id: &str,
     nami_skin: &MadSkin,
+    last_response: &mut Option<String>,
 ) -> anyhow::Result<()> {
     if args.trim().is_empty() {
         println!("{} Please provide a goal or topic. Usage: /grill <your goal>\n", style::style("⚠️").yellow());
@@ -652,7 +653,8 @@ async fn run_grill_flow(
             i + 1, steps.len(), step
         );
 
-        let _ = run_system_prompt(runner, user_id, session_id, &step_prompt, nami_skin).await?;
+        let resp = run_system_prompt(runner, user_id, session_id, &step_prompt, nami_skin).await?;
+        *last_response = Some(resp);
     }
 
     println!("\n{} All {} steps of the plan have been successfully executed! 🎉\n", style::style("✅").green().bold(), steps.len());
@@ -675,6 +677,7 @@ pub async fn handle_slash_command(
     registry: &CommandRegistry,
     mcp_count: usize,
     skill_count: usize,
+    last_response: &mut Option<String>,
 ) -> anyhow::Result<bool> {
     let parts: Vec<&str> = trimmed.splitn(2, ' ').collect();
     let command_name = parts[0];
@@ -687,13 +690,35 @@ pub async fn handle_slash_command(
             user_id,
             session_id,
             nami_skin,
+            last_response,
         ).await?;
+        return Ok(false);
+    }
+
+    if command_name == "/copy" {
+        if let Some(ref text) = *last_response {
+            match arboard::Clipboard::new() {
+                Ok(mut clipboard) => {
+                    if let Err(e) = clipboard.set_text(text.clone()) {
+                        println!("{} Failed to copy to clipboard: {}\n", style::style("❌").red(), e);
+                    } else {
+                        println!("{} Last response copied to clipboard!\n", style::style("📋").green());
+                    }
+                }
+                Err(e) => {
+                    println!("{} Failed to initialize clipboard: {}\n", style::style("❌").red(), e);
+                }
+            }
+        } else {
+            println!("{} No response available to copy yet.\n", style::style("⚠️").yellow());
+        }
         return Ok(false);
     }
 
     // Dynamic registry lookup
     if let Some(prompt) = registry.format_prompt(command_name, args) {
-        run_system_prompt(runner, user_id, session_id, &prompt, nami_skin).await?;
+        let resp = run_system_prompt(runner, user_id, session_id, &prompt, nami_skin).await?;
+        *last_response = Some(resp);
         return Ok(false);
     }
 
@@ -820,6 +845,8 @@ pub async fn run_cli(
     nami_skin.headers[1].set_fg(termimad::crossterm::style::Color::Rgb { r: 139, g: 233, b: 253 }); // Dracula Cyan
     nami_skin.headers[2].set_fg(termimad::crossterm::style::Color::Rgb { r: 189, g: 147, b: 249 }); // Dracula Purple
 
+    let mut last_response: Option<String> = None;
+
     loop {
        
         let line = rl.readline("You > ");
@@ -847,6 +874,7 @@ pub async fn run_cli(
                         &registry,
                         mcp_count,
                         skill_count,
+                        &mut last_response,
                     )
                     .await?
                     {
@@ -1026,7 +1054,9 @@ pub async fn run_cli(
                 let total_tokens = prompt_tokens + response_tokens;
 
                 // Save statistics to .nami/stats.json
-                crate::utils::save_agent_statistic(duration_secs, total_tokens);
+                crate::utils::save_agent_statistic(&provider, &model_name, duration_secs, total_tokens);
+
+                last_response = Some(response_buffer.clone());
 
                 // Print statistical summary directly underneath the 'Thinking Process:'
                 if started_thinking {
