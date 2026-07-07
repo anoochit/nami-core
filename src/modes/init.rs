@@ -577,10 +577,10 @@ help = "Invoke a specific skill by name"
 #
 
 # --- Tools Configuration ---
-# [tools.shell]
-# # Whitelist of additional allowed system executables for the shell execution tool.
-# # Note: Built-in safe commands (git, ls, cargo, grep, echo, etc.) are always enabled.
-# # allowed_commands = ["make", "pytest", "python"]
+[tools.shell]
+Whitelist of additional allowed system executables for the shell execution tool.
+Note: Built-in safe commands (git, ls, cargo, grep, echo, etc.) are always enabled.
+allowed_commands = ["make", "pytest", "python"]
 "#);
 
     // 1. config.toml (safe merge)
