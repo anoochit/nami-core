@@ -572,9 +572,15 @@ help = "Invoke a specific skill by name"
 #
 # [specialists.custom.database_guru]
 # description = "A specialist in database design, query optimization, and SQL performance tuning."
-# instruction = "You are an expert database administrator. Provide high-quality SQL queries and structural design advice."
 # # provider = "gemini"
 # # model_name = "gemini-2.5-pro"
+#
+
+# --- Tools Configuration ---
+# [tools.shell]
+# # Whitelist of additional allowed system executables for the shell execution tool.
+# # Note: Built-in safe commands (git, ls, cargo, grep, echo, etc.) are always enabled.
+# # allowed_commands = ["make", "pytest", "python"]
 "#);
 
     // 1. config.toml (safe merge)

@@ -28,6 +28,20 @@ pub struct AppConfig {
     pub reflection: Option<ReflectionConfig>,
     /// Optional configuration for embedding service.
     pub embedding: Option<ModelConfig>,
+    /// Optional configuration for tools, like shell command whitelist.
+    pub tools: Option<ToolsConfig>,
+}
+
+/// Configuration for tools (e.g., shell commands whitelist).
+#[derive(Debug, Deserialize, Serialize, Clone, PartialEq)]
+pub struct ToolsConfig {
+    pub shell: Option<ShellToolConfig>,
+}
+
+/// Configuration for the shell tool.
+#[derive(Debug, Deserialize, Serialize, Clone, PartialEq)]
+pub struct ShellToolConfig {
+    pub allowed_commands: Option<Vec<String>>,
 }
 
 /// Configuration details for the LLM provider and specific model.
@@ -309,6 +323,12 @@ pub async fn create_agent(
         None
     };
 
+    let allowed_shell_commands = app_config
+        .tools
+        .as_ref()
+        .and_then(|t| t.shell.as_ref())
+        .and_then(|s| s.allowed_commands.clone());
+
     let mut core_tools: Vec<Arc<dyn Tool>> = Vec::new();
     core_tools.extend(tools::current_datetime::datetime_tools());
     core_tools.extend(tools::filesystem::filesystem_tools());
@@ -316,7 +336,7 @@ pub async fn create_agent(
     core_tools.extend(tools::memory::memory_tools());
     core_tools.extend(tools::scheduler::scheduler_tools());
     core_tools.extend(tools::search::search_tools());
-    core_tools.extend(tools::shell::shell_tools());
+    core_tools.extend(tools::shell::shell_tools(allowed_shell_commands));
     core_tools.extend(tools::soul::soul_tools());
     core_tools.extend(tools::todo::todo_tools());
     core_tools.extend(tools::web_fetch::web_fetch_tools());
@@ -414,6 +434,7 @@ pub async fn build_agent() -> anyhow::Result<(Arc<dyn Agent>, Arc<dyn Llm>, Stri
             image_generation: None,
             reflection: None,
             embedding: None,
+            tools: None,
         }
     });
 

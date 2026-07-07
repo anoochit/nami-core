@@ -102,3 +102,10 @@ enabled = false
 [embedding]
 # Configuration for vector embeddings used in long-term memory.
 # model_name = "text-embedding-004"
+
+# --- Tools Configuration ---
+# [tools.shell]
+# # Whitelist of additional allowed system executables for the shell execution tool.
+# # Note: Built-in safe commands (git, ls, cargo, grep, echo, etc.) are always enabled.
+# # allowed_commands = ["make", "pytest", "python"]
+

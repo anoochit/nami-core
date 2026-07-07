@@ -24,11 +24,11 @@ pub fn render_help(registry: &CommandRegistry) -> String {
     help.push_str("Available Commands\n\n");
     
     // Render static commands
-    help.push_str("- /exit: Quit\n");
     help.push_str("- /clear: Clear screen\n");
     help.push_str("- /new: New session\n");
     help.push_str("- /status: Agent status\n");
     help.push_str("- /version: CLI version\n");
+    help.push_str("- /exit: Quit\n");
 
     // Render dynamic commands from registry
     help.push_str("\nCustom Commands\n\n");
@@ -205,12 +205,14 @@ fn print_tool_response(response: &str) -> io::Result<()> {
     Ok(())
 }
 
-async fn run_system_prompt(
+pub async fn run_and_stream_prompt(
     runner: &mut Runner,
     user_id: &str,
     session_id: &str,
     prompt: &str,
     nami_skin: &MadSkin,
+    provider: &str,
+    model_name: &str,
 ) -> anyhow::Result<String> {
     print_status_line(
         &mut io::stdout(),
@@ -221,9 +223,11 @@ async fn run_system_prompt(
         ),
     )?;
 
-    let content = Content::new("user").with_text(prompt);
+    let content = Content::new("user").with_text(prompt.to_string());
+    let start_thinking_time = std::time::Instant::now();
     let mut stream = runner.run_str(user_id, session_id, content).await?;
-    let mut response = String::new();
+    let mut response_buffer = String::new();
+    let mut function_response_buffer: Vec<Part> = Vec::new();
     let mut cancelled = false;
     let mut cancelled_by_esc = false;
     let mut event_reader = EventStream::new();
@@ -273,19 +277,20 @@ async fn run_system_prompt(
                                 }
 
                                 if let Some(text) = part.text() {
-                                    response.push_str(text);
+                                    response_buffer.push_str(text);
                                 }
                                 if let Part::FunctionCall { name, args, .. } = part {
                                     print_tool_call(name, &args.to_string())?;
                                 }
                                 if let Part::FunctionResponse { function_response, .. } = part {
                                     print_tool_response(&function_response.response.to_string())?;
+                                    function_response_buffer.push(part.clone());
                                 }
                             }
                         }
                     }
                     Some(Err(e)) => {
-                        response.push_str(&format_error(e));
+                        response_buffer.push_str(&format_error(e));
                         break;
                     }
                     None => break,
@@ -306,8 +311,35 @@ async fn run_system_prompt(
         }
     }
 
+    // Flush collected function responses if any were gathered
+    if !function_response_buffer.is_empty() {
+        let response_content = Content {
+            role: "function".to_string(),
+            parts: function_response_buffer,
+        };
+        let mut response_stream = runner.run_str(user_id, session_id, response_content).await?;
+        // Consume the stream to complete the turn
+        while let Some(_) = response_stream.next().await {}
+    }
+
     terminal::disable_raw_mode()?;
     clear_current_line(&mut io::stdout())?;
+
+    let duration_secs = start_thinking_time.elapsed().as_secs_f64();
+    let prompt_tokens = (prompt.len() as f64 / 4.0).round() as usize;
+    let response_tokens = (response_buffer.len() as f64 / 4.0).round() as usize;
+    let total_tokens = prompt_tokens + response_tokens;
+
+    // Save statistics to .nami/stats.json
+    crate::utils::save_agent_statistic(provider, model_name, duration_secs, total_tokens);
+
+    // Print statistical summary directly underneath the 'Thinking Process:'
+    if started_thinking {
+        println!("{}\r", style::style(format!("🧠 Thought for {:.1}s, {} tokens", duration_secs, total_tokens)).italic());
+        println!("{}\r", style::style("──────────────────────────────────────────────────").dim());
+    } else {
+        println!("{}\r", style::style(format!("🧠 Thought for {:.1}s, {} tokens", duration_secs, total_tokens)).italic());
+    }
 
     if cancelled {
         if !cancelled_by_esc {
@@ -319,22 +351,28 @@ async fn run_system_prompt(
 
     println!();
 
+    let cleaned = response_buffer
+        .lines()
+        .map(|line| line.trim_end())
+        .collect::<Vec<_>>()
+        .join("\n");
+
+    let term_width = terminal::size()
+        .map(|(w, _)| w as usize)
+        .unwrap_or(80)
+        .saturating_sub(4);
+
     let rendered = termimad::FmtText::from(
         nami_skin,
-        &response,
-        Some(
-            terminal::size()
-                .map(|(w, _)| w as usize)
-                .unwrap_or(80)
-                .saturating_sub(4),
-        ),
+        &cleaned,
+        Some(term_width),
     )
     .to_string();
 
     println!("{}", rendered);
     println!();
 
-    Ok(response)
+    Ok(response_buffer)
 }
 
 fn render_banner(provider: &str, model_name: &str, session_id: &str, mcp_count: usize, skill_count: usize) {
@@ -534,6 +572,8 @@ async fn run_grill_flow(
     user_id: &str,
     session_id: &str,
     nami_skin: &MadSkin,
+    provider: &str,
+    model_name: &str,
     last_response: &mut Option<String>,
 ) -> anyhow::Result<()> {
     if args.trim().is_empty() {
@@ -545,7 +585,7 @@ async fn run_grill_flow(
         "The user wants to plan the following goal: '{}'. \
          Please generate 3 to 5 highly precise, concise clarification questions to help design this plan. \
          Format your response ONLY as a plain list of questions, one per line, with each line starting with 'Q: ' and nothing else.",
-        args
+         args
     );
 
     println!("\n{} Analyzing goal and generating clarification questions...", style::style("🧠").magenta().bold());
@@ -609,7 +649,7 @@ async fn run_grill_flow(
         args, qa_context
     );
 
-    let plan_content = run_system_prompt(runner, user_id, session_id, &plan_prompt, nami_skin).await?;
+    let plan_content = run_and_stream_prompt(runner, user_id, session_id, &plan_prompt, nami_skin, provider, model_name).await?;
 
     let nami_dir = crate::utils::get_nami_dir();
     let plans_dir = nami_dir.join("plans");
@@ -653,7 +693,7 @@ async fn run_grill_flow(
             i + 1, steps.len(), step
         );
 
-        let resp = run_system_prompt(runner, user_id, session_id, &step_prompt, nami_skin).await?;
+        let resp = run_and_stream_prompt(runner, user_id, session_id, &step_prompt, nami_skin, provider, model_name).await?;
         *last_response = Some(resp);
     }
 
@@ -690,6 +730,8 @@ pub async fn handle_slash_command(
             user_id,
             session_id,
             nami_skin,
+            provider,
+            model_name,
             last_response,
         ).await?;
         return Ok(false);
@@ -717,7 +759,7 @@ pub async fn handle_slash_command(
 
     // Dynamic registry lookup
     if let Some(prompt) = registry.format_prompt(command_name, args) {
-        let resp = run_system_prompt(runner, user_id, session_id, &prompt, nami_skin).await?;
+        let resp = run_and_stream_prompt(runner, user_id, session_id, &prompt, nami_skin, provider, model_name).await?;
         *last_response = Some(resp);
         return Ok(false);
     }
@@ -770,7 +812,7 @@ pub async fn handle_slash_command(
         }
 
         "/status" => {
-            run_system_prompt(runner, user_id, session_id, "Please retrieve and report the system status using your system_status skill.", nami_skin).await?;
+            run_and_stream_prompt(runner, user_id, session_id, "Please retrieve and report the system status using your system_status skill.", nami_skin, provider, model_name).await?;
         }
 
         _ => {
@@ -897,200 +939,18 @@ pub async fn run_cli(
 
                 let enriched_prompt = process_file_references(trimmed).await;
 
-                print_status_line(
-                    &mut io::stdout(),
-                    &format!(
-                        "{} {}",
-                        style::style("⠋").with(style::Color::Rgb { r: 255, g: 121, b: 198 }).bold(),
-                        style::style("Agent is thinking...").dim()
-                    ),
-                )?;
+                let resp = run_and_stream_prompt(
+                    &mut runner,
+                    user_id,
+                    &session_id,
+                    &enriched_prompt,
+                    &nami_skin,
+                    &provider,
+                    &model_name,
+                )
+                .await?;
 
-                let content = Content::new("user").with_text(enriched_prompt.clone());
-                let start_thinking_time = std::time::Instant::now();
-                let mut stream = runner.run_str(user_id, &session_id, content).await?;
-                let mut response_buffer = String::new();
-                let mut function_response_buffer: Vec<Part> = Vec::new();
-                let mut cancelled = false;
-                let mut cancelled_by_esc = false;
-                let mut event_reader = EventStream::new();
-                let mut spinner_tick = tokio::time::interval(std::time::Duration::from_millis(80));
-                let spinner_chars = vec!["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];
-                let mut spinner_idx = 0;
-
-                let mut started_thinking = false;
-
-                terminal::enable_raw_mode()?;
-
-                loop {
-                    tokio::select! {
-                        _ = spinner_tick.tick() => {
-                            spinner_idx = (spinner_idx + 1) % spinner_chars.len();
-                            let spinner_char = spinner_chars[spinner_idx];
-                            print_status_line(
-                                &mut io::stdout(),
-                                &format!(
-                                    "{} {}",
-                                    style::style(spinner_char).with(style::Color::Rgb { r: 255, g: 121, b: 198 }).bold(),
-                                    style::style("Agent is thinking...").dim()
-                                ),
-                            )?;
-                        }
-                        result = stream.next() => {
-                            match result {
-                                Some(Ok(event)) => {
-                                    if let Some(content) =
-                                        &event.llm_response.content
-                                    {
-                                        for part in &content.parts {
-                                            if started_thinking && (part.text().is_some() || matches!(part, Part::FunctionCall { .. } | Part::FunctionResponse { .. })) {
-                                                clear_current_line(&mut io::stdout())?;
-                                                println!("{}\r", style::style("──────────────────────────────────────────────────").dim());
-                                                started_thinking = false;
-                                            }
-
-                                            if let Part::Thinking { thinking, .. } = part {
-                                                if !thinking.is_empty() {
-                                                    clear_current_line(&mut io::stdout())?;
-                                                    if !started_thinking {
-                                                        println!("{}\r", style::style("🧠 Thinking Process:").dim().bold());
-                                                        started_thinking = true;
-                                                    }
-                                                    print!("{}", style::style(thinking).dim().italic());
-                                                    io::stdout().flush()?;
-                                                }
-                                            }
-
-                                            if let Some(text) =
-                                                part.text()
-                                            {
-                                                response_buffer
-                                                    .push_str(text);
-                                            }
-
-                                            if let Part::FunctionCall { name, args, .. } = part {
-                                                let args_str = args.to_string().replace('\n', " ").replace("  ", " ");
-                                                
-                                                clear_current_line(&mut io::stdout())?;
-                                                println!("{} {} {}({})\r", 
-                                                    style::style("🔨").magenta(),
-                                                    style::style("Tool Call:").dim().bold(),
-                                                    style::style(name).cyan(),
-                                                    style::style(args_str).dim()
-                                                );
-                                                io::stdout().flush()?;
-                                            }
-                                            if let Part::FunctionResponse { function_response, .. } = part {
-                                                let resp_str = function_response.response.to_string();
-                                                let minified_resp = if let Ok(val) = serde_json::from_str::<serde_json::Value>(&resp_str) {
-                                                    serde_json::to_string(&val).unwrap_or_else(|_| resp_str.clone())
-                                                } else {
-                                                    resp_str.clone()
-                                                };
-                                                
-                                                let formatted_resp = if minified_resp.chars().count() > 150 {
-                                                    let truncated: String = minified_resp.chars().take(150).collect();
-                                                    format!("{}... (+{} chars)", truncated, minified_resp.len() - truncated.len())
-                                                } else {
-                                                    minified_resp
-                                                };
-                                                
-                                                clear_current_line(&mut io::stdout())?;
-                                                println!("{} {} {}\r", 
-                                                    style::style("✅").green(),
-                                                    style::style("Tool Result:").dim().bold(),
-                                                    style::style(formatted_resp).dim()
-                                                );
-                                                io::stdout().flush()?;
-                                                
-                                                function_response_buffer.push(part.clone());
-                                            }
-                                        }
-                                    }
-                                }
-
-                                Some(Err(e)) => {
-                                    response_buffer.push_str(&format_error(e));
-
-                                    break;
-                                }
-
-                                None => break,
-                            }
-                        }
-
-                         maybe_event = event_reader.next() => {
-                             if let Some(Ok(event)) = maybe_event {
-                                 if let Some(cancellation) = check_cancellation_event(event) {
-                                     runner.interrupt(&session_id);
-                                     cancelled = true;
-                                     if cancellation == CancellationType::Esc {
-                                         cancelled_by_esc = true;
-                                     }
-                                     break;
-                                 }
-                             }
-                         }
-                    }
-                }
-
-                // Flush collected function responses if any were gathered
-                if !function_response_buffer.is_empty() {
-                    let response_content = Content {
-                        role: "function".to_string(),
-                        parts: function_response_buffer,
-                    };
-                    let mut response_stream = runner.run_str(user_id, &session_id, response_content).await?;
-                    // Consume the stream to complete the turn
-                    while let Some(_) = response_stream.next().await {}
-                }
-
-                terminal::disable_raw_mode()?;
-                clear_current_line(&mut io::stdout())?;
-
-                let duration_secs = start_thinking_time.elapsed().as_secs_f64();
-                let prompt_tokens = (enriched_prompt.len() as f64 / 4.0).round() as usize;
-                let response_tokens = (response_buffer.len() as f64 / 4.0).round() as usize;
-                let total_tokens = prompt_tokens + response_tokens;
-
-                // Save statistics to .nami/stats.json
-                crate::utils::save_agent_statistic(&provider, &model_name, duration_secs, total_tokens);
-
-                last_response = Some(response_buffer.clone());
-
-                // Print statistical summary directly underneath the 'Thinking Process:'
-                if started_thinking {
-                    println!("{}\r", style::style(format!("🧠 Thought for {:.1}s, {} tokens", duration_secs, total_tokens)).italic());
-                    println!("{}\r", style::style("──────────────────────────────────────────────────").dim());
-                } else {
-                    println!("{}\r", style::style(format!("🧠 Thought for {:.1}s, {} tokens", duration_secs, total_tokens)).italic());
-                }
-
-                if cancelled {
-                    if !cancelled_by_esc {
-                        println!();
-                        println!("{}", style::style("🚀 Request cancelled").dim());
-                    }
-                    continue;
-                }
-                println!();
-
-                let cleaned = response_buffer
-                    .lines()
-                    .map(|line| line.trim_end())
-                    .collect::<Vec<_>>()
-                    .join("\n");
-
-                let term_width = terminal::size()
-                    .map(|(w, _)| w as usize)
-                    .unwrap_or(80)
-                    .saturating_sub(4);
-
-                let rendered =
-                    termimad::FmtText::from(&nami_skin, &cleaned, Some(term_width)).to_string();
-
-                println!("{}", rendered);
-                println!();
+                last_response = Some(resp);
             }
 
             Err(_) => {
