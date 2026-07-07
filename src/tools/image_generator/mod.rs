@@ -163,7 +163,7 @@ impl Tool for ImageGenerator {
             }
         }
 
-        let (saved_path, display_name) = if let Some(ref custom_path) = output_path {
+        let (_, display_name) = if let Some(ref custom_path) = output_path {
             let abs_path = sandbox(custom_path).await?;
             if let Some(parent) = abs_path.parent() {
                 tokio::fs::create_dir_all(parent).await.ok();
