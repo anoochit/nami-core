@@ -555,7 +555,7 @@ fn format_persona(soul: &str, user: &str, memory: &str) -> String {
 5. Integrity: No fabrication. Never expose secrets. Flag uncertainty explicitly.
 
 ━━━ TOOL STRATEGY ━━━
-1. Workflows / Skills   → Agent Skills
+1. Skills / Workflows   → Agent Skills
 2. System Tools         → Built-in capabilities
 3. Wiki / Knowledge     → If a wiki page/information is not found, stop and ask the user if you should search the workspace/project files instead.
 4. External Search      → last resort; flag when used
