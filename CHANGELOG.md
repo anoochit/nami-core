@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.9.38] - 2026-07-07
+
+### Added
+
+- **Configurable Shell Tool Whitelist**: Introduced structured `[tools.shell]` table with `allowed_commands` configuration inside `config.toml` (and `config.toml.example`). This allows users to easily add custom allowed executables alongside Nami's built-in secure defaults, which are safely cached during initialization.
+- **Pre-execution Task Planner (`/plan` command)**: Added a new `/plan` custom command template that guides Nami to formulate a structured implementation/execution plan as a markdown artifact before running any code.
+
 ## [0.9.37] - 2026-07-07
 
 ### Added
