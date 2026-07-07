@@ -1121,11 +1121,18 @@ pub async fn run_cli(
                                                     resp_str.clone()
                                                 };
                                                 
+                                                let formatted_resp = if minified_resp.chars().count() > 150 {
+                                                    let truncated: String = minified_resp.chars().take(150).collect();
+                                                    format!("{}... (+{} chars)", truncated, minified_resp.len() - truncated.len())
+                                                } else {
+                                                    minified_resp
+                                                };
+                                                
                                                 clear_current_line(&mut io::stdout())?;
                                                 println!("{} {} {}\r", 
                                                     style::style("✅").green(),
                                                     style::style("Tool Result:").dim().bold(),
-                                                    style::style(minified_resp).dim()
+                                                    style::style(formatted_resp).dim()
                                                 );
                                                 io::stdout().flush()?;
                                                 
