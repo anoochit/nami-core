@@ -16,7 +16,7 @@ struct ShellArgs {
 fn validate_command(command: &str) -> std::result::Result<(), String> {
     // Whitelist of allowed base commands
     let allowed_executables = [
-        "git", "ls", "grep", "echo", "cargo", "nami", "dir", "type", "cat", "pwd"
+        "git", "ls", "grep", "echo", "cargo", "nami", "dir", "type", "cat", "pwd", "df", "ip", "uname"
     ];
 
     // Logical separators for chained or piped commands
