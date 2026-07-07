@@ -548,10 +548,6 @@ help = "Reflect on recent successes or corrections to capture reusable skills or
 template = "Conduct an interactive interview with the user to align on a plan. Ask clarifying questions one at a time, gather all requirements, design decisions, and user preferences, and then compile the aligned plan. Save the final compiled plan to the folder '~/.nami/plans/' (e.g. as a markdown file). Prompt: {{args}}"
 help = "Interview me to align on a plan and save it to '~/.nami/plans/'"
 
-[commands."/plan"]
-template = "Create a detailed step-by-step implementation plan for the following task. The plan must outline: 1. Goals & Requirements, 2. Design Decisions & Architecture, 3. Success Criteria & Verification Steps, and 4. A sequential task list with concrete steps. Save the compiled plan to the workspace or `~/.nami/plans/` directory (e.g., as `PLAN.md`) as a user-facing artifact, and present it clearly to the user for feedback and approval before executing any code. Task: {{args}}"
-help = "Create a structured execution/implementation plan and save it as an artifact before starting work"
-
 [commands."/skill"]
 template = "Activate and execute the skill: {{args}}"
 help = "Invoke a specific skill by name"

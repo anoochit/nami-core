@@ -29,6 +29,7 @@ pub fn render_help(registry: &CommandRegistry) -> String {
     help.push_str("- /copy: Copy last response to clipboard!\n");
     help.push_str("- /status: Agent status\n");
     help.push_str("- /version: CLI version\n");
+    help.push_str("- /plan: Create a structured execution/implementation plan\n");
     help.push_str("- /exit: Quit\n");
 
     // Render dynamic commands from registry
@@ -735,6 +736,24 @@ pub async fn handle_slash_command(
             model_name,
             last_response,
         ).await?;
+        return Ok(false);
+    }
+
+    if command_name == "/plan" {
+        let prompt = format!(
+            "Create a detailed step-by-step implementation plan for the following task. The plan must outline: \
+             1. Goals & Requirements, 2. Design Decisions & Architecture, 3. Success Criteria & Verification Steps, \
+             and 4. A sequential task list with concrete steps under a section '## Implementation Steps' where each step is a checkbox list item of the exact format:\n\
+             '- [ ] Step N: <detailed task explanation>'\n\
+             For example:\n\
+             '- [ ] Step 1: Create the main function'\n\
+             '- [ ] Step 2: Implement error handling'\n\n\
+             Save the compiled plan to the workspace or `~/.nami/plans/` directory (e.g., as `plan_[date-time].md`) as a user-facing artifact, \
+             and present it clearly to the user for feedback and approval before executing any code. Task: {}",
+            args
+        );
+        let resp = run_and_stream_prompt(runner, user_id, session_id, &prompt, nami_skin, provider, model_name).await?;
+        *last_response = Some(resp);
         return Ok(false);
     }
 
