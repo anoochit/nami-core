@@ -26,6 +26,7 @@ pub fn render_help(registry: &CommandRegistry) -> String {
     // Render static commands
     help.push_str("- /clear: Clear screen\n");
     help.push_str("- /new: New session\n");
+    help.push_str("- /copy: Copy last response to clipboard!\n");
     help.push_str("- /status: Agent status\n");
     help.push_str("- /version: CLI version\n");
     help.push_str("- /exit: Quit\n");
