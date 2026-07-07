@@ -27,17 +27,16 @@ A modular, extensible AI-powered `Nami` built on top of [adk-rust](https://githu
 
 * **Premium Antigravity 2.0 WebUI**: A modern, decomposed component architecture (`ChatHeader`, `MessageList`, `MessageItem`, `ChatInput`) overhauled to look premium using Outfit (headings) and Inter (UI/body copy) Google Fonts, ultra-thin slate lines, responsive session history cards, slate-900 user bubbles, and soft tech-gray assistant cards.
 * **Wiki Files & Folder Explorer**: A dedicated "Wiki" tab in the WebUI sidebar allowing users to browse their Obsidian-style wiki vault via an interactive, hierarchical folder-tree. Clicking any wiki file instantly renders its content inside the rich preview panel.
-* **Modern TUI**: A rich, interactive CLI experience with a custom ASCII banner, animated indicators, **startup discovery counts for MCP/Skills**, pretty error rendering with intelligent hints, and structured layout.
+* **Modern CLI**: A rich, interactive CLI experience with a custom ASCII banner, animated indicators, **startup discovery counts for MCP/Skills**, pretty error rendering with intelligent hints, and structured layout.
 * **Focused Input Control**: Implements terminal raw mode during processing to block echoes, ensuring a clean and focused agent execution state.
 * **Silent Cancellation**: Support for both `Ctrl+C` and silent `ESC` interruption, allowing users to cancel requests without terminal clutter.
 * **Slash Commands**: Quick access to system functions:
   * `/new`: Reset current session.
-  * `/clear`: Reset message history (TUI).
+  * `/clear`: Clear terminal screen.
   * `/parallel`: Run tasks in parallel using specialists.
   * `/goal`: Run autonomous loops to achieve goals.
   * `/schedule`: Manage automated tasks with cron expressions.
   * `/grill`: Start an interactive Q&A alignment session to refine goals and generate precise plans (Grill-Me).
-  * `/tasks`: List and manage active system tasks.
   * `/status`: View real-time agent and system status.
   * `/wiki`: Search the project wiki vault.
   * `/memo`: Save information to long-term memory.
@@ -59,10 +58,6 @@ A modular, extensible AI-powered `Nami` built on top of [adk-rust](https://githu
   * `get_backlinks`: List pages linking to a specific note.
   * `rename_wiki_page`: Safe renaming with link updates.
 * **Persistent Sessions**: SQLite-backed conversation history keyed by Telegram user ID.
-* **State Management**: A structured JSON-based system for tracking long-running tasks, guided by `STATE_PROTOCOL.md`.
-  * `init_task`: Initialize new processes with goals and steps.
-  * `update_task`: Progress tracking and persistent context.
-  * `list_active_tasks`: View all in-progress or blocked tasks.
 * **Todo Management**: Built-in task manager for tracking goals and daily items (`add_todo`, `list_todos`, `mark_todo_done`).
 
 ### 🛠 Specialized Skills & Tools
@@ -177,7 +172,7 @@ The application provides several run modes:
 | **Initialize** | `nami init` | Initialize project config files and database. |
 | **Telegram Bot** | `nami bot` | Start the interactive Telegram Bot. |
 | **LINE Bot** | `nami line` | Start the LINE Bot webhook server. |
-| **CLI** | `nami cli` | Local interactive terminal agent with rich TUI. |
+| **CLI** | `nami cli` | Local interactive terminal agent with autocomplete and file references. |
 | **Run** | `nami run <prompt>` | Execute a single prompt directly from the CLI. |
 | **Server** | `nami serve` | Start the HTTP server with embedded premium WebUI and APIs. |
 | **Desktop (Dev)** | `make desktop-dev` | Launch the native Tauri desktop app in development mode. |
