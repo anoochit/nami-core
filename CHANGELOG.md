@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.9.40] - 2026-07-08
+
+### Added
+
+- **Technical Book Production Skill Set (`publishing-studio`)**: Introduced a comprehensive suite of skills and guides for managing the end-to-end technical book publishing lifecycle, including research, writing, editing, marketing, analytics, and a master production guide.
+- **Enhanced Weather Skill**: Upgraded the weather skill with multi-day forecasts and robust error handling.
+- **Repository Health & Community Standards**: Added standard issue templates for bug reports and feature requests, as well as a Security Policy (`SECURITY.md`), Contributing Guidelines (`CONTRIBUTING.md`), and a Code of Conduct (`CODE_OF_CONDUCT.md`).
+
 ## [0.9.39] - 2026-07-08
 
 ### Added
