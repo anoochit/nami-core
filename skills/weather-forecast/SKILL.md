@@ -1,5 +1,5 @@
 ---
-name: weather
+name: weather-forecast
 description: Get the current weather and multi-day forecast for any city or location in the world with robust wttr.in parsing and search fallbacks.
 ---
 

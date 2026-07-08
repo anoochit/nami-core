@@ -307,11 +307,19 @@ mod tests {
             _ctx: Arc<dyn InvocationContext>,
         ) -> Result<std::pin::Pin<Box<dyn futures::Stream<Item = Result<adk_session::Event>> + Send + 'static>>> {
             let event = adk_session::Event {
+                id: uuid::Uuid::new_v4().to_string(),
+                timestamp: chrono::Utc::now(),
+                invocation_id: "".to_string(),
+                branch: "".to_string(),
+                author: "".to_string(),
+                actions: Default::default(),
                 llm_response: LlmResponse {
                     content: Some(Content::new("model").with_text("mock agent response")),
-                    usage: None,
+                    ..Default::default()
                 },
-                ..Default::default()
+                llm_request: Default::default(),
+                long_running_tool_ids: Default::default(),
+                provider_metadata: Default::default(),
             };
             let stream = futures::stream::once(async move { Ok(event) });
             Ok(Box::pin(stream))

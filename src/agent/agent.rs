@@ -189,107 +189,50 @@ pub fn save_config_sync(config: &AppConfig) -> anyhow::Result<()> {
     Ok(())
 }
 
-use sha2::{Digest, Sha256};
-use std::time::UNIX_EPOCH;
-use adk_rust::skill::{parse_instruction_markdown, SkillDocument, SkillIndex};
+use adk_rust::skill::SkillIndex;
 
 /// Loads skills from local workspace (`.skills/` and `skills/`) and global directories (`~/.agents/skills/` and `~/.nami/skills/`), prioritizing local workspace skills.
 pub fn load_global_skills() -> anyhow::Result<SkillIndex> {
+    let cwd = std::env::current_dir().unwrap_or_else(|_| std::path::PathBuf::from("."));
     let home_dir = dirs::home_dir().unwrap_or_else(|| std::path::PathBuf::from("."));
     let agents_skills_dir = home_dir.join(".agents").join("skills");
-    let nami_skills_dir = home_dir.join(".nami").join("skills");
+    let nami_skills_dir = crate::utils::get_nami_dir().join("skills");
 
-    let mut skills = Vec::new();
-    let mut loaded_names = std::collections::HashSet::new();
-
-    let mut search_dirs = Vec::new();
-    
-    // 1. Local workspace skills (highest priority)
-    if let Ok(cwd) = std::env::current_dir() {
-        search_dirs.push(cwd.join(".skills"));
-        search_dirs.push(cwd.join("skills"));
+    let mut extra_dirs = Vec::new();
+    let local_skills = cwd.join("skills");
+    if local_skills.exists() && local_skills.is_dir() {
+        extra_dirs.push(local_skills);
     }
-    
-    // 2. Global skills
-    search_dirs.push(agents_skills_dir);
-    search_dirs.push(nami_skills_dir);
-
-    for dir in &search_dirs {
-        if !dir.exists() || !dir.is_dir() {
-            continue;
-        }
-
-        // Walk directory and discover .md files
-        for entry in walkdir::WalkDir::new(dir)
-            .into_iter()
-            .filter_map(|e| e.ok())
-            .filter(|e| e.file_type().is_file())
-            .filter(|e| e.path().extension().is_some_and(|ext| ext == "md"))
-        {
-            let path = entry.path().to_path_buf();
-            let content = match std::fs::read_to_string(&path) {
-                Ok(c) => c,
-                Err(_) => continue,
-            };
-
-            let parsed = match parse_instruction_markdown(&path, &content) {
-                Ok(p) => p,
-                Err(_) => continue,
-            };
-
-            // If a skill with the same name was already loaded from a higher priority directory, skip it
-            if loaded_names.contains(&parsed.name) {
-                continue;
-            }
-
-            loaded_names.insert(parsed.name.clone());
-
-            let mut hasher = Sha256::new();
-            hasher.update(content.as_bytes());
-            let hash = hasher.finalize().iter().map(|b| format!("{:02x}", b)).collect::<String>();
-
-            let last_modified = std::fs::metadata(&path)
-                .ok()
-                .and_then(|meta| meta.modified().ok())
-                .and_then(|ts| ts.duration_since(UNIX_EPOCH).ok())
-                .map(|d| d.as_secs() as i64);
-
-            let id = format!(
-                "{}-{}",
-                normalize_id(&parsed.name),
-                &hash.chars().take(12).collect::<String>()
-            );
-
-            skills.push(SkillDocument {
-                id,
-                name: parsed.name,
-                description: parsed.description,
-                version: parsed.version,
-                license: parsed.license,
-                compatibility: parsed.compatibility,
-                tags: parsed.tags,
-                allowed_tools: parsed.allowed_tools,
-                references: parsed.references,
-                trigger: parsed.trigger,
-                hint: parsed.hint,
-                metadata: parsed.metadata,
-                body: parsed.body,
-                path,
-                hash,
-                last_modified,
-                triggers: parsed.triggers,
-            });
-        }
+    if agents_skills_dir.exists() && agents_skills_dir.is_dir() {
+        extra_dirs.push(agents_skills_dir);
+    }
+    if nami_skills_dir.exists() && nami_skills_dir.is_dir() {
+        extra_dirs.push(nami_skills_dir);
     }
 
-    skills.sort_by(|a, b| a.name.cmp(&b.name).then_with(|| a.path.cmp(&b.path)));
-    Ok(SkillIndex::new(skills))
+    let index = adk_rust::skill::load_skill_index_with_extras(&cwd, &extra_dirs)?;
+    Ok(index)
 }
 
-fn normalize_id(name: &str) -> String {
-    name.chars()
-        .map(|c| if c.is_alphanumeric() { c.to_ascii_lowercase() } else { '-' })
-        .collect()
+/// Dynamically discovers and formats a list of all available global and local skills and descriptions.
+pub fn get_global_skills_summary() -> String {
+    if let Ok(skills_index) = load_global_skills() {
+        let mut summaries = Vec::new();
+        for skill in skills_index.skills() {
+            summaries.push(format!("- {}: {}", skill.name, skill.description));
+        }
+        if summaries.is_empty() {
+            String::new()
+        } else {
+            summaries.sort();
+            format!(
+                "━━━ AVAILABLE AGENT SKILLS ━━━\n{}\n\n",
+                summaries.join("\n")
+            )
+        }
+    } else {
+        String::new()
+    }
 }
 
 /// Counts the number of skills in global directories (~/.agents/skills/ and ~/.nami/skills/).
@@ -407,10 +350,12 @@ pub async fn create_agent(
         specialists::get_specialists(model.clone(), specialist_models, core_tools.clone(), custom_specs);
 
 
+    let skills_summary = get_global_skills_summary();
+
     let mut builder = LlmAgentBuilder::new("nami")
         .description("A helpful and playful AI assistant")
         .instruction(format_persona(
-            &context.0, &context.1, &context.2,
+            &context.0, &context.1, &context.2, &skills_summary,
         ))
         .model(model.clone());
 
@@ -564,7 +509,7 @@ async fn load_persona_context() -> anyhow::Result<(String, String, String)> {
 /// Formats the system instruction string based on the provided persona context.
 /// 
 /// This instruction defines the agent's behavior, output format, and operational priorities.
-fn format_persona(soul: &str, user: &str, memory: &str) -> String {
+fn format_persona(soul: &str, user: &str, memory: &str, skills_summary: &str) -> String {
     format!(
         r#"You are Nami, a focused execution assistant. Minimize friction. Maximize signal.
 
@@ -574,19 +519,28 @@ fn format_persona(soul: &str, user: &str, memory: &str) -> String {
 ━━━ USER PROFILE ━━━
 {user}
 
-━━━ CONTEXT & MEMORIES ━━━
+{skills_summary}━━━ CONTEXT & MEMORIES ━━━
 {memory}
 
 ━━━ OPERATIONAL GUIDELINES ━━━
-1. Language: English for conversational parts. English for technical/coding. Match user's tone.
-2. Signal: Zero filler. Lead with the answer. Transform raw tool outputs into high-density, actionable insights. Avoid repeating long outputs or code blocks unless requested. Explain the significance and provide clear next steps.
-3. Intelligence: Prioritize depth and precision. For complex results, use structured layouts (tables/lists) and multi-dimensional analysis (impact, security, performance). Keep lists highly concise and avoid wrapping or long lines.
-4. Evolution: Strictly follow the "Evolution" rules in the Identity section to adapt to system changes.
-5. Integrity: No fabrication. Never expose secrets. Flag uncertainty explicitly.
+1. Skills Priority: If a relevant Skill exists for the task, you MUST load, view, and follow its instructions BEFORE planning or executing any other tool calls. Treat Skill instructions as absolute requirements.
+2. Language: English for conversational parts. English for technical/coding. Match user's tone.
+3. Signal: Zero filler. Lead with the answer. Transform raw tool outputs into high-density, actionable insights. Avoid repeating long outputs or code blocks unless requested. Explain the significance and provide clear next steps.
+4. Visual Health & Formatting: Prioritize readability. Keep bullet points and table cells concise to avoid wrapped lines. Use GitHub-style markdown alerts strategically to emphasize critical details:
+   > [!NOTE]
+   > Background context or helpful explanations.
+   > [!TIP]
+   > Optimizations or best practices.
+   > [!WARNING]
+   > Potential pitfalls or critical prerequisites.
+5. Interactive Alignment: For highly ambiguous requests or complex architectural choices, do not guess. Offer clear, numbered options or multiple-choice suggestions to help the user decide on the design direction.
+6. Code & Documentation Integrity: Maintain the integrity of existing codebase files. Preserve all comments, docstrings, and unrelated logic unless explicitly instructed to modify them. Explain modifications using clear diffs or targeted code blocks.
+7. Evolution: Strictly follow the "Evolution" rules in the Identity section to adapt to system changes.
+8. Integrity: No fabrication. Never expose secrets. Flag uncertainty explicitly.
 
 ━━━ TOOL STRATEGY ━━━
-1. Skills / Workflows   → Agent Skills
-2. System Tools         → Built-in capabilities
+1. Skills         → ALWAYS check available skills first. Load and follow skill instructions before attempting any standard tool execution.
+2. System Tools         → Built-in capabilities (use only after reviewing relevant skills).
 3. Wiki / Knowledge     → If a wiki page/information is not found, stop and ask the user if you should search the workspace/project files instead.
 4. External Search      → last resort; flag when used
 
@@ -594,6 +548,7 @@ fn format_persona(soul: &str, user: &str, memory: &str) -> String {
 Minimize friction → Maximize execution velocity."#,
         soul = soul.trim(),
         user = user.trim(),
+        skills_summary = skills_summary,
         memory = memory.trim(),
     )
 }
