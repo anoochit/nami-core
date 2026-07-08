@@ -3,28 +3,34 @@ name: book-sales-data
 description: API for accessing normalized book and transaction data from the database. Use when you need to fetch lists of books, detailed sales transactions, or summary reports. Triggered by requests for book inventory, sales data, or performance summaries.
 ---
 
-# Book and Sales Data API
+# 📚 Book and Sales Data API Skill
 
-## Overview
+This skill provides Nami with standard methods for querying, sorting, and displaying book sales and transaction telemetry from the system database.
 
-The Book and Sales Data API provides access to a database of books and their sales transactions. It allows you to:
-- Retrieve book metadata (Title, Author, ISBN).
-- Access detailed sales transaction records.
-- Generate aggregated summary reports.
+## Instructions
 
-## Reference
+### 1. Data Retrieval
+Use `curl` combined with `jq` to fetch and parse JSON data from the localized API endpoints:
 
-See [references/openapi.json](references/openapi.json) for the full OpenAPI specification.
+*   **Top Selling Authors:** `curl -s http://localhost:8000/summary/author | jq .`
+*   **Sales Summary:** `curl -s http://localhost:8000/summary/sales | jq .`
+*   **Book Inventory:** `curl -s http://localhost:8000/books | jq .`
 
-## Example Usage
+### 2. Analytics & Data Processing
+*   **Sorting:** Always sort retrieved lists by key metrics such as `Total_Revenue_THB` or `Total_Quantity_Sold` to show the most relevant items first.
+*   **Calculations:** Calculate total revenue, top products, or volume trends if requested.
 
-When a user asks for "Show me the top selling authors," follow these steps:
+### 3. Beautiful Markdown Presentation
+Present data in an elegant, structured table to highlight key parameters:
 
-1. **Fetch the data** using `curl` and parse with `jq` to ensure it is valid JSON:
-   ```bash
-   curl -s http://localhost:8000/summary/author | jq .
-   ```
+```markdown
+### 🏆 Top-Selling Authors Summary
+| Author | Quantity Sold | Total Revenue (THB) |
+| :--- | :---: | :--- |
+| **John Doe** | 1,420 | ฿426,000 |
+| **Jane Smith** | 980 | ฿294,000 |
+```
 
-2. **Process the response**: The result is a JSON array. Sort it by your target metric (e.g., `Total_Revenue_THB` or `Total_Quantity_Sold`) using `jq` if possible, or by presenting the results in a clear table or chart.
-
-3. **Error Handling**: If the API call fails, inform the user with the status code and error message. Ensure the environment has `curl` and `jq` installed.
+### 4. Robust Error Handling
+*   If `curl` fails or endpoints are unreachable, check if the service is running (e.g., `pgrep nami` or checking the port status).
+*   Provide readable error messages detailing the status code instead of raw trace logs.
