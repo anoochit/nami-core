@@ -42,6 +42,9 @@ pub struct ToolsConfig {
 #[derive(Debug, Deserialize, Serialize, Clone, PartialEq)]
 pub struct ShellToolConfig {
     pub allowed_commands: Option<Vec<String>>,
+    pub blocked_commands: Option<Vec<String>>,
+    pub security_level: Option<String>,
+    pub sanitize_environment: Option<bool>,
 }
 
 /// Configuration details for the LLM provider and specific model.
@@ -75,6 +78,7 @@ pub struct CustomSpecialistConfig {
     pub description: String,
     pub instruction: String,
     pub tools: Option<Vec<String>>,
+    pub workspace_mode: Option<String>, // "inherit", "branch", or "share"
 }
 
 /// Configuration for individual specialized agents.
@@ -323,11 +327,16 @@ pub async fn create_agent(
         None
     };
 
-    let allowed_shell_commands = app_config
+    let shell_config = app_config
         .tools
         .as_ref()
         .and_then(|t| t.shell.as_ref())
-        .and_then(|s| s.allowed_commands.clone());
+        .map(|s| crate::tools::shell::ShellConfig {
+            allowed_commands: s.allowed_commands.clone(),
+            blocked_commands: s.blocked_commands.clone(),
+            security_level: s.security_level.clone(),
+            sanitize_environment: s.sanitize_environment.clone(),
+        });
 
     let mut core_tools: Vec<Arc<dyn Tool>> = Vec::new();
     core_tools.extend(tools::current_datetime::datetime_tools());
@@ -336,7 +345,7 @@ pub async fn create_agent(
     core_tools.extend(tools::memory::memory_tools());
     core_tools.extend(tools::scheduler::scheduler_tools());
     core_tools.extend(tools::search::search_tools());
-    core_tools.extend(tools::shell::shell_tools(allowed_shell_commands));
+    core_tools.extend(tools::shell::shell_tools(shell_config));
     core_tools.extend(tools::soul::soul_tools());
     core_tools.extend(tools::todo::todo_tools());
     core_tools.extend(tools::web_fetch::web_fetch_tools());

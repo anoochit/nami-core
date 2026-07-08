@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.9.39] - 2026-07-08
+
+### Added
+
+- **Branched/Isolated Specialist Workspace Modes**: Introduced `SpecialistSubagentTool` to manage workspace isolation modes (`"inherit"`, `"branch"`, and `"share"`) for specialist subagents. In `"branch"` mode, source files are cloned to an isolated `.subagents` directory and executed inside a localized `NAMI_WORKSPACE` context to prevent cross-contamination.
+- **Advanced Shell Execution Security Controls**: Introduced `blocked_commands`, customizable `security_level` (`strict` vs `permissive`), and environment variable sanitization settings inside `[tools.shell]` configuration.
+- **Path Traversal Argument Verification**: Implemented strict path traversal validations in the shell tool, preventing relative parent-directory traversal (`..`) or absolute references that attempt to escape authorized sandbox boundaries.
+
 ## [0.9.38] - 2026-07-07
 
 ### Added
