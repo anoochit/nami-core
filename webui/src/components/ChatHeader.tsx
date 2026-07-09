@@ -47,8 +47,7 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
         )}
       </div>
 
-      <div className="flex items-center gap-1">
-        {/* 
+      <div className="flex items-center gap-1"> 
         {onNewThread && (
           <button 
             onClick={onNewThread} 
@@ -68,8 +67,7 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
           >
             <FileText size={18} />
           </button>
-        )} 
-        */}
+        )}
         {onClear && (
           <button 
             onClick={onClear} 
