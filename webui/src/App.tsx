@@ -6,7 +6,7 @@ import { FileExplorer } from './components/FileExplorer';
 import { useChat } from './hooks/useChat';
 // import { ServerStatusIndicator } from './components/ServerStatusIndicator';
 import { Group, Panel, Separator } from 'react-resizable-panels';
-import { FolderTreeIcon, MessageSquare, BookOpen, CalendarRange, ListTodo, Trash2 } from 'lucide-react';
+import { FolderTreeIcon, MessageSquare, BookOpen, CalendarRange, ListTodo, Trash2, Plus } from 'lucide-react';
 import { Titlebar } from './components/Titlebar';
 import { WikiExplorer } from './components/WikiExplorer';
 import { SchedulerExplorer } from './components/SchedulerExplorer';
@@ -61,6 +61,19 @@ export default function App() {
       {/* Slim Vertical Icon Sidebar (Light on desktop, bottom navigation bar on mobile) */}
       <div className="w-full h-16 bg-white border-t border-slate-200/60 flex flex-row items-center justify-around px-4 shrink-0 z-25 shadow-[0_-2px_10px_rgba(0,0,0,0.02)] lg:w-16 lg:h-full lg:flex-col lg:border-t-0 lg:border-r lg:justify-between lg:py-4 lg:px-0 lg:shadow-none">
         <div className="flex flex-row lg:flex-col gap-2 lg:gap-4 w-full items-center justify-around lg:justify-start">
+          {/* New Chat Button */}
+          <button
+            onClick={() => {
+              createNewThread();
+              setActiveTab('sessions');
+              setSidebarOpen(true);
+            }}
+            className="p-3 rounded-xl bg-sky-500 hover:bg-sky-600 active:scale-95 text-white transition-all duration-200 shadow-md shadow-sky-500/20 hover:shadow-sky-500/35 group flex items-center justify-center shrink-0"
+            title="Create New Chat"
+          >
+            <Plus size={20} className="transition-transform duration-200 group-hover:rotate-90" />
+          </button>
+
           {/* Files Icon */}
           <button
             onClick={() => handleTabClick('files')}

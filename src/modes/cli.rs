@@ -164,8 +164,8 @@ fn print_tool_call(name: &str, args: &str) -> io::Result<()> {
         args.to_string()
     };
 
-    let formatted_args = if minified_args.chars().count() > 150 {
-        let truncated: String = minified_args.chars().take(150).collect();
+    let formatted_args = if minified_args.chars().count() > 80 {
+        let truncated: String = minified_args.chars().take(80).collect();
         format!("{}... (+{} chars)", truncated, minified_args.len() - truncated.len())
     } else {
         minified_args
@@ -190,8 +190,8 @@ fn print_tool_response(response: &str) -> io::Result<()> {
         response.to_string()
     };
 
-    let formatted_resp = if minified_resp.chars().count() > 150 {
-        let truncated: String = minified_resp.chars().take(150).collect();
+    let formatted_resp = if minified_resp.chars().count() > 80 {
+        let truncated: String = minified_resp.chars().take(80).collect();
         format!("{}... (+{} chars)", truncated, minified_resp.len() - truncated.len())
     } else {
         minified_resp
@@ -229,7 +229,6 @@ pub async fn run_and_stream_prompt(
     let start_thinking_time = std::time::Instant::now();
     let mut stream = runner.run_str(user_id, session_id, content).await?;
     let mut response_buffer = String::new();
-    let mut function_response_buffer: Vec<Part> = Vec::new();
     let mut cancelled = false;
     let mut cancelled_by_esc = false;
     let mut event_reader = EventStream::new();
@@ -286,7 +285,6 @@ pub async fn run_and_stream_prompt(
                                 }
                                 if let Part::FunctionResponse { function_response, .. } = part {
                                     print_tool_response(&function_response.response.to_string())?;
-                                    function_response_buffer.push(part.clone());
                                 }
                             }
                         }
@@ -311,17 +309,6 @@ pub async fn run_and_stream_prompt(
                 }
             }
         }
-    }
-
-    // Flush collected function responses if any were gathered
-    if !function_response_buffer.is_empty() {
-        let response_content = Content {
-            role: "function".to_string(),
-            parts: function_response_buffer,
-        };
-        let mut response_stream = runner.run_str(user_id, session_id, response_content).await?;
-        // Consume the stream to complete the turn
-        while let Some(_) = response_stream.next().await {}
     }
 
     terminal::disable_raw_mode()?;

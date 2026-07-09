@@ -34,6 +34,31 @@ impl Tool for ImageGenerator {
         "Generates a high-quality image from a text prompt."
     }
 
+    fn parameters_schema(&self) -> Option<Value> {
+        Some(json!({
+            "type": "object",
+            "properties": {
+                "prompt": {
+                    "type": "string",
+                    "description": "The text prompt describing the image to be generated."
+                },
+                "aspect_ratio": {
+                    "type": "string",
+                    "description": "The aspect ratio for the image (e.g., '1:1', '16:9', '9:16'). Defaults to '1:1'."
+                },
+                "image_path": {
+                    "type": "string",
+                    "description": "Optional path to an existing image file (e.g., 'cover.png' or '/absolute/path/to/image.png') to use as a reference for image generation/editing."
+                },
+                "output_path": {
+                    "type": "string",
+                    "description": "Optional custom path to save the generated image to (e.g., 'mock.png' or 'output/image.png')."
+                }
+            },
+            "required": ["prompt"]
+        }))
+    }
+
     async fn execute(
         &self,
         _context: Arc<dyn ToolContext>,
@@ -163,7 +188,7 @@ impl Tool for ImageGenerator {
             }
         }
 
-        let (_, display_name) = if let Some(ref custom_path) = output_path {
+        let (abs_path, display_name) = if let Some(ref custom_path) = output_path {
             let abs_path = sandbox(custom_path).await?;
             if let Some(parent) = abs_path.parent() {
                 tokio::fs::create_dir_all(parent).await.ok();
@@ -171,7 +196,7 @@ impl Tool for ImageGenerator {
             tokio::fs::write(&abs_path, &image_bytes)
                 .await
                 .map_err(|e| AdkError::tool(format!("Failed to save image to custom path {}: {}", custom_path, e)))?;
-            (abs_path, custom_path.clone())
+            (abs_path.clone(), custom_path.clone())
         } else {
             let filename = format!("generated_{}.png", uuid::Uuid::new_v4());
             let output_dir = "generated";
@@ -181,12 +206,13 @@ impl Tool for ImageGenerator {
             tokio::fs::write(&dest_path, &image_bytes)
                 .await
                 .map_err(|e| AdkError::tool(format!("Failed to save image to disk: {}", e)))?;
-            (dest_path, format!("{}/{}", output_dir, filename))
+            (dest_path.clone(), format!("{}/{}", output_dir, filename))
         };
 
         Ok(json!({
             "status": "success",
-            "filename": display_name,
+            "path": abs_path.to_string_lossy().to_string(),
+            "display_path": display_name,
             "prompt": args.prompt
         }))
     }
@@ -196,7 +222,23 @@ pub fn image_generator_tools(model: Option<Arc<dyn Llm>>) -> Vec<Arc<dyn Tool>> 
     vec![Arc::new(ImageGenerator { model })]
 }
 
+fn clean_markdown_code_block(mut s: &str) -> &str {
+    s = s.trim();
+    if s.starts_with("```") {
+        if let Some(idx) = s.find('\n') {
+            s = &s[idx..];
+        } else {
+            s = s.trim_start_matches('`');
+        }
+    }
+    if s.ends_with("```") {
+        s = &s[..s.len() - 3];
+    }
+    s.trim()
+}
+
 fn extract_image_bytes(data: &str) -> std::result::Result<Vec<u8>, AdkError> {
+    let data = clean_markdown_code_block(data);
     // 1. Try robust base64 decode after filtering out any whitespaces/newlines
     let cleaned: String = data.chars().filter(|c| !c.is_whitespace()).collect();
     if let Ok(bytes) = general_purpose::STANDARD.decode(&cleaned) {

@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.9.41] - 2026-07-09
+
+### Added
+
+- **Exposed Image Generator Schema**: Added `parameters_schema()` to the `ImageGenerator` tool so that models (like Gemini) can discover and use optional parameters like `image_path` (reference image), `aspect_ratio`, and `output_path`.
+- **Absolute Image Paths**: Upgraded `ImageGenerator` to return the absolute local filesystem path under `"path"` (and the sandboxed/relative path under `"display_path"`) so external callers can find the output file reliably.
+- **WebUI "New Chat" Button**: Added a beautifully styled, premium action button at the top of the left vertical sidebar (and first in the row on mobile). Clicking it instantly spawns a new chat thread, opens the collapsible sidebar panel, and focus-switches to the "Sessions" tab with smooth transitions and micro-animations.
+
+### Fixed
+
+- **Gemini Parallel Tool Calling Error**: Resolved the 400 Bad Request error (*"Please ensure that the number of function response parts is equal to the number of function call parts of the function call turn"*) by removing the redundant post-stream manual tool response flushing in `cli.rs`.
+- **Sequential Tool Call Enforcement**: Added a strict `Sequential Execution` directive under the `TOOL STRATEGY` section of the system instruction prompt to force Gemini to issue only one tool call at a time, completely avoiding the underlying `adk-rust` parallel call serialization bug.
+- **Robust Image Data Extraction**: Added a `clean_markdown_code_block` helper to the image extraction parser in `ImageGenerator` to automatically strip away Markdown fences and language specifiers if the LLM wraps base64/binary payloads in a code block.
+
 ## [0.9.40] - 2026-07-08
 
 ### Added

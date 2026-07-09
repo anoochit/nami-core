@@ -16,7 +16,7 @@ Execute the following non-destructive shell commands via your command execution 
 *   **Memory Footprint:** `free -h` or `cat /proc/meminfo`
 *   **Disk Storage:** `df -h /`
 *   **Operating System details:** `uname -a` or `cat /etc/os-release`
-*   **Developer Toolchains (Versions):** Verify versions of key runtimes such as `cargo --version`, `python3 --version`, `node --version`, and `git --version`.
+*   **Developer Toolchains (Versions):** Verify versions of key runtimes such as `cargo --version`, `python --version`, `node --version`, and `git --version`.
 
 ### 2. Evaluate & Categorize Resource Health
 Analyze the parsed telemetry to assign appropriate status thresholds:
@@ -29,13 +29,12 @@ Organize the metrics in an elegant, structured markdown table with status emojis
 
 | Metric | Value / Usage | Status | Health Bar |
 | :--- | :--- | :---: | :--- |
-| **CPU Load** | `12.4%` (Load: 0.45) | 🟢 Normal | `██░░░░░░░░ 12%` |
-| **Memory** | `4.2 GB / 16.0 GB` | 🟢 Normal | `████░░░░░░ 26%` |
-| **Disk Space** | `85.2 GB / 256.0 GB` | 🟢 Normal | `███░░░░░░░ 33%` |
+| **CPU Load** | 12.4% (Load: 0.45) | 🟢 Normal | ██░░░░░░░░ 12% |
+| **Memory** | 4.2 GB / 16.0 GB | 🟢 Normal | ████░░░░░░ 26% |
+| **Disk Space** | 85.2 GB / 256.0 GB | 🟢 Normal | ███░░░░░░░ 33% |
 
 ### 4. Provide a Consolidated Health Summary
 Under the table, include:
 1.  **Telemetry Insights:** A 1-2 sentence summary of overall host health.
 2.  **Toolchain Versions:** A compact sub-section highlighting available toolchain versions for developer convenience.
-    > [!NOTE]
     > **Runtimes:** Rust `1.80.1` | Python `3.11.2` | Node.js `20.9.0`
