@@ -48,6 +48,7 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
       </div>
 
       <div className="flex items-center gap-1">
+        {/* 
         {onNewThread && (
           <button 
             onClick={onNewThread} 
@@ -57,7 +58,7 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
           >
             <RefreshCcw size={18} />
           </button>
-        )}
+        )} 
         {onPreview && (
           <button 
             onClick={onPreview} 
@@ -67,7 +68,8 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
           >
             <FileText size={18} />
           </button>
-        )}
+        )} 
+        */}
         {onClear && (
           <button 
             onClick={onClear} 
