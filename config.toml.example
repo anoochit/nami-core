@@ -95,6 +95,18 @@ provider = "gemini"
 model_name = "models/gemini-2.5-flash-image-preview"
 api_key_env = "GOOGLE_API_KEY"
 
+[audio_generation]
+# Audio/Speech generation is optimized for Gemini/OpenAI providers.
+provider = "gemini"
+model_name = "gemini-3.1-flash-lite-audio"
+api_key_env = "GOOGLE_API_KEY"
+
+[video_generation]
+# Video generation is optimized for Gemini/OpenAI providers.
+provider = "gemini"
+model_name = "gemini-3.1-flash-lite-video"
+api_key_env = "GOOGLE_API_KEY"
+
 [reflection]
 # Reflection service synthesizes memories in the background.
 enabled = false

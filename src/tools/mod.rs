@@ -6,6 +6,8 @@ pub mod current_datetime;
 pub mod invoke_agent;
 pub mod filesystem;
 pub mod image_generator;
+pub mod audio_generator;
+pub mod video_generator;
 pub mod memory;
 pub mod parallel_tasks;
 pub mod scheduler;

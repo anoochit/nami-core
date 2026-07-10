@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.9.42] - 2026-07-10
+
+### Added
+
+- **Natively Process Multimodal & Document Assets (`analyze_media`)**: Designed and integrated a comprehensive, unified `analyze_media` tool. Nami can now natively process and reason over diverse non-text assets (images like PNG/JPEG, audio like MP3/WAV, videos like MP4/MOV, and PDFs) by extracting raw byte vectors and feeding them as inline multimodal parts directly into vision/multimodal-capable LLM APIs.
+- **Dynamic Multimodal Instruction Sets**: Configured the new tool to take optional user-directed inquiry directives (e.g. *"transcribe this podcast"*, *"explain slide 2 of this presentation"*), enabling fine-grained context extraction from audio, video, and documents.
+- **Native Audio & Video Generators (`audio_generator` / `video_generator`)**: Implemented powerful content creation tools to generate premium speech/sound effects and video clips from text prompts and starter reference images with fine-grained parameter support (voices, format, speeds, duration, camera motion).
+- **Configurable Generation Service Blocks**: Added `[audio_generation]` and `[video_generation]` blocks to `config.toml` structure, allowing users to configure dedicated model names, providers, and key environments for both audio and video models.
+- **Interactive Model Setup Prompts**: Integrated Audio and Video configuration prompts inside Nami's interactive CLI setup wizard (`src/modes/init.rs`), enabling step-by-step setup and non-destructive merges.
+
+### Fixed
+
+- **AppConfig Fallback Initialization Fields**: Added missing `audio_generation` and `video_generation` fields to the default fallback builders for `AppConfig` in both `src/agent/agent.rs` and `src/main.rs`.
+- **Audio & Video Generator Stream Imports**: Added missing `futures::StreamExt` imports to allow correct compilation of LLM stream next() consumption inside the new generators.
+
 ## [0.9.41] - 2026-07-09
 
 ### Added

@@ -72,6 +72,16 @@ pub async fn run_init() -> anyhow::Result<()> {
     let mut default_image_api_key_env = Some("GOOGLE_API_KEY".to_string());
     let mut configure_image_gen_default = false;
 
+    let mut default_audio_provider = Some("gemini".to_string());
+    let mut default_audio_model_name = Some("gemini-3.1-flash-lite-audio".to_string());
+    let mut default_audio_api_key_env = Some("GOOGLE_API_KEY".to_string());
+    let mut configure_audio_gen_default = false;
+
+    let mut default_video_provider = Some("gemini".to_string());
+    let mut default_video_model_name = Some("gemini-3.1-flash-lite-video".to_string());
+    let mut default_video_api_key_env = Some("GOOGLE_API_KEY".to_string());
+    let mut configure_video_gen_default = false;
+
     let mut existing_config: Option<toml::Value> = None;
     let mut existing_env = std::collections::HashMap::new();
 
@@ -178,6 +188,32 @@ location = ""
                         }
                         if let Some(api_env) = img_table.get("api_key_env").and_then(|v| v.as_str()) {
                             default_image_api_key_env = Some(api_env.to_string());
+                        }
+                    }
+
+                    if let Some(aud_table) = config.get("audio_generation") {
+                        configure_audio_gen_default = true;
+                        if let Some(prov) = aud_table.get("provider").and_then(|v| v.as_str()) {
+                            default_audio_provider = Some(prov.to_string());
+                        }
+                        if let Some(model) = aud_table.get("model_name").and_then(|v| v.as_str()) {
+                            default_audio_model_name = Some(model.to_string());
+                        }
+                        if let Some(api_env) = aud_table.get("api_key_env").and_then(|v| v.as_str()) {
+                            default_audio_api_key_env = Some(api_env.to_string());
+                        }
+                    }
+
+                    if let Some(vid_table) = config.get("video_generation") {
+                        configure_video_gen_default = true;
+                        if let Some(prov) = vid_table.get("provider").and_then(|v| v.as_str()) {
+                            default_video_provider = Some(prov.to_string());
+                        }
+                        if let Some(model) = vid_table.get("model_name").and_then(|v| v.as_str()) {
+                            default_video_model_name = Some(model.to_string());
+                        }
+                        if let Some(api_env) = vid_table.get("api_key_env").and_then(|v| v.as_str()) {
+                            default_video_api_key_env = Some(api_env.to_string());
                         }
                     }
                 }
@@ -464,6 +500,74 @@ location = ""
         (None, None, None)
     };
 
+    // --- 7. Audio Generation Configuration ---
+    skin.print_text("\n### 7. Audio Generation Configuration\n");
+    let configure_audio_gen = Confirm::new("Do you want to configure Audio Generation?")
+        .with_default(configure_audio_gen_default)
+        .prompt()?;
+
+    let (audio_provider, audio_model_name, audio_api_key_env) = if configure_audio_gen {
+        let audio_providers = vec!["gemini", "vertex", "openai", "custom"];
+        let default_aud_prov = default_audio_provider.unwrap_or_else(|| "gemini".to_string());
+        let aud_starting_index = audio_providers.iter().position(|&p| p == default_aud_prov).unwrap_or(0);
+        let provider_selection = Select::new("Choose Audio Generation Provider:", audio_providers)
+            .with_starting_cursor(aud_starting_index)
+            .prompt()?;
+        let prov = if provider_selection == "custom" {
+            Text::new("Enter Custom Provider:").prompt()?
+        } else {
+            provider_selection.to_string()
+        };
+
+        let default_model = default_audio_model_name.unwrap_or_else(|| "gemini-3.1-flash-lite-audio".to_string());
+        let model = Text::new("Enter Audio Generation Model Name:")
+            .with_default(&default_model)
+            .prompt()?;
+
+        let default_env = default_audio_api_key_env.unwrap_or_else(|| "GOOGLE_API_KEY".to_string());
+        let env_var = Text::new("Enter Environment Variable Name for Audio API Key:")
+            .with_default(&default_env)
+            .prompt()?;
+
+        (Some(prov), Some(model), Some(env_var))
+    } else {
+        (None, None, None)
+    };
+
+    // --- 8. Video Generation Configuration ---
+    skin.print_text("\n### 8. Video Generation Configuration\n");
+    let configure_video_gen = Confirm::new("Do you want to configure Video Generation?")
+        .with_default(configure_video_gen_default)
+        .prompt()?;
+
+    let (video_provider, video_model_name, video_api_key_env) = if configure_video_gen {
+        let video_providers = vec!["gemini", "vertex", "openai", "custom"];
+        let default_vid_prov = default_video_provider.unwrap_or_else(|| "gemini".to_string());
+        let vid_starting_index = video_providers.iter().position(|&p| p == default_vid_prov).unwrap_or(0);
+        let provider_selection = Select::new("Choose Video Generation Provider:", video_providers)
+            .with_starting_cursor(vid_starting_index)
+            .prompt()?;
+        let prov = if provider_selection == "custom" {
+            Text::new("Enter Custom Provider:").prompt()?
+        } else {
+            provider_selection.to_string()
+        };
+
+        let default_model = default_video_model_name.unwrap_or_else(|| "gemini-3.1-flash-lite-video".to_string());
+        let model = Text::new("Enter Video Generation Model Name:")
+            .with_default(&default_model)
+            .prompt()?;
+
+        let default_env = default_video_api_key_env.unwrap_or_else(|| "GOOGLE_API_KEY".to_string());
+        let env_var = Text::new("Enter Environment Variable Name for Video API Key:")
+            .with_default(&default_env)
+            .prompt()?;
+
+        (Some(prov), Some(model), Some(env_var))
+    } else {
+        (None, None, None)
+    };
+
     let image_gen_section = if let (Some(prov), Some(model), Some(env)) = (&image_provider, &image_model_name, &image_api_key_env) {
         format!(
             "[image_generation]\nprovider = \"{}\"\nmodel_name = \"{}\"\napi_key_env = \"{}\"\n",
@@ -474,6 +578,34 @@ location = ""
 # # Image generation is optimized for Gemini/Vertex providers.
 # provider = "gemini"
 # model_name = "models/gemini-2.5-flash-image-preview"
+# api_key_env = "GOOGLE_API_KEY"
+"#.to_string()
+    };
+
+    let audio_gen_section = if let (Some(prov), Some(model), Some(env)) = (&audio_provider, &audio_model_name, &audio_api_key_env) {
+        format!(
+            "[audio_generation]\nprovider = \"{}\"\nmodel_name = \"{}\"\napi_key_env = \"{}\"\n",
+            prov, model, env
+        )
+    } else {
+        r#"# [audio_generation]
+# # Audio generation is optimized for Gemini/OpenAI providers.
+# provider = "gemini"
+# model_name = "gemini-3.1-flash-lite-audio"
+# api_key_env = "GOOGLE_API_KEY"
+"#.to_string()
+    };
+
+    let video_gen_section = if let (Some(prov), Some(model), Some(env)) = (&video_provider, &video_model_name, &video_api_key_env) {
+        format!(
+            "[video_generation]\nprovider = \"{}\"\nmodel_name = \"{}\"\napi_key_env = \"{}\"\n",
+            prov, model, env
+        )
+    } else {
+        r#"# [video_generation]
+# # Video generation is optimized for Gemini/OpenAI providers.
+# provider = "gemini"
+# model_name = "gemini-3.1-flash-lite-video"
 # api_key_env = "GOOGLE_API_KEY"
 "#.to_string()
     };
@@ -506,6 +638,8 @@ location = "{location_str}"
 # base_url = "https://api.openai.com/v1"
 
 {image_gen_section}
+{audio_gen_section}
+{video_gen_section}
 
 [workspaces]
 # The default active workspace path when Nami is run outside any registered workspaces

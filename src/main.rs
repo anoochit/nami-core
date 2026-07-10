@@ -151,6 +151,8 @@ async fn main() -> anyhow::Result<()> {
             },
             specialists: None,
             image_generation: None,
+            audio_generation: None,
+            video_generation: None,
             reflection: None,
             embedding: None,
             tools: None,
