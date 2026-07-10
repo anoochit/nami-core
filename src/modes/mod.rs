@@ -14,3 +14,4 @@ pub mod line;
 pub mod startup;
 pub mod scheduler;
 pub mod eval;
+pub mod upgrade;

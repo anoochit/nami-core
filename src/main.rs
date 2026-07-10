@@ -54,12 +54,17 @@ enum Commands {
     },
     /// Show current version.
     Version,
+    /// Upgrade Nami to the latest nightly snapshot release.
+    Upgrade,
 }
 
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     let cli = Cli::parse();
+    if matches!(cli.command, Commands::Upgrade) {
+        return modes::upgrade::run_upgrade().await;
+    }
     let is_quiet = matches!(
         cli.command,
         Commands::Run { .. } | Commands::Eval | Commands::Version
@@ -265,6 +270,9 @@ async fn main() -> anyhow::Result<()> {
         }
         Commands::Version => {
             println!("{}", env!("CARGO_PKG_VERSION"));
+        }
+        Commands::Upgrade => {
+            unreachable!();
         }
     }
 
