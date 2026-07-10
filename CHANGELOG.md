@@ -9,6 +9,7 @@
 - **Native Audio & Video Generators (`audio_generator` / `video_generator`)**: Implemented powerful content creation tools to generate premium speech/sound effects and video clips from text prompts and starter reference images with fine-grained parameter support (voices, format, speeds, duration, camera motion).
 - **Configurable Generation Service Blocks**: Added `[audio_generation]` and `[video_generation]` blocks to `config.toml` structure, allowing users to configure dedicated model names, providers, and key environments for both audio and video models.
 - **Interactive Model Setup Prompts**: Integrated Audio and Video configuration prompts inside Nami's interactive CLI setup wizard (`src/modes/init.rs`), enabling step-by-step setup and non-destructive merges.
+- **AI Novelist Agent Skill Suite (`novelist`)**: Engineered a comprehensive, modular novelist co-writing skill suite (`skills/novelist/`) with a master orchestrator (`SKILL.md`) and five dedicated domain subskills covering Ideation & World-Building (`IWB-01`), Character Interrogation Engines (`CAI-02`), Structural Plot Architecture (`SPD-03`), Zero-Drafting prose acceleration (`DAZ-04`), and Prose Polishing developmental audits (`PPD-05`). Also bundled detailed references and an author usage guide (`README.md`).
 
 ### Fixed
 
