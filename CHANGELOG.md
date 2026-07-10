@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.9.43] - 2026-07-10
+
+### Added
+
+- **Multi-Agent Supervisor Router (`supervised_delegate`)**: Designed and integrated a concurrent multi-agent task orchestrator (`src/tools/supervised_delegate/`). It compiles a complex goal into a Directed Acyclic Graph (DAG) of specialized subtasks, schedules and executes independent branches concurrently via `tokio::spawn`, runs an autonomous QA self-correction verification loop on outputs, and synthesizes a master final report. Fully registered in `src/agent/agent.rs` to support all running modes (CLI, WebUI, Scheduler Daemon, and Chatbots).
+- **Smart Gemini Context Cache Invalidation (`src/utils/gemini_cache.rs`)**: Built a robust repository context cache manager that computes SHA-256 hashes of all eligible workspace files to monitor file modification events. It dynamically deletes and evicts stale cached content resources on Google's APIs, and re-compiles fresh warm context caches with a 1-hour TTL to ensure sub-second response times and minimal token costs on active repositories.
+- **Sleek WebUI Tab Navigation & Centered Log Explorer (`webui/src/components/SchedulerExplorer.tsx`)**: Re-engineered the Task Scheduler Explorer with a premium tabbed layout ("Schedules" vs "Execution Logs"). The real-time background execution log console now takes center stage as a full-bleed, scrollable retro terminal panel. Polling is dynamically activated only when actively viewing the logs tab, reducing background resource usage.
+- **Side-by-Side Interactive Diff Previews (`webui/src/components/MessageItem.tsx`)**: Added a visually rich, side-by-side git unified diff visualizer inside chat message bubbles, complete with custom coloring, line-number tracking, and a "Raw/Visual" rendering toggle.
+
+### Fixed
+
+- **Stale SQLite Connection URL Constraints**: Resolved database connection failures during `nami serve` boot-up by standardizing SQLite connection URLs strictly to universally compatible string configurations (`sqlite:{}?mode=rwc` and `sqlite:{}?mode=ro`).
+- **Supervised Delegate Concurrent Thread Lifetime Constraints**: Resolved lifetime borrow-escape compiler issues (`E0521`) within `supervised_delegate` by refactoring `prompt_llm` into a static thread-safe associated method utilizing `Arc<dyn Llm>`.
+- **TypeScript Compiler Errors**: Resolved TypeScript `TS6133` compilation errors inside `SchedulerExplorer.tsx` by removing unused icon references.
+
 ## [0.9.42] - 2026-07-10
 
 ### Added

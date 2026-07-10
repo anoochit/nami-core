@@ -18,4 +18,5 @@ pub mod todo;
 pub mod web_fetch;
 pub mod wiki;
 pub mod evolution;
+pub mod supervised_delegate;
 

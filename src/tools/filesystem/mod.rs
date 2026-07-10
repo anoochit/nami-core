@@ -501,22 +501,24 @@ struct MergeFilesArgs {
 /// Reads multiple files and concatenates their contents into a single output file.
 #[tool]
 async fn merge_files(args: MergeFilesArgs) -> std::result::Result<Value, AdkError> {
-    let mut combined_content = String::new();
     let separator = args.separator.unwrap_or_else(|| "\n".to_string());
 
-    for (index, file_path) in args.input_files.iter().enumerate() {
+    // Resolve paths concurrently
+    let mut resolved_paths = Vec::new();
+    for file_path in &args.input_files {
         let path = sandbox(file_path).await?;
-
-        let content = fs::read_to_string(&path)
-            .await
-            .map_err(|e| AdkError::tool(format!("Failed to read {}: {}", file_path, e)))?;
-
-        combined_content.push_str(&content);
-
-        if index < args.input_files.len() - 1 {
-            combined_content.push_str(&separator);
-        }
+        resolved_paths.push((file_path.clone(), path));
     }
+
+    // Read all files concurrently using try_join_all
+    let read_futures = resolved_paths.into_iter().map(|(file_path, path)| async move {
+        fs::read_to_string(&path)
+            .await
+            .map_err(|e| AdkError::tool(format!("Failed to read {}: {}", file_path, e)))
+    });
+
+    let contents = futures::future::try_join_all(read_futures).await?;
+    let combined_content = contents.join(&separator);
 
     let out_path = sandbox(&args.output_file).await?;
 

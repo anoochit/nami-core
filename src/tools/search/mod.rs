@@ -17,7 +17,7 @@ async fn google_search(args: SearchArgs) -> std::result::Result<Value, AdkError>
     let api_key = std::env::var("SERPER_API_KEY")
         .map_err(|_| AdkError::tool("SERPER_API_KEY not found in environment"))?;
 
-    let client = reqwest::Client::new();
+    let client = crate::utils::get_http_client().clone();
     let response = client
         .post("https://google.serper.dev/search")
         .header("X-API-KEY", api_key)

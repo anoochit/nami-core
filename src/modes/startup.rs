@@ -14,7 +14,7 @@ pub struct Dependencies {
 pub async fn setup_dependencies() -> Result<Dependencies> {
     let nami_dir = get_nami_dir();
     let sessions_db = nami_dir.join("sessions.db");
-    let sessions_url = format!("{}?mode=rwc", sessions_db.to_string_lossy());
+    let sessions_url = format!("sqlite:{}?mode=rwc", sessions_db.to_string_lossy());
 
     let memory_db = nami_dir.join("memory.db");
     let memory_url = format!("sqlite:{}?mode=rwc", memory_db.to_string_lossy());

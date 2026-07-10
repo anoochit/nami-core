@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import { Bot, AlertCircle, FileText } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -35,6 +35,149 @@ const FilePreviewButton = ({
     <span className="truncate max-w-[180px]">Preview {path.split('/').pop()}</span>
   </button>
 );
+
+// STEP 2.2: Interactive Diff Block component to display code edits beautifully inside chat bubbles
+const InteractiveDiffBlock = ({ content }: { content: string }) => {
+  const [viewMode, setViewMode] = useState<'diff' | 'raw'>('diff');
+
+  // Extract the filename if present
+  let filename = "Suggested Code Patch";
+  const lines = content.split('\n');
+  for (const line of lines) {
+    if (line.startsWith('+++ b/')) {
+      filename = line.substring(6).trim();
+      break;
+    } else if (line.startsWith('+++ ')) {
+      filename = line.substring(4).trim();
+      break;
+    }
+  }
+
+  // Parse lines for the diff table
+  let leftLineNum = 0;
+  let rightLineNum = 0;
+  const parsedLines = lines.map((line) => {
+    let type: 'hunk' | 'addition' | 'deletion' | 'context' | 'meta' = 'context';
+    let leftNum: number | null = null;
+    let rightNum: number | null = null;
+
+    if (line.startsWith('@@ ')) {
+      type = 'hunk';
+      // Match @@ -leftStart,leftLen +rightStart,rightLen @@
+      const match = line.match(/@@ -(\d+)(?:,\d+)? \+(\d+)(?:,\d+)? @@/);
+      if (match) {
+        leftLineNum = parseInt(match[1]);
+        rightLineNum = parseInt(match[2]);
+      }
+    } else if (line.startsWith('+') && !line.startsWith('+++ ')) {
+      type = 'addition';
+      rightNum = rightLineNum;
+      rightLineNum++;
+    } else if (line.startsWith('-') && !line.startsWith('--- ')) {
+      type = 'deletion';
+      leftNum = leftLineNum;
+      leftLineNum++;
+    } else if (line.startsWith('--- ') || line.startsWith('+++ ') || line.startsWith('diff ') || line.startsWith('index ')) {
+      type = 'meta';
+    } else {
+      leftNum = leftLineNum;
+      rightNum = rightLineNum;
+      leftLineNum++;
+      rightLineNum++;
+    }
+
+    return { text: line, type, leftNum, rightNum };
+  });
+
+  return (
+    <div className="my-3 border border-slate-200/80 rounded-xl overflow-hidden bg-slate-950 font-mono text-[11px] shadow-md max-w-full">
+      {/* Header with filename and tabs */}
+      <div className="px-3.5 py-2 bg-slate-900 border-b border-slate-800 flex justify-between items-center text-slate-400 select-none flex-wrap gap-2">
+        <div className="flex items-center gap-2 text-slate-200 font-medium">
+          <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
+          <span className="truncate max-w-[280px]">{filename}</span>
+        </div>
+        <div className="flex bg-slate-950/80 p-0.5 rounded-lg border border-slate-800/80">
+          <button
+            onClick={() => setViewMode('diff')}
+            className={cn(
+              "px-2 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider transition-all",
+              viewMode === 'diff' ? "bg-slate-800 text-slate-100" : "text-slate-400 hover:text-slate-200"
+            )}
+          >
+            Visual Diff
+          </button>
+          <button
+            onClick={() => setViewMode('raw')}
+            className={cn(
+              "px-2 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider transition-all",
+              viewMode === 'raw' ? "bg-slate-800 text-slate-100" : "text-slate-400 hover:text-slate-200"
+            )}
+          >
+            Raw Diff
+          </button>
+        </div>
+      </div>
+
+      {/* Body Content */}
+      {viewMode === 'raw' ? (
+        <pre className="p-3.5 text-slate-300 overflow-x-auto leading-relaxed max-h-96 scrollbar-thin select-text">
+          <code>{content}</code>
+        </pre>
+      ) : (
+        <div className="overflow-x-auto max-h-96 scrollbar-thin select-text bg-slate-950">
+          <table className="w-full border-collapse leading-relaxed">
+            <tbody>
+              {parsedLines.map((l, idx) => {
+                let rowBg = "";
+                let codeColor = "text-slate-300";
+                let numColor = "text-slate-600";
+                let marker = " ";
+
+                if (l.type === 'addition') {
+                  rowBg = "bg-emerald-950/25 border-l-2 border-emerald-500";
+                  codeColor = "text-emerald-300 font-medium";
+                  numColor = "text-emerald-700";
+                  marker = "+";
+                } else if (l.type === 'deletion') {
+                  rowBg = "bg-rose-950/25 border-l-2 border-rose-500";
+                  codeColor = "text-rose-300 line-through opacity-85";
+                  numColor = "text-rose-700";
+                  marker = "-";
+                } else if (l.type === 'hunk') {
+                  rowBg = "bg-sky-950/15 text-sky-400/80 font-bold border-b border-sky-950/30";
+                  codeColor = "text-sky-400";
+                  numColor = "text-sky-800";
+                } else if (l.type === 'meta') {
+                  rowBg = "bg-slate-900/40 text-slate-400/70 italic";
+                  codeColor = "text-slate-400/80";
+                  numColor = "text-slate-600/40";
+                }
+
+                return (
+                  <tr key={idx} className={cn("hover:bg-slate-900/30 transition-colors", rowBg)}>
+                    <td className={cn("w-9 text-right pr-2 select-none border-r border-slate-900 font-mono text-[10px]", numColor)}>
+                      {l.leftNum !== null ? l.leftNum : ""}
+                    </td>
+                    <td className={cn("w-9 text-right pr-2 select-none border-r border-slate-900 font-mono text-[10px]", numColor)}>
+                      {l.rightNum !== null ? l.rightNum : ""}
+                    </td>
+                    <td className="w-5 text-center select-none font-semibold pl-1.5 pr-0.5 opacity-40">
+                      {marker !== ' ' ? marker : ''}
+                    </td>
+                    <td className={cn("px-3 py-0.5 whitespace-pre font-mono text-left", codeColor)}>
+                      {l.text.startsWith('+') || l.text.startsWith('-') ? l.text.substring(1) : l.text}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  );
+};
 
 export const MessageItem: React.FC<MessageItemProps> = ({
   message,
@@ -88,6 +231,12 @@ export const MessageItem: React.FC<MessageItemProps> = ({
             <FilePreviewButton path={content} onClick={onPreviewFile} />
           </div>
         );
+      }
+
+      // Render interactive diff blocks
+      const isDiff = className === "language-diff" || className === "language-patch" || content.startsWith("@@ ") || content.includes("\n+");
+      if (!inline && isDiff) {
+        return <InteractiveDiffBlock content={content} />;
       }
 
       return (

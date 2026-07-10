@@ -68,7 +68,7 @@ export default function App() {
               setActiveTab('sessions');
               setSidebarOpen(true);
             }}
-            className="p-3 rounded-xl bg-sky-500 hover:bg-sky-600 active:scale-95 text-white transition-all duration-200 shadow-md shadow-sky-500/20 hover:shadow-sky-500/35 group flex items-center justify-center shrink-0"
+            className="p-3 rounded-full bg-sky-500 hover:bg-sky-600 active:scale-95 text-white transition-all duration-200 shadow-sm shadow-sky-500/20 hover:shadow-sky-500/35 group flex items-center justify-center shrink-0"
             title="Create New Chat"
           >
             <Plus size={20} className="transition-transform duration-200 group-hover:rotate-90" />

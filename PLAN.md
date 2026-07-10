@@ -45,14 +45,14 @@ Allow safe execution of shell commands, scripts, and compilers without exposing 
 ## 📅 Actionable Implementation checklist
 
 ### Phase 1: High-Yield Performance Wins
-- [ ] **Step 1.1**: Integrate `reqwest` connection pooling and reuse across the model and MCP connections.
-- [ ] **Step 1.2**: Set up SQLite WAL (Write-Ahead Logging) mode and connection pools inside `adk-session` and memory databases.
-- [ ] **Step 1.3**: Implement concurrent file reading in `src/tools/filesystem` utilizing `tokio::join!`.
+- [x] **Step 1.1**: Integrate `reqwest` connection pooling and reuse across the model and MCP connections.
+- [x] **Step 1.2**: Set up SQLite WAL (Write-Ahead Logging) mode and connection pools inside `adk-session` and memory databases.
+- [x] **Step 1.3**: Implement concurrent file reading in `src/tools/filesystem` utilizing `tokio::join!`.
 
 ### Phase 2: User Experience & WebUI Upgrades
-- [ ] **Step 2.1**: Implement a real-time terminal stream visualization panel in the WebUI for background task execution logs.
-- [ ] **Step 2.2**: Add interactive diff preview blocks inside the WebUI before writing file patches.
+- [x] **Step 2.1**: Implement a real-time terminal stream visualization panel in the WebUI for background task execution logs.
+- [x] **Step 2.2**: Add interactive diff preview blocks inside the WebUI before writing file patches.
 
 ### Phase 3: Advanced Architectures
-- [ ] **Step 3.1**: Build the Multi-Agent Supervisor router letting Nami delegate subtasks concurrently.
-- [ ] **Step 3.2**: Implement Gemini context cache invalidation handlers for file modification events.
+- [x] **Step 3.1**: Build the Multi-Agent Supervisor router letting Nami delegate subtasks concurrently.
+- [x] **Step 3.2**: Implement Gemini context cache invalidation handlers for file modification events.

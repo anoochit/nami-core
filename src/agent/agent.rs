@@ -379,7 +379,7 @@ pub async fn create_agent(
         ))
         .model(model.clone());
 
-    builder = configure_agent_tools(builder, specialists, core_tools);
+    builder = configure_agent_tools(builder, model.clone(), specialists, core_tools);
     if let Ok(global_skills) = load_global_skills() {
         builder = builder.with_skills(global_skills);
     }
@@ -573,6 +573,7 @@ Minimize friction → Maximize execution velocity."#,
 /// Registers and configures tools for the agent, including specialists and parallel execution handlers.
 fn configure_agent_tools(
     mut builder: LlmAgentBuilder,
+    model: Arc<dyn Llm>,
     specialists: std::collections::HashMap<String, Arc<dyn Tool>>,
     mut tools: Vec<Arc<dyn Tool>>,
 ) -> LlmAgentBuilder {
@@ -580,6 +581,10 @@ fn configure_agent_tools(
         specialists.clone(),
     ));
     tools.extend(tools::invoke_agent::invoke_agent_tool(
+        specialists.clone(),
+    ));
+    tools.extend(tools::supervised_delegate::supervised_delegate_tool(
+        model,
         specialists,
     ));
 

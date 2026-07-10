@@ -151,7 +151,7 @@ location = ""
 
                 mad_print_inline!(&skin, "\n**Success!** Configuration is fully up to date.\n");
                 let db_path = nami_dir.join("sessions.db");
-                let db_url = format!("{}?mode=rwc", db_path.to_string_lossy());
+                let db_url = format!("sqlite:{}?mode=rwc", db_path.to_string_lossy());
                 let sessions = SqliteSessionService::new(&db_url).await?;
                 sessions.migrate().await?;
                 return Ok(());
@@ -806,7 +806,7 @@ VITE_NAMI_API_KEY={nami_api_key}
 
     // 7. Session Management
     let db_path = nami_dir.join("sessions.db");
-    let db_url = format!("{}?mode=rwc", db_path.to_string_lossy());
+    let db_url = format!("sqlite:{}?mode=rwc", db_path.to_string_lossy());
     mad_print_inline!(&skin, "Initializing database at {}...", db_path.display());
     let _sessions = SqliteSessionService::new(&db_url).await?;
     mad_print_inline!(&skin, "Database initialized successfully.\n");
@@ -827,7 +827,7 @@ async fn download_skills(skin: &MadSkin) -> anyhow::Result<()> {
     {
         mad_print_inline!(skin, "\nDownloading skills from github.com/anoochit/nami-skills...\n");
         
-        let client = reqwest::Client::new();
+        let client = crate::utils::get_http_client().clone();
         let response = client
             .get("https://github.com/anoochit/nami-skills/archive/refs/heads/master.zip")
             .header("User-Agent", "nami-cli")

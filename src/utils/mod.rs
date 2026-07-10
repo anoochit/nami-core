@@ -6,6 +6,21 @@ use serde_json;
 use tokio::time::{sleep, Duration};
 
 pub mod ignore;
+pub mod gemini_cache;
+
+pub static HTTP_CLIENT: std::sync::OnceLock<reqwest::Client> = std::sync::OnceLock::new();
+
+pub fn get_http_client() -> &'static reqwest::Client {
+    HTTP_CLIENT.get_or_init(|| {
+        reqwest::Client::builder()
+            .pool_max_idle_per_host(10)
+            .pool_idle_timeout(std::time::Duration::from_secs(90))
+            .tcp_keepalive(Some(std::time::Duration::from_secs(60)))
+            .build()
+            .unwrap_or_else(|_| reqwest::Client::new())
+    })
+}
+
 
 
 #[derive(Debug, Clone, Copy, PartialEq)]

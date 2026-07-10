@@ -217,6 +217,11 @@ pub async fn run_and_stream_prompt(
     provider: &str,
     model_name: &str,
 ) -> anyhow::Result<String> {
+    // Trigger Gemini context cache invalidation handler if using a Gemini model
+    if model_name.to_lowercase().contains("gemini") {
+        let _ = crate::utils::gemini_cache::get_or_create_context_cache(model_name).await;
+    }
+
     print_status_line(
         &mut io::stdout(),
         &format!(
