@@ -41,7 +41,7 @@ pub fn render_help(registry: &CommandRegistry) -> String {
         help.push_str(&format!("- {}: {}\n", name, cmd.help));
     }
 
-    help.push_str("\nExamples:\n  /plan Build AI research system\n  /wiki Rust async traits\n  /memo User prefers concise output\n");
+    help.push_str("\nExamples:\n  /plan Build AI research system\n  /switch\n  /wiki Rust async traits\n  /memo User prefers concise output\n");
     help
 }
 
