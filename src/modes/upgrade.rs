@@ -23,11 +23,12 @@ pub async fn run_upgrade() -> anyhow::Result<()> {
 
     // Map the OS and Architecture to the release asset naming convention
     let asset_name = match (target_os, target_arch) {
-        ("linux", "x86_64") => "nami-linux-x86_64",
-        ("linux", "aarch64") => "nami-linux-aarch64",
-        ("macos", "x86_64") => "nami-macos-x86_64",
-        ("macos", "aarch64") => "nami-macos-aarch64",
-        ("windows", "x86_64") => "nami-windows-x86_64.exe",
+        ("linux", "x86_64") => "nami-x86_64-unknown-linux-gnu",
+        ("linux", "aarch64") => "nami-aarch64-unknown-linux-gnu",
+        ("macos", "x86_64") => "nami-x86_64-apple-darwin",
+        ("macos", "aarch64") => "nami-aarch64-apple-darwin",
+        ("windows", "x86_64") => "nami-x86_64-pc-windows-msvc.exe",
+        ("windows", "aarch64") => "nami-aarch64-pc-windows-msvc.exe",
         _ => {
             anyhow::bail!("Unsupported platform: {}-{}. Please download the binary manually.", target_os, target_arch);
         }
