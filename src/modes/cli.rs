@@ -29,6 +29,7 @@ pub fn render_help(registry: &CommandRegistry) -> String {
     help.push_str("- /copy: Copy last response to clipboard!\n");
     help.push_str("- /status: Agent status\n");
     help.push_str("- /version: CLI version\n");
+    help.push_str("- /switch: Switch LLM model and provider dynamically\n");
     help.push_str("- /plan: Create a structured execution/implementation plan\n");
     help.push_str("- /exit: Quit\n");
 
@@ -696,7 +697,7 @@ pub async fn handle_slash_command(
     trimmed: &str,
     runner: &mut Runner,
     sessions: &Arc<dyn SessionService>,
-    _model: &Arc<dyn Llm>,
+    model: &mut Arc<dyn Llm>,
     app_name: &str,
     user_id: &str,
     session_id: &mut String,
@@ -704,13 +705,43 @@ pub async fn handle_slash_command(
     provider: &mut String,
     model_name: &mut String,
     registry: &CommandRegistry,
-    mcp_count: usize,
-    skill_count: usize,
+    mcp_count: &mut usize,
+    skill_count: &mut usize,
     last_response: &mut Option<String>,
+    agent: &mut Arc<dyn Agent>,
 ) -> anyhow::Result<bool> {
     let parts: Vec<&str> = trimmed.splitn(2, ' ').collect();
     let command_name = parts[0];
     let args = parts.get(1).unwrap_or(&"");
+
+    if command_name == "/switch" {
+        if let Some((new_prov, new_model)) = run_switch_flow().await? {
+            *provider = new_prov;
+            *model_name = new_model;
+
+            println!("🔄 Rebuilding Nami agent with the new LLM model client...");
+            let (new_agent, fresh_model, _, _, fresh_mcp_count, fresh_skill_count) = crate::agent::build_agent().await?;
+            
+            *agent = new_agent;
+            *model = fresh_model;
+            *mcp_count = fresh_mcp_count;
+            *skill_count = fresh_skill_count;
+
+            *runner = Runner::builder()
+                .app_name(app_name)
+                .agent(agent.clone())
+                .session_service(sessions.clone())
+                .compaction_config(get_compaction_config(model.clone()))
+                .build()?;
+
+            println!("{} Successfully switched to {} using model {}!\n", 
+                style::style("✨").green(), 
+                provider, 
+                model_name
+            );
+        }
+        return Ok(false);
+    }
 
     if command_name == "/grill" {
         run_grill_flow(
@@ -788,7 +819,7 @@ pub async fn handle_slash_command(
                 cursor::MoveTo(0, 0)
             )?;
 
-            render_banner(provider, model_name, session_id, mcp_count, skill_count);
+            render_banner(provider, model_name, session_id, *mcp_count, *skill_count);
         }
 
         "/new" => {
@@ -801,7 +832,7 @@ pub async fn handle_slash_command(
                 cursor::MoveTo(0, 0)
             )?;
 
-            render_banner(provider, model_name, &session_id_new, mcp_count, skill_count);
+            render_banner(provider, model_name, &session_id_new, *mcp_count, *skill_count);
 
             println!(
                 "{}\n",
@@ -831,13 +862,13 @@ pub async fn handle_slash_command(
 
 
 pub async fn run_cli(
-    agent: Arc<dyn Agent>,
+    mut agent: Arc<dyn Agent>,
     sessions: Arc<dyn SessionService>,
-    model: Arc<dyn Llm>,
+    mut model: Arc<dyn Llm>,
     mut provider: String,
     mut model_name: String,
-    mcp_count: usize,
-    skill_count: usize,
+    mut mcp_count: usize,
+    mut skill_count: usize,
 ) -> anyhow::Result<()> {
     execute!(
         io::stdout(),
@@ -893,7 +924,6 @@ pub async fn run_cli(
     nami_skin.headers[0].set_fg(termimad::crossterm::style::Color::Rgb { r: 255, g: 121, b: 198 }); // Dracula Pink
     nami_skin.headers[1].set_fg(termimad::crossterm::style::Color::Rgb { r: 139, g: 233, b: 253 }); // Dracula Cyan
     nami_skin.headers[2].set_fg(termimad::crossterm::style::Color::Rgb { r: 189, g: 147, b: 249 }); // Dracula Purple
-
     let mut last_response: Option<String> = None;
 
     loop {
@@ -913,7 +943,7 @@ pub async fn run_cli(
                         trimmed,
                         &mut runner,
                         &sessions,
-                        &model,
+                        &mut model,
                         app_name,
                         user_id,
                         &mut session_id,
@@ -921,9 +951,10 @@ pub async fn run_cli(
                         &mut provider,
                         &mut model_name,
                         &registry,
-                        mcp_count,
-                        skill_count,
+                        &mut mcp_count,
+                        &mut skill_count,
                         &mut last_response,
+                        &mut agent,
                     )
                     .await?
                     {
@@ -967,4 +998,85 @@ pub async fn run_cli(
     }
 
 Ok(())
+}
+
+async fn run_switch_flow() -> anyhow::Result<Option<(String, String)>> {
+    use inquire::Select;
+    use inquire::Text;
+
+    println!("\n🔄 Let's switch your LLM provider and model dynamically!");
+
+    let providers = vec!["gemini", "openai", "anthropic", "ollama", "openrouter"];
+    let selected_provider = Select::new("Choose LLM Provider:", providers).prompt()?;
+
+    let standard_models = match selected_provider {
+        "gemini" => vec!["gemini-2.5-flash", "gemini-2.5-pro", "gemini-1.5-flash", "gemini-1.5-pro", "custom"],
+        "openai" => vec!["gpt-4o", "gpt-4o-mini", "o1-mini", "o1-preview", "custom"],
+        "anthropic" => vec!["claude-3-5-sonnet-latest", "claude-3-5-haiku-latest", "claude-3-opus-latest", "custom"],
+        "ollama" => vec!["llama3", "mistral", "phi3", "custom"],
+        "openrouter" => vec!["meta-llama/llama-3-70b-instruct", "mistralai/mistral-7b-instruct", "custom"],
+        _ => vec!["custom"],
+    };
+
+    let model_choice = Select::new(&format!("Choose model for {}:", selected_provider), standard_models).prompt()?;
+
+    let final_model = if model_choice == "custom" {
+        Text::new("Enter custom model name:").prompt()?
+    } else {
+        model_choice.to_string()
+    };
+
+    let default_env = match selected_provider {
+        "gemini" => "GOOGLE_API_KEY",
+        "openai" => "OPENAI_API_KEY",
+        "anthropic" => "ANTHROPIC_API_KEY",
+        "ollama" => "",
+        "openrouter" => "OPENROUTER_API_KEY",
+        _ => "",
+    };
+
+    let final_env = if !default_env.is_empty() {
+        let env_prompt = Text::new("Enter Environment Variable Name for API Key:")
+            .with_default(default_env)
+            .prompt()?;
+        Some(env_prompt)
+    } else {
+        None
+    };
+
+    // Update config.toml
+    let config_path = get_nami_dir().join("config.toml");
+    if config_path.exists() {
+        if let Ok(config_str) = std::fs::read_to_string(&config_path) {
+            if let Ok(mut toml_val) = toml::from_str::<toml::Value>(&config_str) {
+                if let Some(model_table) = toml_val.get_mut("model") {
+                    if let Some(table) = model_table.as_table_mut() {
+                        table.insert("provider".to_string(), toml::Value::String(selected_provider.to_string()));
+                        table.insert("model_name".to_string(), toml::Value::String(final_model.clone()));
+                        if let Some(env) = final_env {
+                            table.insert("api_key_env".to_string(), toml::Value::String(env));
+                        } else {
+                            table.remove("api_key_env");
+                        }
+                    }
+                } else if let Some(root_table) = toml_val.as_table_mut() {
+                    let mut model_table = toml::value::Table::new();
+                    model_table.insert("provider".to_string(), toml::Value::String(selected_provider.to_string()));
+                    model_table.insert("model_name".to_string(), toml::Value::String(final_model.clone()));
+                    if let Some(env) = final_env {
+                        model_table.insert("api_key_env".to_string(), toml::Value::String(env));
+                    }
+                    root_table.insert("model".to_string(), toml::Value::Table(model_table));
+                }
+
+                if let Ok(updated_str) = toml::to_string_pretty(&toml_val) {
+                    if let Err(e) = std::fs::write(&config_path, updated_str) {
+                        println!("⚠️ Failed to persist changes to config.toml: {}", e);
+                    }
+                }
+            }
+        }
+    }
+
+    Ok(Some((selected_provider.to_string(), final_model)))
 }
