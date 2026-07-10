@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { CirclePlus, Send } from 'lucide-react';
 import { CommandAutocomplete } from './CommandAutocomplete';
 import { MentionAutocomplete } from './MentionAutocomplete';
@@ -32,6 +32,26 @@ export const ChatInput: React.FC<ChatInputProps> = ({
   const [mentionOpen, setMentionOpen] = useState(false);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Auto-resize textarea height based on content lines
+  useEffect(() => {
+    const textarea = inputRef.current;
+    if (!textarea) return;
+
+    // Reset height to 'auto' to correctly recalculate scrollHeight
+    textarea.style.height = 'auto';
+
+    // Update height to fit content, up to max-height limit
+    const scrollHeight = textarea.scrollHeight;
+    textarea.style.height = `${scrollHeight}px`;
+
+    // Handle vertical overflow scrollbar
+    if (scrollHeight > 120) {
+      textarea.style.overflowY = 'auto';
+    } else {
+      textarea.style.overflowY = 'hidden';
+    }
+  }, [value]);
 
   const handleCommandSelect = (cmd: string) => {
     onInputChange(cmd + ' ');

@@ -2,9 +2,10 @@ import React from 'react';
 import { 
   //  PanelLeftOpen,
   //  PanelLeftClose,
-   Trash2,
+  //  Trash2,
    FileText,
-   RefreshCcw } from 'lucide-react';
+  //  RefreshCcw 
+  } from 'lucide-react';
 
 interface ChatHeaderProps {
   title: string;
@@ -21,9 +22,9 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
   sessionId, 
   // sidebarOpen, 
   // onToggleSidebar,
-  onClear,
+  // onClear,
   onPreview,
-  onNewThread
+  // onNewThread
 }) => {
   return (
     <header className="h-14 border-b border-slate-100 flex items-center px-4 justify-between bg-white/80 backdrop-blur-md sticky top-0 z-10 shadow-[0_1px_3px_rgba(0,0,0,0.01)]">
@@ -48,7 +49,7 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
       </div>
 
       <div className="flex items-center gap-1"> 
-        {onNewThread && (
+        {/* {onNewThread && (
           <button 
             onClick={onNewThread} 
             className="p-1.5 text-slate-400 hover:text-slate-800 hover:bg-slate-50 rounded-lg transition-all duration-200"
@@ -57,7 +58,7 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
           >
             <RefreshCcw size={18} />
           </button>
-        )} 
+        )}  */}
         {onPreview && (
           <button 
             onClick={onPreview} 
@@ -68,7 +69,7 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
             <FileText size={18} />
           </button>
         )}
-        {onClear && (
+        {/* {onClear && (
           <button 
             onClick={onClear} 
             className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50/50 rounded-lg transition-all duration-200"
@@ -77,7 +78,7 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
           >
             <Trash2 size={18} />
           </button>
-        )}
+        )} */}
       </div>
     </header>
   );

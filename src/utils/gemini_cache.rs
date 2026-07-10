@@ -108,35 +108,99 @@ pub async fn get_or_create_context_cache(model_name: &str) -> Option<String> {
         }
     }
 
-    // 3. Determine if cache invalidation is needed
+    // 3. Determine if cache invalidation is needed using the Layered Strategy (15% change threshold)
     let mut cache_is_valid = false;
+    let mut should_delete_old = false;
     if let Some(ref state) = existing_state {
-        if state.model_name == model_name && state.file_hashes.len() == current_hashes.len() {
-            cache_is_valid = state.file_hashes.iter().all(|(k, v)| {
-                current_hashes.get(k) == Some(v)
-            });
+        if state.model_name == model_name {
+            let mut added = 0;
+            let mut deleted = 0;
+            let mut modified = 0;
+
+            for k in current_hashes.keys() {
+                if !state.file_hashes.contains_key(k) {
+                    added += 1;
+                } else if state.file_hashes.get(k) != current_hashes.get(k) {
+                    modified += 1;
+                }
+            }
+
+            for k in state.file_hashes.keys() {
+                if !current_hashes.contains_key(k) {
+                    deleted += 1;
+                }
+            }
+
+            let total_changes = added + deleted + modified;
+            let total_base_files = state.file_hashes.len();
+            
+            let change_percentage = if total_base_files > 0 {
+                (total_changes as f64) / (total_base_files as f64)
+            } else {
+                1.0
+            };
+
+            // Layered strategy: if less than 15% of files changed, we reuse the cache!
+            if change_percentage < 0.15 {
+                cache_is_valid = true;
+            } else {
+                log::info!(
+                    "[Gemini Cache] Invalidation triggered: {} changes across {} files ({:.1}% drift). Limit is 15%.",
+                    total_changes,
+                    total_base_files,
+                    change_percentage * 100.0
+                );
+                should_delete_old = true;
+            }
+        } else {
+            should_delete_old = true;
         }
     }
 
+    // 4. If cache is valid, extend its TTL by 5 minutes (300s) with active use
     if cache_is_valid {
         if let Some(state) = existing_state {
             log::info!("[Gemini Cache] Reusing existing context cache: {}", state.cache_name);
+            
+            let client = get_http_client();
+            let patch_url = format!(
+                "https://generativelanguage.googleapis.com/v1beta/{}?updateMask=ttl&key={}",
+                state.cache_name, api_key
+            );
+            let patch_body = json!({
+                "ttl": "300s"
+            });
+            match client.patch(&patch_url).json(&patch_body).send().await {
+                Ok(resp) => {
+                    if resp.status().is_success() {
+                        log::info!("[Gemini Cache] Successfully extended TTL for cache: {}", state.cache_name);
+                    } else if let Ok(err_text) = resp.text().await {
+                        log::warn!("[Gemini Cache] Failed to extend TTL: {}", err_text);
+                    }
+                }
+                Err(e) => {
+                    log::warn!("[Gemini Cache] Error sending patch request to extend TTL: {}", e);
+                }
+            }
+
             return Some(state.cache_name);
         }
     }
 
-    // 4. Invalidation Triggered: Delete old cache resource on Google API if one exists
-    if let Some(state) = existing_state {
-        log::info!("[Gemini Cache] Invalidation triggered. Deleting stale context cache: {}", state.cache_name);
-        let client = get_http_client();
-        let delete_url = format!(
-            "https://generativelanguage.googleapis.com/v1beta/{}?key={}",
-            state.cache_name, api_key
-        );
-        let _ = client.delete(&delete_url).send().await;
+    // 5. Invalidation Triggered: Delete old cache resource on Google API if one exists
+    if should_delete_old {
+        if let Some(state) = existing_state {
+            log::info!("[Gemini Cache] Deleting stale context cache: {}", state.cache_name);
+            let client = get_http_client();
+            let delete_url = format!(
+                "https://generativelanguage.googleapis.com/v1beta/{}?key={}",
+                state.cache_name, api_key
+            );
+            let _ = client.delete(&delete_url).send().await;
+        }
     }
 
-    // 5. Concatenate workspace files to form the warm static context
+    // 6. Concatenate workspace files to form the warm static context
     let mut context_builder = String::new();
     context_builder.push_str("━━━ REPOSITORY CONTEXT MATRIX ━━━\n\n");
     for (rel_path, abs_path) in &workspace_files {
@@ -147,11 +211,17 @@ pub async fn get_or_create_context_cache(model_name: &str) -> Option<String> {
         }
     }
 
-    if context_builder.trim().is_empty() {
+    // Dynamic Threshold check: only cache if static context is >= 32k tokens (approx 128k characters)
+    if context_builder.len() < 128_000 {
+        log::info!("[Gemini Cache] Context size ({} chars) is under the 32k token threshold. Caching bypassed.", context_builder.len());
+        // Clean up any existing state file so we don't try to reuse deleted caches
+        if state_file.exists() {
+            let _ = tokio::fs::remove_file(state_file).await;
+        }
         return None;
     }
 
-    // 6. Create new Gemini Context Cache via Google REST API
+    // 7. Create new Gemini Context Cache via Google REST API
     log::info!("[Gemini Cache] Creating new context cache on Gemini API...");
     let client = get_http_client();
     let create_url = format!(
@@ -171,7 +241,7 @@ pub async fn get_or_create_context_cache(model_name: &str) -> Option<String> {
                 ]
             }
         ],
-        "ttl": "3600s" // Warm cache TTL set to 1 hour
+        "ttl": "300s" // Warm cache TTL set to 5 minutes
     });
 
     let response = client.post(&create_url)
@@ -197,7 +267,7 @@ pub async fn get_or_create_context_cache(model_name: &str) -> Option<String> {
 
     log::info!("[Gemini Cache] Created cache successfully: {}", new_cache_name);
 
-    // 7. Save new cache state locally
+    // 8. Save new cache state locally
     let new_state = CacheState {
         cache_name: new_cache_name.clone(),
         model_name: model_name.to_string(),
