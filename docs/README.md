@@ -20,19 +20,25 @@ The primary code-level reference mapping core modules, shared resources, backgro
 
 - **Key topics**: `AgentRunner`, the `Agent` construction and loading rules, `Reflection` memory architects, background `Scheduler` details, module architecture details for all `src/` subdirectories (`src/agent/`, `src/modes/`, `src/utils/`), and descriptions of all built-in tools.
 
-### 🛠️ 3. [Tool System & MCP Integration](./TOOLS.md)
+### ⚡ 3. [Advanced Context Caching](./CACHING.md)
+
+Detailed documentation of Nami's automated context caching system designed for Gemini and Vertex models to slash token usage and latency.
+
+- **Key topics**: Dynamic thresholds (32k tokens), layered invalidation (15% drift limits), and rolling active TTL extensions (5-minute lease windows).
+
+### 🛠️ 4. [Tool System & MCP Integration](./TOOLS.md)
 
 Detailed architectural guide on Nami's built-in tool system, security sandbox policies, and Model Context Protocol (MCP) integrations.
 
 - **Key topics**: The `Tool` trait, filesystem sandboxing/path neutralization (`.namiignore`), remote/local MCP server configurations, schema sanitization, and prefix mappings.
 
-### 🧪 4. [Testing & Evaluation Harness](./HARNESS.md)
+### 🧪 5. [Testing & Evaluation Harness](./HARNESS.md)
 
 A comprehensive guide on validating Nami's capabilities, logic correctness, and performance using test suits and automated datasets.
 
 - **Key topics**: Unit and integration testing, configuring evaluation datasets in `evals.yaml`, running test suits, quiet logging behaviors, and OpenTelemetry trace analysis.
 
-### 💻 5. [Development & Contribution Guide](./DEVELOPMENT.md)
+### 💻 6. [Development & Contribution Guide](./DEVELOPMENT.md)
 
 The official setup guide and contribution standards for building, testing, and developing new features for Nami Core.
 
