@@ -41,7 +41,7 @@ pub fn render_help(registry: &CommandRegistry) -> String {
         help.push_str(&format!("- {}: {}\n", name, cmd.help));
     }
 
-    help.push_str("\nExamples:\n  /plan Build AI research system\n  /switch\n  /wiki Rust async traits\n  /memo User prefers concise output\n");
+    help.push_str("\nExamples:\n  /plan Build AI research system\n  /wiki Rust async traits\n  /memo User prefers concise output\n");
     help
 }
 
@@ -928,7 +928,7 @@ pub async fn run_cli(
 
     loop {
        
-        let line = rl.readline("You > ");
+        let line = rl.readline("> ");
 
         match line {
             Ok(line) => {
@@ -1043,6 +1043,45 @@ async fn run_switch_flow() -> anyhow::Result<Option<(String, String)>> {
     } else {
         None
     };
+
+    // Prompt for API key value and update ~/.nami/.env if specified
+    if let Some(ref env_name) = final_env {
+        use inquire::Password;
+        let prompt_text = format!("Enter API Key value for {}:", env_name);
+        let key_input = Password::new(&prompt_text)
+            .with_display_mode(inquire::PasswordDisplayMode::Masked)
+            .prompt()?;
+        if !key_input.is_empty() {
+            let env_path = get_nami_dir().join(".env");
+            let mut lines = Vec::new();
+            let mut updated = false;
+            if env_path.exists() {
+                if let Ok(content) = std::fs::read_to_string(&env_path) {
+                    for line in content.lines() {
+                        if let Some(idx) = line.find('=') {
+                            let k = line[..idx].trim();
+                            if k == env_name {
+                                lines.push(format!("{}={}", env_name, key_input));
+                                updated = true;
+                            } else {
+                                lines.push(line.to_string());
+                            }
+                        } else {
+                            lines.push(line.to_string());
+                        }
+                    }
+                }
+            }
+            if !updated {
+                lines.push(format!("{}={}", env_name, key_input));
+            }
+            if let Err(e) = std::fs::write(&env_path, lines.join("\n") + "\n") {
+                println!("⚠️ Failed to write API key to .env: {}", e);
+            } else {
+                println!("✅ Successfully updated API key in ~/.nami/.env");
+            }
+        }
+    }
 
     // Update config.toml
     let config_path = get_nami_dir().join("config.toml");
