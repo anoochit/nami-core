@@ -137,46 +137,6 @@ impl ReflectionConfig {
     }
 }
 
-// /// Returns the last modification time of `config.toml`.
-// pub fn get_config_mtime() -> Option<SystemTime> {
-//     std::fs::metadata("config.toml").ok()?.modified().ok()
-// }
-
-// /// Returns the last modification time of the `.skills` directory within the workspace.
-// pub fn get_skills_mtime() -> Option<SystemTime> {
-//     let workspace_dir = std::path::Path::new("workspace");
-//     let skills_dir = workspace_dir.join(".skills");
-//     let mut latest = SystemTime::UNIX_EPOCH;
-
-//     for entry in walkdir::WalkDir::new(skills_dir)
-//         .into_iter()
-//         .filter_map(|e| e.ok())
-//     {
-//         let metadata = entry.metadata().ok()?;
-//         if let Ok(mtime) = metadata.modified() {
-//             if mtime > latest {
-//                 latest = mtime;
-//             }
-//         }
-//     }
-//     Some(latest)
-// }
-
-// /// Checks if `config.toml` has changed since the last known modification time.
-// ///
-// /// If changed, updates `last_mtime` and returns the newly loaded configuration.
-// pub fn check_config_mtime(last_mtime: &mut Option<SystemTime>) -> Option<AppConfig> {
-//     if let Ok(metadata) = std::fs::metadata("config.toml") {
-//         if let Ok(mtime) = metadata.modified() {
-//             if last_mtime.is_none() || Some(mtime) > *last_mtime {
-//                 *last_mtime = Some(mtime);
-//                 return load_config_sync().ok();
-//             }
-//         }
-//     }
-//     None
-// }
-
 /// Synchronously loads the application configuration from `~/.nami/config.toml`.
 pub fn load_config_sync() -> anyhow::Result<AppConfig> {
     let config_path = get_nami_dir().join("config.toml");
