@@ -36,6 +36,7 @@ async-trait = "0.1.89"
 log = "0.4.29"
 sysinfo = "0.39.3"
 termimad = "0.34.1"
+pulldown-cmark = "0.13.4"
 rustyline = "18.0.0"
 crossterm = { version = "0.29.0", features = ["event-stream"] }
 arboard = "3.4.1"

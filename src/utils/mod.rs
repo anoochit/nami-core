@@ -7,6 +7,7 @@ use tokio::time::{sleep, Duration};
 
 pub mod ignore;
 pub mod gemini_cache;
+pub mod markdown;
 
 pub static HTTP_CLIENT: std::sync::OnceLock<reqwest::Client> = std::sync::OnceLock::new();
 
