@@ -40,6 +40,7 @@ pub struct AppConfig {
 #[derive(Debug, Deserialize, Serialize, Clone, PartialEq)]
 pub struct ToolsConfig {
     pub shell: Option<ShellToolConfig>,
+    pub enabled_categories: Option<Vec<String>>,
 }
 
 /// Configuration for the shell tool.
@@ -102,6 +103,48 @@ pub struct SpecialistsConfig {
     #[serde(default)]
     pub custom: Option<HashMap<String, CustomSpecialistConfig>>,
 }
+
+impl SpecialistsConfig {
+    /// Helper to cleanly load all specialist LLM instances.
+    pub async fn load_all_models(
+        &self,
+        default_config: &ModelConfig,
+    ) -> anyhow::Result<HashMap<String, Arc<dyn Llm>>> {
+        let mut models = HashMap::new();
+        let configs = [
+            ("coder", &self.coder),
+            ("researcher", &self.researcher),
+            ("writer", &self.writer),
+            ("ralph", &self.ralph),
+            ("generalist", &self.generalist),
+        ];
+
+        for (name, cfg) in configs {
+            if let Some(cfg) = cfg {
+                let model = load_model_with_fallback(&Some(cfg.clone()), default_config).await?;
+                models.insert(name.to_string(), model);
+            }
+        }
+
+        if let Some(ref custom_specs) = self.custom {
+            for (name, custom_cfg) in custom_specs {
+                let model_cfg = ModelConfig {
+                    provider: custom_cfg.provider.clone(),
+                    model_name: custom_cfg.model_name.clone().unwrap_or_else(|| default_config.model_name.clone()),
+                    api_key_env: custom_cfg.api_key_env.clone(),
+                    base_url: custom_cfg.base_url.clone(),
+                    project_id: custom_cfg.project_id.clone(),
+                    location: custom_cfg.location.clone(),
+                };
+                let loaded_model = load_model_with_fallback(&Some(model_cfg), default_config).await?;
+                models.insert(name.clone(), loaded_model);
+            }
+        }
+
+        Ok(models)
+    }
+}
+
 
 /// Configuration for the reflection service.
 #[derive(Debug, Deserialize, Serialize, Clone, PartialEq)]
@@ -226,7 +269,6 @@ pub async fn create_agent(
     let model = load_model(&app_config.model).await?;
     let context = load_persona_context().await?;
 
-
     // Load image generation model
     let image_model = if let Some(ref image_cfg) = app_config.image_generation {
         Some(load_model_with_fallback(&Some(image_cfg.clone()), &app_config.model).await?)
@@ -259,69 +301,26 @@ pub async fn create_agent(
             sanitize_environment: s.sanitize_environment.clone(),
         });
 
-    let mut core_tools: Vec<Arc<dyn Tool>> = Vec::new();
-    core_tools.extend(tools::current_datetime::datetime_tools());
-    core_tools.extend(tools::filesystem::filesystem_tools(model.clone(), app_config.model.model_name.clone()));
-    core_tools.extend(tools::image_generator::image_generator_tools(image_model));
-    core_tools.extend(tools::audio_generator::audio_generator_tools(audio_model));
-    core_tools.extend(tools::video_generator::video_generator_tools(video_model));
-    core_tools.extend(tools::memory::memory_tools());
-    core_tools.extend(tools::scheduler::scheduler_tools());
-    core_tools.extend(tools::search::search_tools());
-    core_tools.extend(tools::shell::shell_tools(shell_config));
-    core_tools.extend(tools::soul::soul_tools());
-    core_tools.extend(tools::todo::todo_tools());
-    core_tools.extend(tools::web_fetch::web_fetch_tools());
-    core_tools.extend(tools::wiki::wiki_tools());
-    core_tools.extend(tools::evolution::evolution_tools(model.clone()));
+    let enabled_categories = app_config
+        .tools
+        .as_ref()
+        .and_then(|t| t.enabled_categories.clone());
 
-    // Load specialist models
+    // Generate core tools modularly
+    let core_tools = tools::create_core_tools(tools::ToolFactoryConfig {
+        model: model.clone(),
+        model_name: app_config.model.model_name.clone(),
+        image_model,
+        audio_model,
+        video_model,
+        shell_config,
+        enabled_categories,
+    });
+
+    // Load specialist models elegantly using helper
     let mut specialist_models = HashMap::new();
     if let Some(ref specs) = app_config.specialists {
-        if let Some(ref coder_cfg) = specs.coder {
-            specialist_models.insert(
-                "coder".to_string(),
-                load_model_with_fallback(&Some(coder_cfg.clone()), &app_config.model).await?,
-            );
-        }
-        if let Some(ref researcher_cfg) = specs.researcher {
-            specialist_models.insert(
-                "researcher".to_string(),
-                load_model_with_fallback(&Some(researcher_cfg.clone()), &app_config.model).await?,
-            );
-        }
-        if let Some(ref writer_cfg) = specs.writer {
-            specialist_models.insert(
-                "writer".to_string(),
-                load_model_with_fallback(&Some(writer_cfg.clone()), &app_config.model).await?,
-            );
-        }
-        if let Some(ref ralph_cfg) = specs.ralph {
-            specialist_models.insert(
-                "ralph".to_string(),
-                load_model_with_fallback(&Some(ralph_cfg.clone()), &app_config.model).await?,
-            );
-        }
-        if let Some(ref generalist_cfg) = specs.generalist {
-            specialist_models.insert(
-                "generalist".to_string(),
-                load_model_with_fallback(&Some(generalist_cfg.clone()), &app_config.model).await?,
-            );
-        }
-        if let Some(ref custom_specs) = specs.custom {
-            for (name, custom_cfg) in custom_specs {
-                let model_cfg = ModelConfig {
-                    provider: custom_cfg.provider.clone(),
-                    model_name: custom_cfg.model_name.clone().unwrap_or_else(|| app_config.model.model_name.clone()),
-                    api_key_env: custom_cfg.api_key_env.clone(),
-                    base_url: custom_cfg.base_url.clone(),
-                    project_id: custom_cfg.project_id.clone(),
-                    location: custom_cfg.location.clone(),
-                };
-                let loaded_model = load_model_with_fallback(&Some(model_cfg), &app_config.model).await?;
-                specialist_models.insert(name.clone(), loaded_model);
-            }
-        }
+        specialist_models = specs.load_all_models(&app_config.model).await?;
     }
 
     let (mcp_toolset, mcp_count) = mcp::build_mcp_toolset().await?;

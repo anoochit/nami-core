@@ -24,11 +24,12 @@ export const MentionAutocomplete: React.FC<MentionAutocompleteProps> = ({
   const [entries, setEntries] = useState<Array<{ name: string, type: string }>>([]);
   const [wikiPages, setWikiPages] = useState<string[]>([]);
 
+  // Load initial root directory and wiki pages
   useEffect(() => {
     const fetchData = async () => {
        try {
            const [fileData, wikiData] = await Promise.all([
-               api.listWorkspaceFiles(),
+               api.listWorkspaceFiles(""),
                api.listWikiPages()
            ]);
            setEntries(fileData.entries);
@@ -43,19 +44,52 @@ export const MentionAutocomplete: React.FC<MentionAutocompleteProps> = ({
   const searchTerm = useMemo(() => {
     const lastWord = input.split(/\s/).pop() || "";
     if (lastWord.startsWith('@')) {
-        return lastWord.slice(1).toLowerCase();
+        return lastWord.slice(1);
     }
     return null;
   }, [input]);
 
+  // Calculate directory prefix and file query from searchTerm
+  const { dirPrefix } = useMemo(() => {
+    if (searchTerm === null) {
+      return { dirPrefix: "" };
+    }
+    const lastSlashIndex = searchTerm.lastIndexOf('/');
+    if (lastSlashIndex !== -1) {
+      return {
+        dirPrefix: searchTerm.slice(0, lastSlashIndex + 1),
+      };
+    }
+    return { dirPrefix: "" };
+  }, [searchTerm]);
+
+  // Dynamically load folder contents when directory prefix changes
+  useEffect(() => {
+    if (searchTerm === null) return;
+    
+    const fetchDirData = async () => {
+      try {
+        const data = await api.listWorkspaceFiles(dirPrefix);
+        const prefixedEntries = data.entries.map(e => ({
+          name: dirPrefix + e.name,
+          type: e.type
+        }));
+        setEntries(prefixedEntries);
+      } catch (e) {
+        console.error("Failed to fetch autocomplete folder data", e);
+      }
+    };
+    fetchDirData();
+  }, [dirPrefix, searchTerm]);
+
   const filteredEntries = useMemo(() => {
     if (searchTerm === null) return [];
-    return entries.filter(e => e.name.toLowerCase().includes(searchTerm)).slice(0, 50);
+    return entries.filter(e => e.name.toLowerCase().includes(searchTerm.toLowerCase())).slice(0, 50);
   }, [entries, searchTerm]);
 
   const filteredWiki = useMemo(() => {
     if (searchTerm === null) return [];
-    return wikiPages.filter(p => p.toLowerCase().includes(searchTerm)).slice(0, 50);
+    return wikiPages.filter(p => p.toLowerCase().includes(searchTerm.toLowerCase())).slice(0, 50);
   }, [wikiPages, searchTerm]);
 
   useEffect(() => {
@@ -77,7 +111,7 @@ export const MentionAutocomplete: React.FC<MentionAutocompleteProps> = ({
                 {filteredEntries.map((e) => (
                   <CommandItem
                     key={e.name}
-                    onSelect={() => onSelect(`@${e.name}`)}
+                    onSelect={() => onSelect(`@${e.name}${e.type === 'folder' ? '/' : ''}`)}
                     className="cursor-pointer"
                   >
                     {e.type === 'folder' ? <Folder size={14} className="text-blue-500" /> : <File size={14} className="text-gray-500" />}

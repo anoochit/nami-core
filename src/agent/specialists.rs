@@ -107,6 +107,53 @@ impl Tool for SpecialistSubagentTool {
     }
 }
 
+struct SpecialistDefinition {
+    name: &'static str,
+    description: &'static str,
+    instruction: &'static str,
+}
+
+const BUILTIN_SPECIALISTS: &[SpecialistDefinition] = &[
+    SpecialistDefinition {
+        name: "generalist",
+        description: "A high-efficiency agent with access to all tools. Use this for repetitive batch tasks or high-volume data processing to keep the main conversation history lean.",
+        instruction: "You are a generalist agent. Perform the requested batch tasks or data processing efficiently.",
+    },
+    SpecialistDefinition {
+        name: "coder",
+        description: "A specialist in software engineering, debugging, and code refactoring. Use this for complex coding tasks.",
+        instruction: "You are an expert software engineer. Provide clean, efficient, and well-documented code solutions. Focus on best practices and system integrity.",
+    },
+    SpecialistDefinition {
+        name: "researcher",
+        description: "A specialist in information retrieval, documentation analysis, and data synthesis. Use this for deep-dive research tasks.",
+        instruction: "You are a deep-dive researcher. Analyze information meticulously, identify key insights, and provide comprehensive summaries based on available data.",
+    },
+    SpecialistDefinition {
+        name: "writer",
+        description: "A specialist in technical writing, content creation, and professional communication. Use this for drafting documents and reports.",
+        instruction: "You are a professional technical writer. Craft clear, engaging, and well-structured content tailored to the requested audience and format.",
+    },
+    SpecialistDefinition {
+        name: "ralph",
+        description: "A playful and persistent autonomous agent that runs in a loop to achieve a goal. It doesn't give up!",
+        instruction: "You are Ralph Wiggum. You are simple, literal, and very persistent. You might say silly things, but you never stop trying to reach your goal. When you are done, say 'I'm a winner!'",
+    },
+    SpecialistDefinition {
+        name: "verifier",
+        description: "A rigorous evaluation specialist. It analyzes outputs against verification criteria and identifies faults, edge cases, or missed requirements.",
+        instruction: "You are a rigorous Verifier. Your goal is to ensure that the work performed by other agents is correct, complete, and meets all verification criteria.\n\
+            Be critical. Look for bugs, side effects, or incomplete implementations.\n\
+            You have access to filesystem tools. If a step involves creating, editing, or verifying a file (such as `site.html`), you MUST use your tools to inspect the file's contents on disk instead of guessing.\n\
+            You MUST respond with a JSON object of this structure:\n\
+            {\n\
+              \"verified\": true or false,\n\
+              \"reasoning\": \"Your detailed reasoning here\",\n\
+              \"suggested_fixes\": \"Suggestions for the executor if not verified\"\n\
+            }",
+    },
+];
+
 /// Returns a map of available specialist agents.
 ///
 /// Each specialist is wrapped as a `Tool` to be used by the main agent.
@@ -131,159 +178,37 @@ pub fn get_specialists(
             .unwrap_or_else(|| default_model.clone())
     };
 
-    let mut generalist_builder = LlmAgentBuilder::new("generalist")
-        .description(
-            "A high-efficiency agent with access to all tools. Use this for repetitive batch tasks or high-volume data processing to keep the main conversation history lean."
-        )
-        .instruction(
-            "You are a generalist agent. Perform the requested batch tasks or data processing efficiently."
-        )
-        .model(get_model("generalist"));
-
-    for t in &tools {
-        generalist_builder = generalist_builder.tool(t.clone());
-    }
-    if let Some(ref s) = skills {
-        generalist_builder = generalist_builder.with_skills(s.clone());
-    }
-    if let Some(ref m) = mcp_toolset {
-        generalist_builder = generalist_builder.toolset(m.clone());
-    }
-    let generalist = Arc::new(
-        generalist_builder
-            .build()
-            .expect("Failed to build generalist agent"),
-    );
-
-    let mut coder_builder = LlmAgentBuilder::new("coder")
-        .description(
-            "A specialist in software engineering, debugging, and code refactoring. Use this for complex coding tasks."
-        )
-        .instruction(
-            "You are an expert software engineer. Provide clean, efficient, and well-documented code solutions. Focus on best practices and system integrity."
-        )
-        .model(get_model("coder"));
-
-    for t in &tools {
-        coder_builder = coder_builder.tool(t.clone());
-    }
-    if let Some(ref s) = skills {
-        coder_builder = coder_builder.with_skills(s.clone());
-    }
-    if let Some(ref m) = mcp_toolset {
-        coder_builder = coder_builder.toolset(m.clone());
-    }
-    let coder = Arc::new(coder_builder.build().expect("Failed to build coder agent"));
-
-    let mut researcher_builder = LlmAgentBuilder::new("researcher")
-        .description(
-            "A specialist in information retrieval, documentation analysis, and data synthesis. Use this for deep-dive research tasks."
-        )
-        .instruction(
-            "You are a deep-dive researcher. Analyze information meticulously, identify key insights, and provide comprehensive summaries based on available data."
-        )
-        .model(get_model("researcher"));
-
-    for t in &tools {
-        researcher_builder = researcher_builder.tool(t.clone());
-    }
-    if let Some(ref s) = skills {
-        researcher_builder = researcher_builder.with_skills(s.clone());
-    }
-    if let Some(ref m) = mcp_toolset {
-        researcher_builder = researcher_builder.toolset(m.clone());
-    }
-    let researcher = Arc::new(
-        researcher_builder
-            .build()
-            .expect("Failed to build researcher agent"),
-    );
-
-    let mut writer_builder = LlmAgentBuilder::new("writer")
-        .description(
-            "A specialist in technical writing, content creation, and professional communication. Use this for drafting documents and reports."
-        )
-        .instruction(
-            "You are a professional technical writer. Craft clear, engaging, and well-structured content tailored to the requested audience and format."
-        )
-        .model(get_model("writer"));
-
-    for t in &tools {
-        writer_builder = writer_builder.tool(t.clone());
-    }
-    if let Some(ref s) = skills {
-        writer_builder = writer_builder.with_skills(s.clone());
-    }
-    if let Some(ref m) = mcp_toolset {
-        writer_builder = writer_builder.toolset(m.clone());
-    }
-    let writer = Arc::new(
-        writer_builder
-            .build()
-            .expect("Failed to build writer agent"),
-    );
-
-    let mut ralph_builder = LlmAgentBuilder::new("ralph")
-        .description(
-            "A playful and persistent autonomous agent that runs in a loop to achieve a goal. It doesn't give up!"
-        )
-        .instruction(
-            "You are Ralph Wiggum. You are simple, literal, and very persistent. You might say silly things, but you never stop trying to reach your goal. When you are done, say 'I'm a winner!'"
-        )
-        .model(get_model("ralph"));
-
-    for t in &tools {
-        ralph_builder = ralph_builder.tool(t.clone());
-    }
-    if let Some(ref s) = skills {
-        ralph_builder = ralph_builder.with_skills(s.clone());
-    }
-    if let Some(ref m) = mcp_toolset {
-        ralph_builder = ralph_builder.toolset(m.clone());
-    }
-    let ralph = Arc::new(ralph_builder.build().expect("Failed to build ralph agent"));
-
-    let mut verifier_builder = LlmAgentBuilder::new("verifier")
-        .description(
-            "A rigorous evaluation specialist. It analyzes outputs against verification criteria and identifies faults, edge cases, or missed requirements."
-        )
-        .instruction(
-            "You are a rigorous Verifier. Your goal is to ensure that the work performed by other agents is correct, complete, and meets all verification criteria.\n\
-            Be critical. Look for bugs, side effects, or incomplete implementations.\n\
-            You have access to filesystem tools. If a step involves creating, editing, or verifying a file (such as `site.html`), you MUST use your tools to inspect the file's contents on disk instead of guessing.\n\
-            You MUST respond with a JSON object of this structure:\n\
-            {\n\
-              \"verified\": true or false,\n\
-              \"reasoning\": \"Your detailed reasoning here\",\n\
-              \"suggested_fixes\": \"Suggestions for the executor if not verified\"\n\
-            }"
-        )
-        .model(get_model("verifier"));
-
-    for t in &tools {
-        verifier_builder = verifier_builder.tool(t.clone());
-    }
-    if let Some(ref s) = skills {
-        verifier_builder = verifier_builder.with_skills(s.clone());
-    }
-    if let Some(ref m) = mcp_toolset {
-        verifier_builder = verifier_builder.toolset(m.clone());
-    }
-    let verifier = Arc::new(verifier_builder.build().expect("Failed to build verifier agent"));
-
     let mut specialists: HashMap<String, Arc<dyn Tool>> = HashMap::new();
-    specialists.insert(
-        "generalist".to_string(),
-        Arc::new(SpecialistSubagentTool::new(generalist, None)),
-    );
-    specialists.insert("coder".to_string(), Arc::new(SpecialistSubagentTool::new(coder, None)));
-    specialists.insert(
-        "researcher".to_string(),
-        Arc::new(SpecialistSubagentTool::new(researcher, None)),
-    );
-    specialists.insert("writer".to_string(), Arc::new(SpecialistSubagentTool::new(writer, None)));
-    specialists.insert("ralph".to_string(), Arc::new(SpecialistSubagentTool::new(ralph, None)));
-    specialists.insert("verifier".to_string(), Arc::new(SpecialistSubagentTool::new(verifier, None)));
+
+    // Dynamically build and register all built-in specialists
+    for spec in BUILTIN_SPECIALISTS {
+        let mut builder = LlmAgentBuilder::new(spec.name)
+            .description(spec.description)
+            .instruction(spec.instruction.to_string())
+            .model(get_model(spec.name));
+
+        for t in &tools {
+            builder = builder.tool(t.clone());
+        }
+        if let Some(ref s) = skills {
+            builder = builder.with_skills(s.clone());
+        }
+        if let Some(ref m) = mcp_toolset {
+            builder = builder.toolset(m.clone());
+        }
+
+        match builder.build() {
+            Ok(agent) => {
+                specialists.insert(
+                    spec.name.to_string(),
+                    Arc::new(SpecialistSubagentTool::new(Arc::new(agent), None)),
+                );
+            }
+            Err(e) => {
+                log::error!("Failed to build specialist agent '{}': {}", spec.name, e);
+            }
+        }
+    }
 
     if let Some(specs) = custom_specs {
         for (name, config) in specs {
@@ -293,7 +218,7 @@ pub fn get_specialists(
                 .model(get_model(&name));
             for t in &tools {
                 if let Some(ref allowed) = config.tools {
-                    if allowed.iter().any(|name| name == t.name()) {
+                    if allowed.iter().any(|n| n == t.name()) {
                         agent_builder = agent_builder.tool(t.clone());
                     }
                 } else {
