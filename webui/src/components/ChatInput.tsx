@@ -39,18 +39,18 @@ export const ChatInput: React.FC<ChatInputProps> = ({
     if (!textarea) return;
 
     // Reset height to 'auto' to correctly recalculate scrollHeight
-    // textarea.style.height = 'auto';
+    textarea.style.height = 'auto';
 
     // Update height to fit content, up to max-height limit
-    // const scrollHeight = textarea.scrollHeight;
-    // textarea.style.height = `${scrollHeight}px`;
+    const scrollHeight = textarea.scrollHeight;
+    textarea.style.height = `${scrollHeight}px`;
 
     // Handle vertical overflow scrollbar
-    // if (scrollHeight > 120) {
-      // textarea.style.overflowY = 'auto';
-    // } else {
-      // textarea.style.overflowY = 'hidden';
-    // }
+    if (scrollHeight > 120) {
+      textarea.style.overflowY = 'auto';
+    } else {
+      textarea.style.overflowY = 'hidden';
+    }
   }, [value]);
 
   const handleCommandSelect = (cmd: string) => {
