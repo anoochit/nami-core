@@ -17,6 +17,8 @@
 
 - **CLI Thought Stream Ghost Text**: Resolved a terminal redrawing glitch where trailing characters from a cleared stream response would overflow and stay visible on the statistics line. Handled this cleanly by executing a complete line clear before printing the thinking duration and token metrics.
 - **Fast CLI Markdown Rendering Bypass**: Introduced a smart length threshold (6,000 characters) to optimize rendering on extremely long LLM responses. Rather than performing blocking, whole-document AST parsing and layout calculations on the main thread, Nami bypasses full-screen clearing and `termimad` formatting for massive outputs, eliminating end-of-stream freeze-ups.
+- **CLI Interactive Response Streaming**: Restored the standard real-time interactive response streaming and full markdown rendering at the end of the streaming loop in CLI mode.
+- **Code Quality and Warnings**: Cleaned up the unused `in_inline_code` field within `MarkdownStreamRenderer` in `src/utils/markdown.rs` to eliminate dead code compilation warnings.
 
 
 ## [0.9.43] - 2026-07-10
