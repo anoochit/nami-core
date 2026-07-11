@@ -39,6 +39,8 @@ async fn scan_workspace_files(root: &Path) -> HashMap<String, PathBuf> {
             Err(_) => continue,
         };
 
+        let is_root = dir == root;
+
         while let Some(entry) = entries.next_entry().await.ok().flatten() {
             let path = entry.path();
             let file_name = path.file_name().unwrap_or_default().to_string_lossy();
@@ -54,6 +56,21 @@ async fn scan_workspace_files(root: &Path) -> HashMap<String, PathBuf> {
                 {
                     continue;
                 }
+
+                // If at root, restrict recursive traversal to approved source/config directories
+                if is_root {
+                    let name_lower = file_name.to_lowercase();
+                    if name_lower != "src"
+                        && name_lower != "tests"
+                        && name_lower != "skills"
+                        && name_lower != "docs"
+                        && name_lower != "persona"
+                        && name_lower != "integration"
+                    {
+                        continue;
+                    }
+                }
+
                 queue.push(path);
             } else {
                 // Keep file list restricted to text-based or source code files for caching
@@ -170,16 +187,11 @@ pub async fn get_or_create_context_cache(model_name: &str) -> Option<String> {
             let patch_body = json!({
                 "ttl": "300s"
             });
-            match client.patch(&patch_url).json(&patch_body).send().await {
-                Ok(resp) => {
-                    if resp.status().is_success() {
-                        log::info!("[Gemini Cache] Successfully extended TTL for cache: {}", state.cache_name);
-                    } else if let Ok(err_text) = resp.text().await {
-                        log::warn!("[Gemini Cache] Failed to extend TTL: {}", err_text);
-                    }
-                }
-                Err(e) => {
-                    log::warn!("[Gemini Cache] Error sending patch request to extend TTL: {}", e);
+            if let Ok(resp) = client.patch(&patch_url).json(&patch_body).send().await {
+                if resp.status().is_success() {
+                    log::info!("[Gemini Cache] Successfully extended TTL for cache: {}", state.cache_name);
+                } else {
+                    log::warn!("[Gemini Cache] Failed to extend TTL with status: {}", resp.status());
                 }
             }
 

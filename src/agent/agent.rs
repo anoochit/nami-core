@@ -364,11 +364,20 @@ pub async fn create_agent(
         }
     }
 
+    let (mcp_toolset, mcp_count) = mcp::build_mcp_toolset().await?;
+    let global_skills = load_global_skills().ok();
+
     let custom_specs = app_config.specialists.as_ref().and_then(|s| s.custom.clone());
 
     let specialists =
-        specialists::get_specialists(model.clone(), specialist_models, core_tools.clone(), custom_specs);
-
+        specialists::get_specialists(
+            model.clone(),
+            specialist_models,
+            core_tools.clone(),
+            custom_specs,
+            global_skills.clone(),
+            mcp_toolset.clone(),
+        );
 
     let skills_summary = get_global_skills_summary();
 
@@ -380,14 +389,15 @@ pub async fn create_agent(
         .model(model.clone());
 
     builder = configure_agent_tools(builder, model.clone(), specialists, core_tools);
-    if let Ok(global_skills) = load_global_skills() {
-        builder = builder.with_skills(global_skills);
+    if let Some(skills) = global_skills {
+        builder = builder.with_skills(skills);
     }
-    
-    let (builder_with_mcp, mcp_count) = mcp::load_mcp_tools(builder).await?;
+    if let Some(ref ts) = mcp_toolset {
+        builder = builder.toolset(ts.clone());
+    }
     let skill_count = count_skills().await;
 
-    let agent = builder_with_mcp.build()?;
+    let agent = builder.build()?;
 
     Ok((Arc::new(agent), model, mcp_count, skill_count))
 }

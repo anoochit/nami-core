@@ -208,6 +208,26 @@ fn print_tool_response(response: &str) -> io::Result<()> {
     Ok(())
 }
 
+fn calculate_occupied_rows(text: &str, terminal_width: usize) -> usize {
+    if text.is_empty() {
+        return 0;
+    }
+    let mut rows = 0;
+    for line in text.lines() {
+        let len = line.len();
+        if len == 0 {
+            rows += 1;
+        } else {
+            rows += (len + terminal_width - 1) / terminal_width;
+        }
+    }
+    // If the text ends with a newline, it adds an extra empty line
+    if text.ends_with('\n') {
+        rows += 1;
+    }
+    rows
+}
+
 pub async fn run_and_stream_prompt(
     runner: &mut Runner,
     user_id: &str,
@@ -243,22 +263,25 @@ pub async fn run_and_stream_prompt(
     let mut spinner_idx = 0;
 
     let mut started_thinking = false;
+    let mut has_received_text = false;
 
     terminal::enable_raw_mode()?;
 
     loop {
         tokio::select! {
             _ = spinner_tick.tick() => {
-                spinner_idx = (spinner_idx + 1) % spinner_chars.len();
-                let spinner_char = spinner_chars[spinner_idx];
-                print_status_line(
-                    &mut io::stdout(),
-                    &format!(
-                        "{} {}",
-                        style::style(spinner_char).with(style::Color::Rgb { r: 255, g: 121, b: 198 }).bold(),
-                        style::style("Agent is thinking...").dim()
-                    ),
-                )?;
+                if !has_received_text {
+                    spinner_idx = (spinner_idx + 1) % spinner_chars.len();
+                    let spinner_char = spinner_chars[spinner_idx];
+                    print_status_line(
+                        &mut io::stdout(),
+                        &format!(
+                            "{} {}",
+                            style::style(spinner_char).with(style::Color::Rgb { r: 255, g: 121, b: 198 }).bold(),
+                            style::style("Agent is thinking...").dim()
+                        ),
+                    )?;
+                }
             }
             result = stream.next() => {
                 match result {
@@ -278,19 +301,29 @@ pub async fn run_and_stream_prompt(
                                             println!("{}\r", style::style("🧠 Thinking Process:").dim().bold());
                                             started_thinking = true;
                                         }
-                                        print!("{}", style::style(thinking).dim().italic());
+                                        print!("{}", style::style(thinking).dim().italic().to_string().replace('\n', "\r\n"));
                                         io::stdout().flush()?;
                                     }
                                 }
 
                                 if let Some(text) = part.text() {
-                                    response_buffer.push_str(text);
+                                    if !text.is_empty() {
+                                        if !has_received_text {
+                                            has_received_text = true;
+                                            clear_current_line(&mut io::stdout())?;
+                                        }
+                                        print!("{}", text.replace('\n', "\r\n"));
+                                        io::stdout().flush()?;
+                                        response_buffer.push_str(text);
+                                    }
                                 }
                                 if let Part::FunctionCall { name, args, .. } = part {
                                     print_tool_call(name, &args.to_string())?;
+                                    has_received_text = false; // Show spinner while tool processes / model thinks
                                 }
                                 if let Part::FunctionResponse { function_response, .. } = part {
                                     print_tool_response(&function_response.response.to_string())?;
+                                    has_received_text = false; // Show spinner for next model turn
                                 }
                             }
                         }
@@ -318,7 +351,26 @@ pub async fn run_and_stream_prompt(
     }
 
     terminal::disable_raw_mode()?;
-    clear_current_line(&mut io::stdout())?;
+
+    if !response_buffer.is_empty() {
+        let term_width = terminal::size().map(|(w, _)| w as usize).unwrap_or(80);
+        let rows_to_clear = calculate_occupied_rows(&response_buffer, term_width);
+        if rows_to_clear > 0 {
+            let mut stdout = io::stdout();
+            let move_up = rows_to_clear.saturating_sub(1);
+            if move_up > 0 {
+                let _ = queue!(stdout, cursor::MoveUp(move_up as u16));
+            }
+            let _ = queue!(
+                stdout,
+                terminal::Clear(terminal::ClearType::FromCursorDown),
+                cursor::MoveToColumn(0)
+            );
+            let _ = stdout.flush();
+        }
+    } else {
+        clear_current_line(&mut io::stdout())?;
+    }
 
     let duration_secs = start_thinking_time.elapsed().as_secs_f64();
     let prompt_tokens = (prompt.len() as f64 / 4.0).round() as usize;
@@ -329,8 +381,11 @@ pub async fn run_and_stream_prompt(
     crate::utils::save_agent_statistic(provider, model_name, duration_secs, total_tokens);
 
     // Print statistical summary directly underneath the 'Thinking Process:'
+    let mut stdout = io::stdout();
+    let _ = clear_current_line(&mut stdout);
     if started_thinking {
         println!("{}\r", style::style(format!("🧠 Thought for {:.1}s, {} tokens", duration_secs, total_tokens)).italic());
+        let _ = clear_current_line(&mut stdout);
         println!("{}\r", style::style("──────────────────────────────────────────────────").dim());
     } else {
         println!("{}\r", style::style(format!("🧠 Thought for {:.1}s, {} tokens", duration_secs, total_tokens)).italic());

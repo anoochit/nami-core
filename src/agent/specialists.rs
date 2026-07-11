@@ -121,6 +121,8 @@ pub fn get_specialists(
     specific_models: std::collections::HashMap<String, Arc<dyn Llm>>,
     tools: Vec<Arc<dyn Tool>>,
     custom_specs: Option<HashMap<String, super::agent::CustomSpecialistConfig>>,
+    skills: Option<adk_rust::skill::SkillIndex>,
+    mcp_toolset: Option<Arc<dyn Toolset>>,
 ) -> HashMap<String, Arc<dyn Tool>> {
     let get_model = |name: &str| {
         specific_models
@@ -141,6 +143,12 @@ pub fn get_specialists(
     for t in &tools {
         generalist_builder = generalist_builder.tool(t.clone());
     }
+    if let Some(ref s) = skills {
+        generalist_builder = generalist_builder.with_skills(s.clone());
+    }
+    if let Some(ref m) = mcp_toolset {
+        generalist_builder = generalist_builder.toolset(m.clone());
+    }
     let generalist = Arc::new(
         generalist_builder
             .build()
@@ -159,6 +167,12 @@ pub fn get_specialists(
     for t in &tools {
         coder_builder = coder_builder.tool(t.clone());
     }
+    if let Some(ref s) = skills {
+        coder_builder = coder_builder.with_skills(s.clone());
+    }
+    if let Some(ref m) = mcp_toolset {
+        coder_builder = coder_builder.toolset(m.clone());
+    }
     let coder = Arc::new(coder_builder.build().expect("Failed to build coder agent"));
 
     let mut researcher_builder = LlmAgentBuilder::new("researcher")
@@ -172,6 +186,12 @@ pub fn get_specialists(
 
     for t in &tools {
         researcher_builder = researcher_builder.tool(t.clone());
+    }
+    if let Some(ref s) = skills {
+        researcher_builder = researcher_builder.with_skills(s.clone());
+    }
+    if let Some(ref m) = mcp_toolset {
+        researcher_builder = researcher_builder.toolset(m.clone());
     }
     let researcher = Arc::new(
         researcher_builder
@@ -191,6 +211,12 @@ pub fn get_specialists(
     for t in &tools {
         writer_builder = writer_builder.tool(t.clone());
     }
+    if let Some(ref s) = skills {
+        writer_builder = writer_builder.with_skills(s.clone());
+    }
+    if let Some(ref m) = mcp_toolset {
+        writer_builder = writer_builder.toolset(m.clone());
+    }
     let writer = Arc::new(
         writer_builder
             .build()
@@ -208,6 +234,12 @@ pub fn get_specialists(
 
     for t in &tools {
         ralph_builder = ralph_builder.tool(t.clone());
+    }
+    if let Some(ref s) = skills {
+        ralph_builder = ralph_builder.with_skills(s.clone());
+    }
+    if let Some(ref m) = mcp_toolset {
+        ralph_builder = ralph_builder.toolset(m.clone());
     }
     let ralph = Arc::new(ralph_builder.build().expect("Failed to build ralph agent"));
 
@@ -230,6 +262,12 @@ pub fn get_specialists(
 
     for t in &tools {
         verifier_builder = verifier_builder.tool(t.clone());
+    }
+    if let Some(ref s) = skills {
+        verifier_builder = verifier_builder.with_skills(s.clone());
+    }
+    if let Some(ref m) = mcp_toolset {
+        verifier_builder = verifier_builder.toolset(m.clone());
     }
     let verifier = Arc::new(verifier_builder.build().expect("Failed to build verifier agent"));
 
@@ -261,6 +299,12 @@ pub fn get_specialists(
                 } else {
                     agent_builder = agent_builder.tool(t.clone());
                 }
+            }
+            if let Some(ref s) = skills {
+                agent_builder = agent_builder.with_skills(s.clone());
+            }
+            if let Some(ref m) = mcp_toolset {
+                agent_builder = agent_builder.toolset(m.clone());
             }
             match agent_builder.build() {
                 Ok(agent) => {

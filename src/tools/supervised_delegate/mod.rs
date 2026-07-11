@@ -339,7 +339,10 @@ mod tests {
             &self,
             _req: LlmRequest,
             _stream: bool,
-        ) -> std::result::Result<LlmResponseStream, AdkError> {
+        ) -> std::result::Result<
+            std::pin::Pin<std::boxed::Box<dyn futures::Stream<Item = std::result::Result<LlmResponse, AdkError>> + std::marker::Send>>,
+            AdkError,
+        > {
             let count = self.call_count.fetch_add(1, Ordering::SeqCst);
             let response_text = match count {
                 0 => r#"[

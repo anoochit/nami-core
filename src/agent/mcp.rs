@@ -134,11 +134,8 @@ impl Toolset for SanitizedToolset {
     }
 }
 
-/// Loads MCP tools from `mcp.json` if it exists and attaches them to the agent builder.
-///
-/// It supports both `stdio` (local processes) and `http` (remote streamable HTTP) transports.
-/// It checks the workspace directory first, then the current directory.
-pub async fn load_mcp_tools(mut builder: LlmAgentBuilder) -> anyhow::Result<(LlmAgentBuilder, usize)> {
+/// Builds the MCP toolset if config exists and starts servers.
+pub async fn build_mcp_toolset() -> anyhow::Result<(Option<Arc<dyn Toolset>>, usize)> {
     let mut mcp_count = 0;
     // Determine the path to the configuration file under ~/.nami
     let mcp_config_path = utils::get_nami_dir().join("mcp.json");
@@ -206,9 +203,22 @@ pub async fn load_mcp_tools(mut builder: LlmAgentBuilder) -> anyhow::Result<(Llm
             let merged = MergedToolset::new("mcp_merged", all_toolsets);
             // Sanitize the merged toolset to remove Gemini-incompatible fields
             let sanitized = SanitizedToolset::new(Arc::new(merged));
-            builder = builder.toolset(Arc::new(PrefixedToolset::new(Arc::new(sanitized), "mcp")));
+            let final_toolset = Arc::new(PrefixedToolset::new(Arc::new(sanitized), "mcp")) as Arc<dyn Toolset>;
+            return Ok((Some(final_toolset), mcp_count));
         }
     }
 
-    Ok((builder, mcp_count))
+    Ok((None, 0))
+}
+
+/// Loads MCP tools from `mcp.json` if it exists and attaches them to the agent builder.
+///
+/// It supports both `stdio` (local processes) and `http` (remote streamable HTTP) transports.
+/// It checks the workspace directory first, then the current directory.
+pub async fn load_mcp_tools(mut builder: LlmAgentBuilder) -> anyhow::Result<(LlmAgentBuilder, usize)> {
+    let (toolset, count) = build_mcp_toolset().await?;
+    if let Some(ts) = toolset {
+        builder = builder.toolset(ts);
+    }
+    Ok((builder, count))
 }
