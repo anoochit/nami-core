@@ -5,11 +5,19 @@
 ### Added
 
 - **Unified Capabilities for Specialist Agents**: Integrated MCP server tools and custom global skills directly into the Specialist Agents' (`coder`, `researcher`, `writer`, `ralph`, `verifier`, and any configured custom specialists) builders. This resolves issues where delegated experts were running without full access to loaded skills or external MCP capabilities.
+- **Dynamic Tool Factory & Modular Loading**: Re-architected core tool registration into a centralized, modular `create_core_tools` factory (`src/tools/mod.rs`) utilizing a structured `ToolFactoryConfig`. This supports explicit category-based enabling and robust dependency injection for specialized models.
+- **Dynamic Folder Autocomplete in WebUI**: Upgraded the `MentionAutocomplete` component to support real-time recursive directory traversals. The autocomplete now dynamically polls subfolders as they are typed (e.g., `@src/` lists nested files), appends correct trailing slashes for folders, and processes case-insensitive matching.
+
+### Changed
+
+- **Refactored Specialist Agent Initialization**: Refined the builder patterns and specialist generation pipelines in `src/agent/agent.rs` and `src/agent/specialists.rs` to seamlessly leverage the new dynamic tool factory.
+- **Improved Code Quality and Comments**: Enhanced height adjustment calculation comments in the WebUI's `ChatInput` component for clearer layout constraints.
 
 ### Fixed
 
 - **CLI Thought Stream Ghost Text**: Resolved a terminal redrawing glitch where trailing characters from a cleared stream response would overflow and stay visible on the statistics line. Handled this cleanly by executing a complete line clear before printing the thinking duration and token metrics.
 - **Fast CLI Markdown Rendering Bypass**: Introduced a smart length threshold (6,000 characters) to optimize rendering on extremely long LLM responses. Rather than performing blocking, whole-document AST parsing and layout calculations on the main thread, Nami bypasses full-screen clearing and `termimad` formatting for massive outputs, eliminating end-of-stream freeze-ups.
+
 
 ## [0.9.43] - 2026-07-10
 
