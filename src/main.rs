@@ -177,11 +177,13 @@ async fn main() -> anyhow::Result<()> {
     let agent_scheduler = agent.clone();
     let sessions_scheduler = deps.sessions.clone();
     let model_scheduler = model.clone();
+    let artifacts_scheduler = deps.artifacts.clone();
     tokio::spawn(async move {
         if let Err(e) = crate::modes::scheduler::run_scheduler_loop_with_deps(
             agent_scheduler,
             model_scheduler,
             sessions_scheduler,
+            artifacts_scheduler,
         )
         .await
         {
@@ -222,6 +224,7 @@ async fn main() -> anyhow::Result<()> {
                 agent,
                 deps.sessions.clone(),
                 deps.memory_adapter.clone(),
+                deps.artifacts.clone(),
                 "telegram",
                 model,
             ));
@@ -229,11 +232,11 @@ async fn main() -> anyhow::Result<()> {
         }
         Commands::Cli => {
             unsafe { std::env::set_var("RUST_LOG", "error") };
-            modes::cli::run_cli(agent, deps.sessions, model, provider, model_name, mcp_count, skill_count).await?;
+            modes::cli::run_cli(agent, deps.sessions, deps.artifacts.clone(), model, provider, model_name, mcp_count, skill_count).await?;
         }
         Commands::Run { prompt } => {
             log::info!("Running in direct run mode");
-            modes::run::run_direct(agent, deps.sessions.clone(), model, provider, model_name, &prompt).await?;
+            modes::run::run_direct(agent, deps.sessions.clone(), deps.artifacts.clone(), model, provider, model_name, &prompt).await?;
         }
         Commands::Serve { port, host } => {
             log::info!("Running in serve mode");
@@ -243,6 +246,7 @@ async fn main() -> anyhow::Result<()> {
                 model,
                 deps.sessions.clone(),
                 deps.memory_adapter,
+                deps.artifacts.clone(),
                 host,
                 port.unwrap_or(8080),
             )
@@ -255,6 +259,7 @@ async fn main() -> anyhow::Result<()> {
                 agent,
                 deps.sessions.clone(),
                 deps.memory_adapter,
+                deps.artifacts.clone(),
                 "line",
                 model,
             ));
@@ -266,7 +271,7 @@ async fn main() -> anyhow::Result<()> {
         }
         Commands::Eval => {
             log::info!("Running evaluation mode");
-            modes::eval::run_eval(agent, deps.sessions, deps.memory_adapter, model).await?;
+            modes::eval::run_eval(agent, deps.sessions, deps.memory_adapter, deps.artifacts, model).await?;
         }
         Commands::Version => {
             println!("{}", env!("CARGO_PKG_VERSION"));

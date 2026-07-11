@@ -7,6 +7,7 @@ use std::sync::Arc;
 pub async fn run_direct(
     agent: Arc<dyn Agent>,
     sessions: Arc<dyn SessionService>,
+    artifacts: Arc<dyn adk_artifact::ArtifactService>,
     model: Arc<dyn Llm>,
     provider: String,
     model_name: String,
@@ -22,6 +23,7 @@ pub async fn run_direct(
         .app_name(app_name)
         .agent(agent)
         .session_service(sessions)
+        .artifact_service(artifacts)
         .compaction_config(crate::agent::get_compaction_config(model))
         .build()?;
 

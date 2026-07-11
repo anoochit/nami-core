@@ -25,6 +25,7 @@ pub async fn run_serve(
     model: Arc<dyn Llm>,
     session: Arc<dyn SessionService>,
     memory: Arc<dyn adk_rust::Memory>,
+    artifacts: Arc<dyn adk_artifact::ArtifactService>,
     host: String,
     port: u16,
 ) -> anyhow::Result<()> {
@@ -41,6 +42,7 @@ pub async fn run_serve(
         .with_compaction(get_compaction_config(model))
         .with_session_service(session)
         .with_memory_service(memory)
+        .with_artifact_service(artifacts)
         .with_a2a_base_url(base_url)
         .build_app()?
         .merge(crate::modes::api::api_router())

@@ -39,12 +39,14 @@ async fn test_agent_runner_initialization() {
     let agent = Arc::new(MockAgent);
     let sessions = Arc::new(InMemorySessionService::new());
     let memory = Arc::new(MockMemory);
+    let artifacts = Arc::new(adk_artifact::InMemoryArtifactService::new());
     let model = Arc::new(MockLlm);
     
     let runner = AgentRunner::new(
         agent,
         sessions,
         memory,
+        artifacts,
         "test_app",
         model,
     );

@@ -12,6 +12,7 @@ pub async fn run_scheduler_loop_with_deps(
     agent: Arc<dyn Agent>,
     model: Arc<dyn Llm>,
     sessions: Arc<dyn SessionService>,
+    artifacts: Arc<dyn adk_artifact::ArtifactService>,
 ) -> anyhow::Result<()> {
     let app_name = "scheduler";
     let user_id = "system";
@@ -23,6 +24,7 @@ pub async fn run_scheduler_loop_with_deps(
         .app_name(app_name)
         .agent(agent)
         .session_service(sessions.clone())
+        .artifact_service(artifacts)
         .compaction_config(get_compaction_config(model))
         .build()?;
 

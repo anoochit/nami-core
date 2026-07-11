@@ -30,6 +30,7 @@ pub async fn run_eval(
     agent: Arc<dyn Agent>,
     sessions: Arc<dyn adk_session::SessionService>,
     memory: Arc<dyn adk_rust::Memory>,
+    artifacts: Arc<dyn adk_artifact::ArtifactService>,
     model: Arc<dyn Llm>,
 ) -> anyhow::Result<()> {
     let dataset_path = "evals.yaml";
@@ -41,7 +42,7 @@ pub async fn run_eval(
     let content = std::fs::read_to_string(dataset_path)?;
     let test_cases: Vec<TestCase> = serde_yaml::from_str(&content)?;
 
-    let runner = AgentRunner::new(agent, sessions, memory, "eval", model);
+    let runner = AgentRunner::new(agent, sessions, memory, artifacts, "eval", model);
     let mut report = EvalReport::default();
     report.total = test_cases.len();
 

@@ -9,6 +9,7 @@ pub struct Dependencies {
     pub sessions: Arc<dyn SessionService>,
     pub memory: Arc<dyn MemoryService>,
     pub memory_adapter: Arc<dyn adk_rust::Memory>,
+    pub artifacts: Arc<dyn adk_artifact::ArtifactService>,
 }
 
 pub async fn setup_dependencies() -> Result<Dependencies> {
@@ -33,6 +34,12 @@ pub async fn setup_dependencies() -> Result<Dependencies> {
         Arc::new(svc)
     };
 
+    // Initialize Artifact Service (File system)
+    let artifacts_dir = nami_dir.join("artifacts");
+    let artifacts: Arc<dyn adk_artifact::ArtifactService> = Arc::new(
+        adk_artifact::FileArtifactService::new(artifacts_dir)?
+    );
+
     // Set global memory service reference
     let _ = crate::tools::memory::MEMORY_SVC.set(memory.clone());
 
@@ -44,5 +51,6 @@ pub async fn setup_dependencies() -> Result<Dependencies> {
         sessions,
         memory,
         memory_adapter,
+        artifacts,
     })
 }

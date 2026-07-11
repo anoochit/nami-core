@@ -11,6 +11,7 @@ pub struct AgentRunner {
     agent: Arc<dyn Agent>,
     sessions: Arc<dyn SessionService>,
     memory: Arc<dyn adk_rust::Memory>,
+    artifacts: Arc<dyn adk_artifact::ArtifactService>,
     app_name: String,
     model: Arc<dyn Llm>,
 }
@@ -21,6 +22,7 @@ impl AgentRunner {
         agent: Arc<dyn Agent>,
         sessions: Arc<dyn SessionService>,
         memory: Arc<dyn adk_rust::Memory>,
+        artifacts: Arc<dyn adk_artifact::ArtifactService>,
         app_name: impl Into<String>,
         model: Arc<dyn Llm>,
     ) -> Self {
@@ -28,6 +30,7 @@ impl AgentRunner {
             agent,
             sessions,
             memory,
+            artifacts,
             app_name: app_name.into(),
             model,
         }
@@ -93,6 +96,7 @@ impl AgentRunner {
             .agent(self.agent.clone())
             .session_service(self.sessions.clone())
             .memory_service(self.memory.clone())
+            .artifact_service(self.artifacts.clone())
             .compaction_config(get_compaction_config(self.model.clone()))
             .build()?;
 

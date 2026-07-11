@@ -273,6 +273,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b571459ef1d9d216ad4308963545b333be870e2bc34765c28c38a49c3a2c4bdb"
 dependencies = [
  "adk-agent",
+ "adk-artifact",
  "adk-cli",
  "adk-core",
  "adk-model",
@@ -3487,6 +3488,7 @@ dependencies = [
 name = "nami"
 version = "0.9.44"
 dependencies = [
+ "adk-artifact",
  "adk-core",
  "adk-memory",
  "adk-runner",

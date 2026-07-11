@@ -771,6 +771,7 @@ pub async fn handle_slash_command(
     trimmed: &str,
     runner: &mut Runner,
     sessions: &Arc<dyn SessionService>,
+    artifacts: &Arc<dyn adk_artifact::ArtifactService>,
     model: &mut Arc<dyn Llm>,
     app_name: &str,
     user_id: &str,
@@ -805,6 +806,7 @@ pub async fn handle_slash_command(
                 .app_name(app_name)
                 .agent(agent.clone())
                 .session_service(sessions.clone())
+                .artifact_service(artifacts.clone())
                 .compaction_config(get_compaction_config(model.clone()))
                 .build()?;
 
@@ -938,6 +940,7 @@ pub async fn handle_slash_command(
 pub async fn run_cli(
     mut agent: Arc<dyn Agent>,
     sessions: Arc<dyn SessionService>,
+    artifacts: Arc<dyn adk_artifact::ArtifactService>,
     mut model: Arc<dyn Llm>,
     mut provider: String,
     mut model_name: String,
@@ -963,6 +966,7 @@ pub async fn run_cli(
         .app_name(app_name)
         .agent(agent.clone())
         .session_service(sessions.clone())
+        .artifact_service(artifacts.clone())
         .compaction_config(get_compaction_config(model.clone()))
         .build()?;
 
@@ -1017,6 +1021,7 @@ pub async fn run_cli(
                         trimmed,
                         &mut runner,
                         &sessions,
+                        &artifacts,
                         &mut model,
                         app_name,
                         user_id,

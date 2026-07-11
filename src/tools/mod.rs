@@ -89,6 +89,9 @@ pub fn create_core_tools(config: ToolFactoryConfig) -> Vec<Arc<dyn Tool>> {
         tools.extend(evolution::evolution_tools(config.model.clone()));
     }
 
+    // LoadArtifactsTool allows the agent to dynamically load versioned binary files
+    tools.push(Arc::new(adk_tool::LoadArtifactsTool::new()));
+
     tools
 }
 

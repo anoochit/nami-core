@@ -7,10 +7,11 @@ edition = "2024"
 adk-core = { version = "1.0.0" }
 adk-memory = { version = "1.0.0", features = ["sqlite-memory"] }
 adk-runner = { version = "1.0.0" }
-adk-rust = { version = "1.0.0", features = ["anthropic", "ollama", "openai", "openrouter", "sessions", "cli", "gemini", "gemini-vertex", "skills"] }
+adk-rust = { version = "1.0.0", features = ["anthropic", "ollama", "openai", "openrouter", "sessions", "cli", "gemini", "gemini-vertex", "skills", "artifacts"] }
 adk-session = { version = "1.0.0", features = ["sqlite", "postgres"] }
 adk-telemetry = { version = "1.0.0", features = ["otlp"] }
 adk-tool = { version = "1.0.0", features = ["http-transport"] }
+adk-artifact = { version = "1.0.0" }
 sqlx = { version = "0.9.0", features = ["runtime-tokio", "sqlite", "postgres"] }
 tokio-stream = "0.1"
 anyhow = "1"
