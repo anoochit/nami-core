@@ -5,6 +5,74 @@ use std::sync::Arc;
 use std::path::PathBuf;
 use serde_json::Value;
 use async_trait::async_trait;
+use futures::StreamExt;
+
+pub struct StreamSpecialistAgent {
+    inner_agent: Arc<dyn Agent>,
+}
+
+impl StreamSpecialistAgent {
+    pub fn new(inner_agent: Arc<dyn Agent>) -> Self {
+        Self { inner_agent }
+    }
+}
+
+#[async_trait]
+impl Agent for StreamSpecialistAgent {
+    fn name(&self) -> &str {
+        self.inner_agent.name()
+    }
+
+    fn description(&self) -> &str {
+        self.inner_agent.description()
+    }
+
+    fn sub_agents(&self) -> &[Arc<dyn Agent>] {
+        self.inner_agent.sub_agents()
+    }
+
+    async fn run(
+        &self,
+        ctx: Arc<dyn InvocationContext>,
+    ) -> Result<std::pin::Pin<std::boxed::Box<dyn futures::Stream<Item = Result<adk_session::Event>> + std::marker::Send + 'static>>> {
+        let stream = self.inner_agent.run(ctx).await?;
+        let agent_name = self.inner_agent.name().to_string();
+
+        let mapped_stream = stream.map(move |res| {
+            if let Ok(ref event) = res {
+                if let Some(ref content) = event.llm_response.content {
+                    for part in &content.parts {
+                        match part {
+                            Part::Thinking { thinking, .. } => {
+                                if !thinking.is_empty() {
+                                    use std::io::Write;
+                                    let formatted_thinking = thinking.replace('\n', "\r\n        ");
+                                    print!(
+                                        "\r\n\x1b[38;2;189;147;249m └─\x1b[0m [\x1b[38;2;139;233;253m{}\x1b[0m] \x1b[3m\x1b[2m🧠 {}\x1b[0m\r\n",
+                                        agent_name, formatted_thinking
+                                    );
+                                    let _ = std::io::stdout().flush();
+                                }
+                            }
+                            Part::FunctionCall { name, args, .. } => {
+                                use std::io::Write;
+                                print!(
+                                    "\r\n\x1b[38;2;189;147;249m └─\x1b[0m [\x1b[38;2;139;233;253m{}\x1b[0m] 🔧 \x1b[38;2;255;121;198mCalling tool:\x1b[0m \x1b[1m{}\x1b[0m with args: {}\r\n",
+                                    agent_name, name, args
+                                );
+                                let _ = std::io::stdout().flush();
+                            }
+                            _ => {}
+                        }
+                    }
+                }
+            }
+            res
+        });
+
+        Ok(Box::pin(mapped_stream))
+    }
+}
 
 pub struct SpecialistSubagentTool {
     inner_agent: Arc<dyn Agent>,
@@ -14,7 +82,7 @@ pub struct SpecialistSubagentTool {
 impl SpecialistSubagentTool {
     pub fn new(inner_agent: Arc<dyn Agent>, workspace_mode: Option<String>) -> Self {
         Self {
-            inner_agent,
+            inner_agent: Arc::new(StreamSpecialistAgent::new(inner_agent)),
             workspace_mode: workspace_mode.unwrap_or_else(|| "inherit".to_string()).to_lowercase(),
         }
     }

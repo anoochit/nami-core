@@ -357,23 +357,12 @@ mod tests {
                 _ => "Mock synthesis master report of task_1 success!".to_string(),
             };
 
-            let event = adk_session::Event {
-                id: uuid::Uuid::new_v4().to_string(),
-                timestamp: chrono::Utc::now(),
-                invocation_id: "".to_string(),
-                branch: "".to_string(),
-                author: "mock".to_string(),
-                actions: Default::default(),
-                llm_response: LlmResponse {
-                    content: Some(Content::new("model").with_text(response_text)),
-                    ..Default::default()
-                },
-                llm_request: Default::default(),
-                long_running_tool_ids: Default::default(),
-                provider_metadata: Default::default(),
+            let response = LlmResponse {
+                content: Some(Content::new("model").with_text(response_text)),
+                ..Default::default()
             };
 
-            let stream = futures::stream::once(async move { Ok(event) });
+            let stream = futures::stream::once(async move { Ok(response) });
             Ok(Box::pin(stream))
         }
     }
