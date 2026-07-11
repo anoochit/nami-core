@@ -350,26 +350,32 @@ pub async fn run_and_stream_prompt(
         }
     }
 
+    let should_render = response_buffer.len() <= 6000;
+
     terminal::disable_raw_mode()?;
 
-    if !response_buffer.is_empty() {
-        let term_width = terminal::size().map(|(w, _)| w as usize).unwrap_or(80);
-        let rows_to_clear = calculate_occupied_rows(&response_buffer, term_width);
-        if rows_to_clear > 0 {
-            let mut stdout = io::stdout();
-            let move_up = rows_to_clear.saturating_sub(1);
-            if move_up > 0 {
-                let _ = queue!(stdout, cursor::MoveUp(move_up as u16));
+    if should_render {
+        if !response_buffer.is_empty() {
+            let term_width = terminal::size().map(|(w, _)| w as usize).unwrap_or(80);
+            let rows_to_clear = calculate_occupied_rows(&response_buffer, term_width);
+            if rows_to_clear > 0 {
+                let mut stdout = io::stdout();
+                let move_up = rows_to_clear.saturating_sub(1);
+                if move_up > 0 {
+                    let _ = queue!(stdout, cursor::MoveUp(move_up as u16));
+                }
+                let _ = queue!(
+                    stdout,
+                    terminal::Clear(terminal::ClearType::FromCursorDown),
+                    cursor::MoveToColumn(0)
+                );
+                let _ = stdout.flush();
             }
-            let _ = queue!(
-                stdout,
-                terminal::Clear(terminal::ClearType::FromCursorDown),
-                cursor::MoveToColumn(0)
-            );
-            let _ = stdout.flush();
+        } else {
+            clear_current_line(&mut io::stdout())?;
         }
     } else {
-        clear_current_line(&mut io::stdout())?;
+        println!();
     }
 
     let duration_secs = start_thinking_time.elapsed().as_secs_f64();
@@ -380,15 +386,19 @@ pub async fn run_and_stream_prompt(
     // Save statistics to .nami/stats.json
     crate::utils::save_agent_statistic(provider, model_name, duration_secs, total_tokens);
 
-    // Print statistical summary directly underneath the 'Thinking Process:'
+    // Print statistical summary
     let mut stdout = io::stdout();
-    let _ = clear_current_line(&mut stdout);
-    if started_thinking {
-        println!("{}\r", style::style(format!("🧠 Thought for {:.1}s, {} tokens", duration_secs, total_tokens)).italic());
+    if should_render {
         let _ = clear_current_line(&mut stdout);
-        println!("{}\r", style::style("──────────────────────────────────────────────────").dim());
+        if started_thinking {
+            println!("{}\r", style::style(format!("🧠 Thought for {:.1}s, {} tokens", duration_secs, total_tokens)).italic());
+            let _ = clear_current_line(&mut stdout);
+            println!("{}\r", style::style("──────────────────────────────────────────────────").dim());
+        } else {
+            println!("{}\r", style::style(format!("🧠 Thought for {:.1}s, {} tokens", duration_secs, total_tokens)).italic());
+        }
     } else {
-        println!("{}\r", style::style(format!("🧠 Thought for {:.1}s, {} tokens", duration_secs, total_tokens)).italic());
+        println!("{}\r", style::style(format!("🧠 Thought for {:.1}s, {} tokens (Fast Render)", duration_secs, total_tokens)).italic());
     }
 
     if cancelled {
@@ -399,28 +409,32 @@ pub async fn run_and_stream_prompt(
         return Ok(String::new());
     }
 
-    println!();
+    if should_render {
+        println!();
 
-    let cleaned = response_buffer
-        .lines()
-        .map(|line| line.trim_end())
-        .collect::<Vec<_>>()
-        .join("\n");
+        let cleaned = response_buffer
+            .lines()
+            .map(|line| line.trim_end())
+            .collect::<Vec<_>>()
+            .join("\n");
 
-    let term_width = terminal::size()
-        .map(|(w, _)| w as usize)
-        .unwrap_or(80)
-        .saturating_sub(4);
+        let term_width = terminal::size()
+            .map(|(w, _)| w as usize)
+            .unwrap_or(80)
+            .saturating_sub(4);
 
-    let rendered = termimad::FmtText::from(
-        nami_skin,
-        &cleaned,
-        Some(term_width),
-    )
-    .to_string();
+        let rendered = termimad::FmtText::from(
+            nami_skin,
+            &cleaned,
+            Some(term_width),
+        )
+        .to_string();
 
-    println!("{}", rendered);
-    println!();
+        println!("{}", rendered);
+        println!();
+    } else {
+        println!();
+    }
 
     Ok(response_buffer)
 }
