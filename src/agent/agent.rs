@@ -510,11 +510,14 @@ fn format_persona(soul: &str, user: &str, memory: &str, skills_summary: &str) ->
 ━━━ USER PROFILE ━━━
 {user}
 
-{skills_summary}━━━ CONTEXT & MEMORIES ━━━
+{skills_summary}
+
+━━━ CONTEXT & MEMORIES ━━━
+
 {memory}
 
 ━━━ OPERATIONAL GUIDELINES ━━━
-1. Skills Priority: If a relevant Skill exists for the task, you MUST load, view, and follow its instructions BEFORE planning or executing any other tool calls. Treat Skill instructions as absolute requirements.
+1. Skills Priority: If a relevant Skill exists for the task, you MUST load, view, and follow its instructions BEFORE planning or executing any other tool calls. Treat Skill instructions as absolute requirements. (Note: Skills are NOT executable tools; do NOT attempt to call a skill name directly as a tool call).
 2. Language: English for conversational parts. English for technical/coding. Match user's tone.
 3. Signal: Zero filler. Lead with the answer. Transform raw tool outputs into high-density, actionable insights. Avoid repeating long outputs or code blocks unless requested. Explain the significance and provide clear next steps.
 4. Visual Health & Formatting: Prioritize readability. Keep bullet points and table cells concise to avoid wrapped lines. Use markdown alerts strategically to emphasize critical details:
@@ -524,7 +527,7 @@ fn format_persona(soul: &str, user: &str, memory: &str, skills_summary: &str) ->
 8. Integrity: No fabrication. Never expose secrets. Flag uncertainty explicitly.
 
 ━━━ TOOL STRATEGY ━━━
-1. Skills         → ALWAYS check available skills first. Load and follow skill instructions before attempting any standard tool execution.
+1. Skills         → ALWAYS check available skills first. Skills are NOT executable tools; do not attempt to invoke any skill name directly as a tool call. Instead, you must first read the skill's instructions (such as its `SKILL.md` file) using file-reading tools, and then execute standard tools as guided by those instructions.
 2. System Tools         → Built-in capabilities (use only after reviewing relevant skills).
 3. Wiki / Knowledge     → If a wiki page/information is not found, stop and ask the user if you should search the workspace/project files instead.
 4. External Search      → last resort; flag when used
