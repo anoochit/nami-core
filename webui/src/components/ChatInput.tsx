@@ -41,11 +41,11 @@ export const ChatInput: React.FC<ChatInputProps> = ({
     // Reset height to 'auto' to correctly recalculate scrollHeight
     textarea.style.height = 'auto';
 
-    // Update height to fit content, up to max-height limit
+    // Update height to fit content, up to max-height limit (5 lines / ~120px)
     const scrollHeight = textarea.scrollHeight;
     textarea.style.height = `${scrollHeight}px`;
 
-    // Handle vertical overflow scrollbar
+    // Handle vertical overflow scrollbar when exceeding 5 lines
     if (scrollHeight > 120) {
       textarea.style.overflowY = 'auto';
     } else {
