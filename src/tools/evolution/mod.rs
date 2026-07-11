@@ -89,9 +89,8 @@ impl Tool for ProposeEvolution {
         }
 
         // 2. Read current memories and AGENT.md
-        let workspace_dir = get_workspace_dir().await.map_err(|e| AdkError::tool(e.to_string()))?;
-        let memories_path = workspace_dir.join("MEMORIES.md");
-        let agent_path = workspace_dir.join("AGENT.md");
+        let memories_path = get_nami_dir().join("MEMORIES.md");
+        let agent_path = get_nami_dir().join("AGENT.md");
 
         let current_memories = fs::read_to_string(&memories_path).await.unwrap_or_default();
         let current_agent_rules = fs::read_to_string(&agent_path).await.unwrap_or_default();
@@ -146,7 +145,7 @@ Be extremely specific and practical. Return only the markdown content, no wrappi
         }
 
         // 4. Save proposal
-        let plan_path = workspace_dir.join("EVOLUTION_PLAN.md");
+        let plan_path = get_nami_dir().join("EVOLUTION_PLAN.md");
         fs::write(&plan_path, &plan_content).await.map_err(|e| AdkError::tool(format!("Failed to write EVOLUTION_PLAN.md: {}", e)))?;
 
         Ok(json!({
@@ -219,7 +218,7 @@ impl Tool for ApplyEvolution {
             if memories_updated { action_msg.push_str(" memories"); }
             if agent_updated { action_msg.push_str(" and agent heuristics"); }
 
-            let _ = Command::new("git").args(&["add", "workspace/MEMORIES.md", "workspace/AGENT.md"]).output();
+            let _ = Command::new("git").args(&["add", "MEMORIES.md", "AGENT.md"]).output();
             let commit_res = Command::new("git").args(&["commit", "-m", &action_msg]).output();
             match commit_res {
                 Ok(out) => format!("Changes committed to Git: {}", String::from_utf8_lossy(&out.stdout).trim()),
