@@ -33,7 +33,7 @@ impl ExecuteShell {
             "git".to_string(), "ls".to_string(), "grep".to_string(), "echo".to_string(),
             "cargo".to_string(), "nami".to_string(), "dir".to_string(), "type".to_string(),
             "cat".to_string(), "pwd".to_string(), "df".to_string(), "ip".to_string(),
-            "uname".to_string(), "python3".to_string(), "node".to_string(), "npm".to_string(),
+            "uname".to_string(), "node".to_string(), "ping".to_string(), "python".to_string(), "python3".to_string(), "node".to_string(), "npm".to_string(),
             "docker".to_string()
         ];
         if let Some(ref cfg_allowed) = config.allowed_commands {

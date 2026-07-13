@@ -222,7 +222,7 @@ async fn delete_file(args: PathArgs) -> std::result::Result<Value, AdkError> {
         .await
         .map_err(|e| AdkError::tool(format!("Delete failed: {}", e)))?;
 
-    Ok(json!({ "status": "success", "path": args.path }))
+    Ok(json!({ "status": "success" }))
 }
 
 

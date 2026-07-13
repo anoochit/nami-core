@@ -16,6 +16,7 @@ Execute the following non-destructive shell commands via your command execution 
 *   **Memory Footprint:** `free -h` or `cat /proc/meminfo`
 *   **Disk Storage:** `df -h /`
 *   **Operating System details:** `uname -a` or `cat /etc/os-release`
+*   **Network Latency:** `ping -c 4 8.8.8.8 | tail -1 | awk '{print $4}' | cut -d '/' -f 2`
 *   **Developer Toolchains (Versions):** Verify versions of key runtimes such as `cargo --version`, `python --version`, `node --version`, and `git --version`.
 
 ### 2. Evaluate & Categorize Resource Health
@@ -23,6 +24,9 @@ Analyze the parsed telemetry to assign appropriate status thresholds:
 *   🟢 **Normal (0% - 69%):** Everything is operating efficiently.
 *   🟡 **Warning (70% - 85%):** High resource consumption. Explain possible causes.
 *   🔴 **Critical (86% - 100%):** Severe bottlenecks detected. Flag immediately and suggest mitigation actions (e.g., clearing caches, terminating runaway processes).
+*   🟢 **Normal (0ms - 50ms):** Network latency is optimal.
+*   🟡 **Warning (51ms - 150ms):** Moderate network latency. May impact performance.
+*   🔴 **Critical (151ms+):** High network latency. Network issues detected.
 
 ### 3. Generate a Premium Visual Status Table
 Organize the metrics in an elegant, structured markdown table with status emojis and progress bars:
@@ -32,6 +36,7 @@ Organize the metrics in an elegant, structured markdown table with status emojis
 | **CPU Load** | 12.4% (Load: 0.45) | 🟢 Normal | ██░░░░░░░░ 12% |
 | **Memory** | 4.2 GB / 16.0 GB | 🟢 Normal | ████░░░░░░ 26% |
 | **Disk Space** | 85.2 GB / 256.0 GB | 🟢 Normal | ███░░░░░░░ 33% |
+| **Network Latency** | 25ms | 🟢 Normal | ███░░░░░░░ 25% |
 
 ### 4. Provide a Consolidated Health Summary
 Under the table, include:
