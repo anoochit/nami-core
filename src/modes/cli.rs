@@ -704,7 +704,7 @@ async fn run_grill_flow(
         "Based on the user's goal: '{}' and their answers to the clarification questions:\n\n{}\n\n\
          Please synthesize a highly precise, step-by-step implementation plan. \
          The plan MUST be formatted as a Markdown document. \
-         It MUST contain a section '## Implementation Steps' where each step is a checkbox list item of the exact format:\
+         It MUST contain a section '## Implementation Steps' (3-6 Steps) where each step is a checkbox list item of the exact format:\
          '- [ ] Step N: <detailed task explanation>'\n\
          For example:\
          '- [ ] Step 1: Create the main function'\n\
@@ -837,7 +837,7 @@ pub async fn handle_slash_command(
         let prompt = format!(
             "Create a detailed step-by-step implementation plan for the following task. The plan must outline: \
              1. Goals & Requirements, 2. Design Decisions & Architecture, 3. Success Criteria & Verification Steps, \
-             and 4. A sequential task list with concrete steps under a section '## Implementation Steps' where each step is a checkbox list item of the exact format:\n\
+             and 4. A sequential task list with concrete steps under a section '## Implementation Steps' (3-6 Steps) where each step is a checkbox list item of the exact format:\n\
              '- [ ] Step N: <detailed task explanation>'\n\
              For example:\n\
              '- [ ] Step 1: Create the main function'\n\

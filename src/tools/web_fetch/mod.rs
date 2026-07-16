@@ -109,6 +109,8 @@ async fn web_fetch(args: WebFetchArgs) -> std::result::Result<Value, AdkError> {
         return Ok(res);
     }
 
+    let is_html = content_type.to_lowercase().contains("text/html") || content_type.to_lowercase().contains("application/xhtml+xml");
+
     // Read as raw bytes so we control the UTF-8 boundary ourselves
     let bytes = response
         .bytes()
@@ -118,16 +120,22 @@ async fn web_fetch(args: WebFetchArgs) -> std::result::Result<Value, AdkError> {
     // Lossy decode: replaces invalid UTF-8 sequences rather than erroring
     let text = String::from_utf8_lossy(&bytes);
 
+    let converted_text = if is_html {
+        html2md::parse_html(&text)
+    } else {
+        text.into_owned()
+    };
+
     // Truncate at a valid char boundary (not a byte boundary — avoids broken multibyte chars)
-    let (content, truncated) = if text.chars().count() > max_len {
-        let boundary = text
+    let (content, truncated) = if converted_text.chars().count() > max_len {
+        let boundary = converted_text
             .char_indices()
             .nth(max_len)
             .map(|(i, _)| i)
-            .unwrap_or(text.len());
-        (&text[..boundary], true)
+            .unwrap_or(converted_text.len());
+        (&converted_text[..boundary], true)
     } else {
-        (text.as_ref(), false)
+        (converted_text.as_str(), false)
     };
 
     let mut result = json!({
