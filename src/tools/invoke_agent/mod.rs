@@ -28,12 +28,19 @@ impl Tool for InvokeAgent {
     }
 
     fn parameters_schema(&self) -> Option<Value> {
+        let mut available: Vec<String> = self.specialists.keys().cloned().collect();
+        available.sort();
+        let available_str = available.join(", ");
+        let desc = format!(
+            "The name of the specialist agent to invoke. Available agents: {}.",
+            available_str
+        );
         Some(json!({
             "type": "object",
             "properties": {
                 "specialist": {
                     "type": "string",
-                    "description": "The name of the specialist agent to invoke. Available agents: 'generalist', 'coder', 'researcher', 'writer', 'verifier', 'ralph'."
+                    "description": desc
                 },
                 "prompt": {
                     "type": "string",

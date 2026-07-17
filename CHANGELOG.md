@@ -21,6 +21,7 @@
 
 ### Fixed
 
+- **Dynamic Custom Specialists Loading**: Resolved an issue where custom specialist agents configured under the `[specialists.custom]` block in `config.toml` were not registered in the parameters schemas of `invoke_agent` and `parallel_tasks`, nor listed in the supervisor planning prompt of `supervised_delegate`. Both schema definitions and prompts are now dynamically populated with all registered specialists.
 - **Centralized Path Resolution for Evolution Tool**: Standardized paths for `MEMORIES.md` and `AGENT.md` inside the evolution tool (`src/tools/evolution/mod.rs`) using the global `get_nami_dir()` utility, ensuring cross-platform stability and sandbox compatibility.
 - **Clean File-System Tool Responses**: Refined response strings of directory/file deletion operations to provide clean, minimal, and consistent execution status feedback.
 

@@ -42,6 +42,13 @@ impl Tool for ParallelTasks {
     }
 
     fn parameters_schema(&self) -> Option<Value> {
+        let mut available: Vec<String> = self.specialists.keys().cloned().collect();
+        available.sort();
+        let available_str = available.join(", ");
+        let desc = format!(
+            "The name of the sub-agent to use. Available: {}.",
+            available_str
+        );
         Some(json!({
             "type": "object",
             "properties": {
@@ -53,7 +60,7 @@ impl Tool for ParallelTasks {
                             "prompt": { "type": "string", "description": "The prompt or instructions for the sub-agent." },
                             "specialist": { 
                                 "type": "string", 
-                                "description": "The name of the sub-agent to use. Available: 'generalist', 'coder', 'researcher', 'writer', 'ralph'." 
+                                "description": desc
                             }
                         },
                         "required": ["prompt", "specialist"]
@@ -105,10 +112,17 @@ impl Tool for ParallelTasks {
             }
         }
 
+        let mut synthesis_summary = String::new();
+        synthesis_summary.push_str("=== Parallel Tasks Execution Summary & Aggregated State ===\n");
+        for (i, res) in final_results.iter().enumerate() {
+            synthesis_summary.push_str(&format!("Task {}:\n{}\n\n", i + 1, res));
+        }
+
         Ok(json!({
             "status": "success",
             "tasks_executed": final_results.len(),
-            "outputs": final_results
+            "outputs": final_results,
+            "aggregated_state": synthesis_summary
         }))
     }
 }

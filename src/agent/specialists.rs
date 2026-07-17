@@ -406,5 +406,32 @@ mod tests {
         let val = result.unwrap();
         assert!(val.to_string().contains("mock agent response"));
     }
+
+    #[test]
+    fn test_custom_specialist_deserialization() {
+        let toml_str = r#"
+            [model]
+            provider = "gemini"
+            model_name = "gemini-2.5-flash"
+
+            [specialists.custom.database_guru]
+            description = "A database expert"
+            instruction = "Solve queries"
+            provider = "openai"
+            model_name = "gpt-4"
+        "#;
+        let config: crate::agent::AppConfig = toml::from_str(toml_str).unwrap();
+        assert!(config.specialists.is_some());
+        let specs = config.specialists.unwrap();
+        assert!(specs.custom.is_some());
+        let custom = specs.custom.unwrap();
+        assert!(custom.contains_key("database_guru"));
+        let guru = custom.get("database_guru").unwrap();
+        assert_eq!(guru.description, "A database expert");
+        assert_eq!(guru.instruction, "Solve queries");
+        assert_eq!(guru.provider.as_deref(), Some("openai"));
+        assert_eq!(guru.model_name.as_deref(), Some("gpt-4"));
+    }
 }
+
 

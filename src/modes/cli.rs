@@ -751,11 +751,20 @@ async fn run_grill_flow(
         println!("\n{}", style::style(&header).green().bold());
         println!("{}", style::style("─".repeat(header.chars().count())).green().dim());
         
-        let step_prompt = format!(
-            "Execute the following step of our plan. Retain full context of previous steps. \
-             Step {} of {}: {}",
-            i + 1, steps.len(), step
-        );
+        let step_prompt = if let Some(prev_resp) = last_response.as_deref() {
+            format!(
+                "Previous step output / state handoff:\n{}\n\n\
+                 Please execute the following subsequent step of our plan, building directly upon the state / results of the previous step.\n\
+                 Step {} of {}: {}",
+                prev_resp, i + 1, steps.len(), step
+            )
+        } else {
+            format!(
+                "Execute the following step of our plan.\n\
+                 Step {} of {}: {}",
+                i + 1, steps.len(), step
+            )
+        };
 
         let resp = run_and_stream_prompt(runner, user_id, session_id, &step_prompt, nami_skin, provider, model_name).await?;
         *last_response = Some(resp);

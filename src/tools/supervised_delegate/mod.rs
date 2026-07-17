@@ -92,15 +92,20 @@ impl Tool for SupervisedDelegate {
 
         let max_turns = args.max_refinement_turns.unwrap_or(2);
 
+        let mut specs_desc = String::new();
+        let mut keys: Vec<String> = self.specialists.keys().cloned().collect();
+        keys.sort();
+        for key in keys {
+            if let Some(tool) = self.specialists.get(&key) {
+                specs_desc.push_str(&format!("- '{}': {}\n", key, tool.description()));
+            }
+        }
+
         // 1. Planning Step: Split the task into a structured DAG of subtasks
         let planning_prompt = format!(
             r#"You are the Multi-Agent Supervisor Router. Decompose the following user task into a list of specialized subtasks with dependencies (a DAG structure).
 Available Specialists:
-- 'coder': Handles software engineering, code changes, file edits, and refactoring.
-- 'researcher': Handles file reads, repo scans, search web, documentation analysis, and data gathering.
-- 'writer': Handles text summaries, docs, wiki pages, or final reports.
-- 'generalist': Handles generic batch/simple tasks.
-
+{}
 Task:
 "{}"
 
@@ -120,7 +125,7 @@ Return a valid JSON array of subtasks, adhering strictly to this schema:
   }}
 ]
 Return ONLY the raw JSON array. Do not enclose it in markdown code fences or prefix it with comments."#,
-            args.task
+            specs_desc, args.task
         );
 
         let plan_raw = self.prompt_llm(&planning_prompt).await
@@ -193,7 +198,28 @@ Return ONLY the raw JSON array. Do not enclose it in markdown code fences or pre
                     let id_lower = l(&task.id);
                     let specialist_name = l(&task.specialist);
                     
+                    let mut dependency_outputs = String::new();
+                    {
+                        let results = task_results_clone.lock().await;
+                        for dep in &task.dependencies {
+                            let dep_lower = dep.to_lowercase().trim().to_string();
+                            if let Some(dep_out) = results.get(&dep_lower) {
+                                dependency_outputs.push_str(&format!(
+                                    "--- Output of Dependency Subtask '{}' ---\n{}\n\n",
+                                    dep, dep_out
+                                ));
+                            }
+                        }
+                    }
+
                     let mut current_prompt = task.prompt.clone();
+                    if !dependency_outputs.is_empty() {
+                        current_prompt = format!(
+                            "You are provided with the outputs of prior subtasks that this task depends on. Use them to build upon or integrate into your work.\n\n{}\nTask instructions:\n{}",
+                            dependency_outputs, task.prompt
+                        );
+                    }
+
                     let mut final_output = String::new();
 
                     for turn in 1..=max_turns {
