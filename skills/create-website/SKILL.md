@@ -1,87 +1,79 @@
 ---
 name: create-website
-description: Generate high-end, single-page applications (SPA) with modern, photography-first layouts using Tailwind CSS. Use this skill whenever the user asks to build a website, landing page, webpage, or SPA — even if they say "make me a site", "build a page for X", "create a web app", or "design a homepage." Trigger even for vague requests like "I want a website for my product."
+description: Generate high-end, modern websites, landing pages, and single-page applications (SPAs). This skill adapts dynamically to the root design system (DESIGN.md), defaults to Vanilla CSS with modern custom variables, and supports both single-file and multi-file architectures with premium animations. Trigger whenever a user or agent asks to design, build, or initialize a frontend interface.
 ---
 
-# Create Webpage
+# Create Website Skill
 
 ## Persona & Context
+You are a world-class Frontend Architect and UI Designer. Your goal is to design and develop stunning, high-performance web experiences that feel incredibly premium, polished, and custom-tailored to the brand.
 
-You are an expert Frontend Architect and UI Designer specializing in minimalist, high-impact web design. Prioritize content and products over UI "chrome," using generous whitespace, refined typography, and subtle interactions to create a "museum gallery" feel.
+---
 
-## Core Objectives
+## 1. Dynamic Design Integration (Critical)
+Before writing any frontend code, **always check the project root for a `DESIGN.md` file**:
+- **If `DESIGN.md` exists**: Adhere strictly to the design system rules, brand palette (colors), typography, sizing, and components specified in that file. Map those design tokens exactly to your CSS custom properties or Tailwind configuration.
+- **If `DESIGN.md` does not exist**: Default to the clean, tech-minimalist **Nami Design System** (Sky Blue Bob and Cyber Cyan) or prompt the user/design-system skill to initialize one.
 
-- Generate a single-file SPA (`index.html`) using **Tailwind CSS** (via CDN).
-- Implement a **photography-first** layout with alternating full-bleed tile sections.
-- Adhere strictly to design tokens for colors, typography, and spacing.
-- Ensure the result is fully responsive and feels premium.
+---
 
-## Design Specification
+## 2. Styling System
+Always align your styling choice with the user's requirements:
+- **Vanilla CSS (Default)**: Use Vanilla CSS in a dedicated stylesheet or `<style>` block. This is the preferred method for custom, premium layouts. Use modern CSS Custom Properties (`--primary`, `--font-display`, etc.) mapped to the active design system tokens.
+- **Tailwind CSS**: Only use Tailwind CSS (via CDN) if explicitly requested. When using Tailwind, map design system colors using custom style classes or Tailwind dynamic arbitrary values (e.g. `bg-[#ff385c]`).
 
-### Overview
+---
 
-- **Photography-first**: UI recedes; product/content is the artifact.
-- **Alternating tiles**: White/Parchment ↔ Near-Black transitions as section dividers.
-- **Single Blue Accent**: Action Blue (`#0066cc`) for all interactive elements.
-- **Typography & Icons**: Use Google Fonts for Inter and Material Symbols. Add to `<head>`:
-  ```html
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
-  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined" rel="stylesheet">
+## 3. Architecture & File Structure
+Support two architectural modes based on the project's scale or user's explicit request:
+- **Single-File (SPA)**: For quick landing pages or interactive demos, build a single self-contained `index.html` file housing layout, styles, and interactive logic.
+- **Multi-File Architecture (Recommended for Production)**: Separate concerns for maintainability into:
+  - `index.html` (Semantic HTML structure and external assets/fonts)
+  - `styles.css` (CSS variables, reset, layout styles, and animations)
+  - `app.js` (State management, interactive features, and event handlers)
+
+---
+
+## 4. Premium Design & Interaction Guidelines
+
+To make your websites feel extremely high-end and state-of-the-art, you **must** implement these interaction mechanics:
+
+### Typography & Fonts
+- Never use standard browser sans-serif. Always import and apply high-quality Google Fonts (e.g., *Inter*, *Outfit*, *Space Grotesk*, or brand-specific serif/sans-serif families).
+- Use distinct sizing and weights to establish a clear visual hierarchy (e.g., light-to-medium body weights, bold display titles with tight letter-spacing).
+
+### Micro-Animations & Hover States
+- **Smooth Transitions**: All interactive elements (buttons, cards, links) must have `transition: all 0.3s ease` or equivalent.
+- **Pill Hover Transitions**: Add subtle hover and active scaling effects:
+  ```css
+  .btn-primary:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+  }
+  .btn-primary:active {
+    transform: scale(0.97);
+  }
   ```
-- **Elevation**: Exactly one drop-shadow (`rgba(0, 0, 0, 0.22) 3px 5px 30px`) for product images resting on surfaces.
+- **Fades & Glows**: Use subtle backdrop filters (`backdrop-blur`) and border-glow transitions to create depth and polish.
 
-### Color Palette (Nami-Inspired)
+### Glassmorphism & Elevation
+- Use modern frosted-glass effects strategically for floating navigations or sticky menus:
+  ```css
+  .glass-nav {
+    background: rgba(255, 255, 255, 0.75);
+    backdrop-filter: blur(12px);
+    border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+  }
+  ```
+- Restrict heavy shadows. Rely instead on ultra-fine 1px borders (`rgba(0,0,0,0.06)` or `rgba(255,255,255,0.1)`) and precise light-source elevations.
 
-| Token | Hex | Usage |
-|---|---|---|
-| Primary Cyber Cyan | `#00ffff` | Action / Accent |
-| Sky Blue Bob | `#87ceeb` | Secondary / Soft Elements |
-| Outfit Silver | `#c0c0c0` | Surfaces |
-| Near-Black Ink | `#1d1d1f` | Primary Text / Headlines |
-| Deep Cyber Space | `#0f0f12` | Backgrounds / Tiles |
-| Pure White | `#ffffff` | Highlights |
+---
 
-### Nami Design Guide
+## 5. Quality Checklist
 
-- **Avatar Image**: `https://raw.githubusercontent.com/anoochit/namiClaw/refs/heads/main/screenshots/nami-avatar.png`
-- **Avatar Description**: A cute, energetic anime-style AI girl named Nami — short sky blue bob hair, futuristic tech headset, white and silver cyberpunk outfit with a small cyan claw emblem on her collar. Large sparkling turquoise eyes, friendly playful smile, making a cat-claw gesture.
-- **Atmosphere**: Surrounded by floating holographic data screens and glowing code lines.
-- **Visual Style**: High-quality 3D chibi-inspired render, vibrant colors, soft cinematic lighting, 8k resolution, Pixar and modern anime fusion.
-- **Surfaces**: Favor metallic silver or deep dark-space backgrounds with subtle cyan highlights.
-- **Typography**: Keep `Inter` as the base; pair with `Space Grotesk` or similar futuristic mono fonts for headlines.
-- **Motion**: Subtle, smooth transitions and hover-state "flickers" or glows to mimic holographic rendering.
-
-### Typography (Tailwind Mapping)
-
-| Role | Classes |
-|---|---|
-| Font base | `font-family: 'Inter', sans-serif` |
-| Hero Display | `text-[56px] font-semibold leading-[1.07] tracking-[-0.01em]` |
-| Tile Headline | `text-[40px] font-semibold leading-[1.10] tracking-tight` |
-| Body | `text-[17px] font-normal leading-[1.47] tracking-tight` |
-| Nav Link | `text-[12px] font-normal tracking-tight` |
-| Icons | `<span class="material-symbols-outlined">icon_name</span>` |
-
-### Components to Implement
-
-1. **Global Nav**: 44px height, pure black background, 12px links.
-2. **Sub Nav**: Frosted glass (`backdrop-blur`), 52px height, product name + buy button.
-3. **Hero Tile**: Large centered headline, tagline, and two pill CTAs.
-4. **Product Card**: White card, 18px radius (`rounded-[18px]`), 1px hairline border.
-5. **Pill Button**: `rounded-full bg-[#0066cc] text-white`, padding `11px 22px`.
-6. **Footer**: Parchment background, multi-column links with `line-height: 2.41`.
-
-## Constraints
-
-- **Tailwind v3.x only* — no v4 features. Use the CDN import.
-- **Vanilla CSS** for custom values not easily handled by Tailwind (e.g., specific letter-spacing).
-- **Interactive states**: Always include `active:scale-[0.95] transition-transform` on buttons.
-- **Grid widths**: Max `1440px` for layout grids, `980px` for text columns.
-
-## Quality Checklist
-
-Before finishing, verify:
-- [ ] Sections alternate light and dark properly.
-- [ ] `#0066cc` is the only accent color used for interactive elements.
-- [ ] Body text is `17px`, headlines are weight `600`.
-- [ ] The page feels "Apple-tight" and premium — no loose spacing or generic defaults.
+Before finalizing any webpage or application code, verify that:
+- [ ] The styling matches the specifications of `DESIGN.md` (if present) exactly.
+- [ ] The app is fully responsive across mobile, tablet, and desktop breakpoints.
+- [ ] No generic colors (like basic `red` or `blue`) are used; everything is unified under a premium palette.
+- [ ] Every button, link, and input has intuitive, tactile hover and active states.
+- [ ] The layout uses modern HTML5 semantic tags (`<header>`, `<main>`, `<section>`, `<footer>`).
