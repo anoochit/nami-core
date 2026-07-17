@@ -56,9 +56,23 @@ impl Agent for StreamSpecialistAgent {
                             }
                             Part::FunctionCall { name, args, .. } => {
                                 use std::io::Write;
+                                let raw_args = args.to_string();
+                                let minified_args = if let Ok(val) = serde_json::from_str::<serde_json::Value>(&raw_args) {
+                                    serde_json::to_string(&val).unwrap_or_else(|_| raw_args.clone())
+                                } else {
+                                    raw_args.clone()
+                                };
+
+                                let formatted_args = if minified_args.chars().count() > 80 {
+                                    let truncated: String = minified_args.chars().take(80).collect();
+                                    format!("{}... (+{} chars)", truncated, minified_args.len() - truncated.len())
+                                } else {
+                                    minified_args
+                                };
+
                                 print!(
                                     "\r\n\x1b[38;2;189;147;249m └─\x1b[0m [\x1b[38;2;139;233;253m{}\x1b[0m] 🔧 \x1b[38;2;255;121;198mCalling tool:\x1b[0m \x1b[1m{}\x1b[0m with args: {}\r\n",
-                                    agent_name, name, args
+                                    agent_name, name, formatted_args
                                 );
                                 let _ = std::io::stdout().flush();
                             }

@@ -13,11 +13,16 @@
 - **Centralized Async Command Processor**: Implemented a strongly-typed slash-command state-machine (`src/modes/commands.rs`) and `CommandStateManager` database-backed persistence layer (storing JSON states in `sessions.db` with SQLite-friendly ISO-8601 strings) to handle `/plan`, `/grill`, and multi-step confirmations asynchronously across CLI, WebUI, and chatbots.
 - **Built-in Visual Web Designer Specialist**: Added a compiled-in `"designer"` specialist agent (`src/agent/specialists.rs`) focused on frontend engineering and utility-first Tailwind CSS visual layout composition, gradients, glassmorphism, responsive grids, and micro-animations.
 - **Custom Book Publishing Specialists Suite**: Pre-configured five dynamic publishing specialist profiles (`editorial_director`, `creative_writer`, `proofreader`, `cover_designer`, and `publishing_marketer`) directly inside `config.toml.example` under the `[specialists.custom]` block.
+- **Dynamic Parameter Schema for Specialist Selection**: Upgraded `invoke_agent` and `parallel_tasks` tools to dynamically populate their parameter schema descriptions with the sorted list of all active registered specialists (both built-in and custom), replacing hardcoded descriptions.
+- **Dependency Outputs Injection in Supervised Delegate**: Implemented automatic state propagation for `supervised_delegate`. When executing a task, outputs from all completed dependency tasks are automatically concatenated and pre-pended to the active task prompt, enabling rich downstream context awareness.
+- **Aggregated State in Parallel Tasks**: Added an `aggregated_state` field to the execution response of the `parallel_tasks` tool, containing a consolidated, formatted markdown summary of all executed subtasks.
+- **DateTime Tool for Custom Specialists**: Equipped custom specialists loaded dynamically via `load_custom_specialist_builders` with default access to the `"datetime"` tool.
 
 ### Changed
 
 - **Skills Execution Strategy Clarification**: Updated core operational guidelines and tool strategy prompts to explicitly clarify that Skills are static guidelines rather than executable tools, preventing LLM validation failures during tool call generation.
 - **Standardized Crate Panic Strategy**: Adjusted Nami's release profile configuration in `Cargo.toml` to remove the restrictive `panic = "abort"` setting. Standardizing on `unwind` successfully resolved all linked runtime mismatches with static dependencies like `html2md`.
+- **Minified and Truncated Subagent Tool Call Outputs**: Upgraded `StreamSpecialistAgent` in `src/agent/specialists.rs` to parse, minify, and truncate function call arguments to an 80-character limit, mirroring standard interactive CLI tool execution formatting.
 
 ### Fixed
 
