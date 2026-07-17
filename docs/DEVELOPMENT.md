@@ -31,8 +31,9 @@ Refer to [HARNESS.md](./HARNESS.md) for a deep dive into the testing infrastruct
 
 1. Create a new directory in `src/tools/`.
 2. Implement the `Tool` trait.
-3. Register the tool in `src/agent/agent.rs` within the `build_agent` function.
-4. Add unit tests to verify the tool's execution logic.
+3. Register and enable your tool in the centralized `create_core_tools` factory located in `src/tools/mod.rs`.
+4. Configure any category/conditional flags in `ToolFactoryConfig` (located in `src/agent/agent.rs` or `config.toml`) if applicable.
+5. Add unit tests to verify the tool's execution logic.
 
 ## 📝 Retrospective Reporting
 

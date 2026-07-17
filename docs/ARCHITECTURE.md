@@ -9,16 +9,16 @@ Nami follows a layered architecture that separates the user interface (modes) fr
 ```text
 ┌───────────────────────────────────────────────────────────┐
 │                      Interface Layer                      │
-│   (CLI, Bot, Serve, LINE, Scheduler)                      │
+│ (CLI, Bot, Serve, LINE, Scheduler, Self-Upgrade/Upgrade)  │
 ├───────────────────────────────────────────────────────────┤
 │                     Orchestration Layer                   │
-│         (AgentRunner, Session Management, Retries)        │
+│ (AgentRunner, Session Mgmt, Supervised Delegate Task DAGs)│
 ├───────────────────────────────────────────────────────────┤
 │                        Agent Layer                        │
-│         (LlmAgent, Persona, Skills, Specialists)          │
+│ (LlmAgent, Persona, Skills, StreamSpecialistAgent)        │
 ├───────────────────────────────────────────────────────────┤
 │                 Services & Resources Layer                │
-│ (Sessions, Memory/Vector, Reflection, MCP, FS, Telemetry) │
+│ (Sessions, Memory, Artifacts, Reflection, MCP, FS, Telem) │
 └───────────────────────────────────────────────────────────┘
 ```
 
@@ -42,8 +42,9 @@ Nami integrates with **OpenTelemetry** to provide full transparency into agent o
 
 - `src/lib.rs`: The library entry point, exposing core modules for testing and external use.
 - `src/main.rs`: The binary entry point, handling CLI parsing and service initialization.
-- `src/agent/`: Core agent logic, persona loading, and reflection service.
-- `src/modes/`: Implementations for different interaction patterns.
-- `src/tools/`: The built-in tool library.
-- `src/utils/`: Shared utilities (sandboxing, security, error handling).
-- `workspace/`: The agent's persistent sandbox for files and documentation.
+- `src/agent/`: Core agent logic, persona loading, specialists, and reflection service.
+- `src/modes/`: Implementations for different interaction patterns (CLI, serve, bot, line, scheduler, upgrade).
+- `src/tools/`: The built-in tool library and the dynamic `create_core_tools` tool factory.
+- `src/utils/`: Shared utilities (sandboxing, security, context caching, markdown rendering, error handling).
+- `workspace/`: The agent's persistent sandbox for user-facing files and documentation.
+- `~/.nami/`: Global application state directory (housing databases, logs, and versioned user `artifacts/`).

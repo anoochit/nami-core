@@ -1,5 +1,26 @@
 # Changelog
 
+## [0.9.45] - 2026-07-17
+
+### Added
+
+- **HTML-to-Markdown Web Fetching**: Enhanced the `web_fetch` tool (utilizing `html2md`) to automatically convert raw HTML responses into markdown, significantly improving readability and downstream token efficiency.
+- **Marketing Research Skill Set**: Introduced a comprehensive, modular marketing research skill suite (`skills/marketing-research/`) with dedicated subskills and execution scripts for audience segmentation, competitor intelligence, market trend analysis, and opportunity identification.
+- **adk-artifact Integration**: Integrated the `adk-artifact` service across all execution entry points (CLI, Daemon, Server, etc.) to enhance artifact management, and added integration tests for verification.
+- **StreamSpecialistAgent Progress Streaming**: Implemented a specialized `StreamSpecialistAgent` wrapper for specialist subagents to stream real-time progress indicators, agent thoughts, and tool invocation status cleanly to the user.
+- **Network Latency in System Status**: Enhanced the `system-status` skill with support for network latency metrics.
+- **Pulldown-Cmark Markdown Module**: Integrated `pulldown-cmark` and `getopts` dependencies alongside a modular `MarkdownStreamRenderer` in `src/utils/markdown.rs` for high-performance AST markdown parsing and terminal layout rendering.
+
+### Changed
+
+- **Skills Execution Strategy Clarification**: Updated core operational guidelines and tool strategy prompts to explicitly clarify that Skills are static guidelines rather than executable tools, preventing LLM validation failures during tool call generation.
+
+### Fixed
+
+- **Centralized Path Resolution for Evolution Tool**: Standardized paths for `MEMORIES.md` and `AGENT.md` inside the evolution tool (`src/tools/evolution/mod.rs`) using the global `get_nami_dir()` utility, ensuring cross-platform stability and sandbox compatibility.
+- **Clean File-System Tool Responses**: Refined response strings of directory/file deletion operations to provide clean, minimal, and consistent execution status feedback.
+
+
 ## [0.9.44] - 2026-07-11
 
 ### Added

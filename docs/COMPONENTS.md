@@ -60,13 +60,13 @@ Nami is structured into four primary modules under `src/`. Below is a detailed b
 #### Architecture & Sub-files
 
 - **`agent.rs`**: Core factory for agent construction, persona formatting, and instruction management.
-- **`specialists.rs`**: Logic for managing and injecting specialist agent tools (e.g., coder, writer).
+- **`specialists.rs`**: Logic for managing and injecting specialist agent tools (e.g., coder, writer). Includes the `StreamSpecialistAgent` wrapper to parse and output streaming thoughts, tool invocation markers, and status indicators in real-time.
 - **`mcp.rs`**: Handles loading and registration of Model Context Protocol (MCP) servers and their tools.
 - **`reflection.rs`**: Background service that synthesizes conversational history into persistent insights.
 
 #### Key Entry Points
 
-- `create_agent(&AppConfig)`: Main factory function for building a configured agent.
+- `create_agent(&AppConfig)`: Main factory function for building a configured agent, utilizing the central `create_core_tools` factory.
 - `build_agent()`: Wrapper to load `config.toml` and initialize the agent setup process.
 - `format_persona(...)`: Assembles the system prompt template.
 
@@ -93,6 +93,8 @@ Nami is structured into four primary modules under `src/`. Below is a detailed b
 - **`init.rs`**: Logic for bootstrapping the project configuration and database.
 - **`api.rs`**: RESTful API endpoints for workspace and wiki access.
 - **`run.rs`**: Non-interactive direct execution of the agent with a single prompt.
+- **`upgrade.rs`**: Binary self-upgrade system that queries GitHub Releases for snapshot assets, checks hardware profiles, prompts the user, and conducts safe hot-swaps of active binaries.
+- **`commands.rs`**: Core async state-machine and interceptor middleware that handles slash commands (like `/plan` and `/grill`) across CLI, WebUI, and Chatbots. Saves active grilling/planning states to the session database.
 
 > [!NOTE]
 > Quiet mode logic is implemented in `src/main.rs`. When running `run`, `eval`, or `workspace`, all verbose initialization/telemetry logs are suppressed to keep standard outputs clean and script-friendly.
@@ -134,26 +136,30 @@ Nami is structured into four primary modules under `src/`. Below is a detailed b
 
 #### Built-in Toolsets
 
+- **`analyze_media/`**: Unified multimodal tool designed to natively parse and reason over non-text resources (such as PNG/JPEG, MP3/WAV, MP4/MOV, and PDFs) by extracting inline raw byte vectors directly into multimodal-capable model APIs.
+- **`audio_generator/` / `video_generator/`**: High-fidelity tools enabling generative text-to-speech/sound effects and image-to-video production with detailed voice, camera, speed, and motion controls.
 - **`current_datetime/`**: Provides the current date, time, and timezone offset information using system clock calculations.
-- **`filesystem/`**: Provides sandboxed file system operations (read, write, list, delete) safely within the workspace.
-- **`image_generator/`**: Native AI image generation capabilities using the `gemini-2.5-flash-image` model.
+- **`evolution/`**: Periodically updates internal `MEMORIES.md` and `AGENT.md` instructions using global sandboxed directory paths via `get_nami_dir()`.
+- **`filesystem/`**: Provides sandboxed file system operations (read, write, list, delete) safely within the workspace with cleaned execution response metrics.
+- **`image_generator/`**: Native AI image generation capabilities with exposed JSON parameter schema and absolute local output file path translations.
 - **`invoke_agent/`**: Invokes a single specialist agent (e.g., coder, researcher, writer) by name with a given prompt to delegate tasks.
 - **`memory/`**: Vector-searchable long-term memory operations (`add_memory`, `recall_memory`) backed by SQLite.
 - **`parallel_tasks/`**: Orchestration logic to run multiple specialist agents concurrently.
 - **`plan/`**: Integrated Autonomous Planner-Executor-Verifier toolset. Supports structured implementation planning (`plan_create` with custom pre-synthesized steps, `plan_show`, `plan_list`, `plan_delete`, `plan_update`), interactive plan alignment (`PlanGrill` helper for CLI and conversational Q&A-driven planning), and complete autonomous plan execution (`plan_execute`) with self-healing, critic verification, and dynamic replanning.
 - **`scheduler/`**: Background task scheduler running operations based on cron expressions.
 - **`search/`**: Web search integration using external APIs (e.g., Serper.dev) for real-time information retrieval.
-- **`shell/`** *(Disabled)*: Executes shell commands (currently disabled for security reasons).
+- **`shell/`**: Executes shell commands with structured validation controls, including customizable `security_level` limits, `allowed_commands` whitelists, `blocked_commands` restrictions, and path traversal validation checks.
 - **`soul/`**: Tools for managing and updating the agent's internal persona/soul and user memory.
-- **`system_status/`**: Monitors and reports system health (CPU, memory, and general performance metrics).
+- **`supervised_delegate/`**: Concurrent multi-agent supervisor orchestrator. Formulates complex goals into a Directed Acyclic Graph (DAG) of specialized subtasks, executes independent DAG branches concurrently via `tokio::spawn`, runs an autonomous QA self-correction loop, and generates a master synthesized final report.
+- **`system_status/`**: Monitors and reports system health (CPU, memory, general performance metrics, and network latency checks).
 - **`todo/`**: A simple task/TODO list manager that persists items to `todos.json` in the workspace.
-- **`weather/`**: Queries real-time weather information for specified locations.
-- **`web_fetch/`**: Fetches raw HTML/content from arbitrary URLs for analysis.
+- **`weather/`**: Queries real-time weather forecasts and conditions with multi-day metrics.
+- **`web_fetch/`**: Fetches content from arbitrary URLs, automatically converting fetched HTML to markdown utilizing the `html2md` module to improve LLM reading quality and reduce downstream token usage.
 - **`wiki/`**: Knowledge management system tools for Obsidian-style Markdown manipulation, backlinks, and autogenerated graphs.
 
 #### Key Entry Points & Maintenance
 
-- **Entry Point**: `mod.rs` exports individual toolsets used during agent creation in `agent::create_agent`.
+- **Entry Point**: `mod.rs` exports the centralized `create_core_tools` factory that parses `AppConfig` and `ToolFactoryConfig` to dynamically enable or disable tool category domains and perform dependency injections.
 - **Maintenance**:
-  - Tools must be registered in the respective module's `mod.rs` and added to the `core_tools` list in `agent::create_agent`.
+  - Tools must be registered in the respective module's subfolder and wired inside `create_core_tools` in `src/tools/mod.rs`.
   - Always wrap filesystem paths using `crate::utils::sandbox` to prevent security risks.

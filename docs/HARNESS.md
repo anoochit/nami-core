@@ -16,10 +16,11 @@ make test  # or cargo test
 
 ### 2. Integration Tests
 
-Verifies agent lifecycle and component integration. These tests are located in the `tests/` directory.
+Verifies agent lifecycle, component integration, and artifact persistence. These tests are located in the `tests/` directory.
 
 ```bash
 cargo test --test agent_lifecycle
+cargo test --test artifact_integration
 ```
 
 ## 📊 Evaluation Harness (`eval` mode)
