@@ -10,10 +10,14 @@
 - **StreamSpecialistAgent Progress Streaming**: Implemented a specialized `StreamSpecialistAgent` wrapper for specialist subagents to stream real-time progress indicators, agent thoughts, and tool invocation status cleanly to the user.
 - **Network Latency in System Status**: Enhanced the `system-status` skill with support for network latency metrics.
 - **Pulldown-Cmark Markdown Module**: Integrated `pulldown-cmark` and `getopts` dependencies alongside a modular `MarkdownStreamRenderer` in `src/utils/markdown.rs` for high-performance AST markdown parsing and terminal layout rendering.
+- **Centralized Async Command Processor**: Implemented a strongly-typed slash-command state-machine (`src/modes/commands.rs`) and `CommandStateManager` database-backed persistence layer (storing JSON states in `sessions.db` with SQLite-friendly ISO-8601 strings) to handle `/plan`, `/grill`, and multi-step confirmations asynchronously across CLI, WebUI, and chatbots.
+- **Built-in Visual Web Designer Specialist**: Added a compiled-in `"designer"` specialist agent (`src/agent/specialists.rs`) focused on frontend engineering and utility-first Tailwind CSS visual layout composition, gradients, glassmorphism, responsive grids, and micro-animations.
+- **Custom Book Publishing Specialists Suite**: Pre-configured five dynamic publishing specialist profiles (`editorial_director`, `creative_writer`, `proofreader`, `cover_designer`, and `publishing_marketer`) directly inside `config.toml.example` under the `[specialists.custom]` block.
 
 ### Changed
 
 - **Skills Execution Strategy Clarification**: Updated core operational guidelines and tool strategy prompts to explicitly clarify that Skills are static guidelines rather than executable tools, preventing LLM validation failures during tool call generation.
+- **Standardized Crate Panic Strategy**: Adjusted Nami's release profile configuration in `Cargo.toml` to remove the restrictive `panic = "abort"` setting. Standardizing on `unwind` successfully resolved all linked runtime mismatches with static dependencies like `html2md`.
 
 ### Fixed
 

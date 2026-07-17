@@ -76,6 +76,14 @@ Nami is structured into four primary modules under `src/`. Below is a detailed b
 - **Maintenance**:
   - Built-in specialized agents are registered in `specialists.rs` and added to the `core_tools` list in `agent.rs`.
   - Arbitrary custom specialist agents can be configured dynamically under `[specialists.custom]` in the global `config.toml` (or `~/.nami/config.toml`) without modifying the source code. Custom agents automatically load custom LLM models/overrides, custom descriptions, and custom instructions (system prompts), registering themselves for delegation.
+  - **Built-in Specialist Profiles**:
+    * **`generalist`**: Handles high-volume batch tasks or repetitive data-processing pipelines.
+    * **`coder`**: Expert in system design, debugging, and full-stack software development.
+    * **`researcher`**: Specializes in information retrieval, documentation synthesis, and data research.
+    * **`writer`**: Tailored for clear technical writing, specifications, and user documentation.
+    * **`ralph`**: Autonomous persistence loop agent that doesn't stop until goals are achieved.
+    * **`verifier`**: Review specialist that validates results against test schemas and filesystem structures.
+    * **`designer`**: High-fidelity frontend developer specializing in responsive utility-first Tailwind CSS, custom aesthetic themes, gradients, and micro-interactions.
   - System instructions (`format_persona`) must remain concise to stay within token limits.
 
 ---
