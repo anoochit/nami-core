@@ -15,7 +15,10 @@ use line_bot_sdk_rust::{
     line_webhook::models::{CallbackRequest, Event, MessageContent, Source},
     parser::signature::validate_signature,
 };
+use crate::modes::command_registry::CommandRegistry;
+use crate::modes::slash_dispatcher::{self, SlashAction, SlashRequest};
 use crate::runner::AgentRunner;
+use crate::utils::get_nami_dir;
 
 struct AppState {
     runner: Arc<AgentRunner>,
@@ -115,8 +118,46 @@ async fn process_message(
 ) -> anyhow::Result<()> {
     log::info!("Received LINE message from {}: {}", user_id, text);
 
+    let resolved_text = if text.starts_with('/') {
+        let parts: Vec<&str> = text.splitn(2, ' ').collect();
+        let command = parts[0];
+        let args = parts.get(1).copied().unwrap_or("");
+
+        let config_path = get_nami_dir().join("config.toml");
+        let registry = CommandRegistry::load_from_config(&config_path.to_string_lossy()).unwrap_or_default();
+
+        match slash_dispatcher::dispatch(SlashRequest {
+            command,
+            args,
+            registry: &registry,
+        }) {
+            SlashAction::RunPrompt(prompt) => prompt,
+            SlashAction::Reply(reply) => {
+                if let Some(token) = reply_token {
+                    let reply_request = ReplyMessageRequest {
+                        reply_token: token,
+                        messages: vec![Message::TextMessage(TextMessage {
+                            text: reply,
+                            emojis: None,
+                            quote_token: None,
+                            quick_reply: None,
+                            sender: None,
+                        })],
+                        notification_disabled: None,
+                    };
+                    state.line_client.messaging_api_client.reply_message(reply_request).await
+                        .map_err(|e| anyhow::anyhow!("Failed to reply to LINE: {:?}", e))?;
+                }
+                return Ok(());
+            }
+            SlashAction::PassThrough => text,
+        }
+    } else {
+        text
+    };
+
     // Run agent
-    let response = state.runner.run(&user_id, &user_id, &text).await?;
+    let response = state.runner.run(&user_id, &user_id, &resolved_text).await?;
 
     // Reply if token is available
     if let Some(token) = reply_token {

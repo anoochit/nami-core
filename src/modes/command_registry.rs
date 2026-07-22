@@ -10,7 +10,7 @@ pub struct Command {
     pub help: String,
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug, Default, Serialize, Deserialize, Clone)]
 pub struct CommandRegistry {
     pub commands: HashMap<String, Command>,
 }

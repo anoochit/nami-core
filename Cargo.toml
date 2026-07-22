@@ -1,6 +1,6 @@
 [package]
 name = "nami"
-version = "0.9.45"
+version = "0.9.46"
 edition = "2024"
 
 [dependencies]
@@ -71,10 +71,17 @@ incremental = true
 [profile.dev.package."*"]
 opt-level = 3
 
+# Fast release build — use `cargo build --release` for daily use
 [profile.release]
 opt-level = 3
-lto = "fat" # Performs LTO across all crates in dependency graph for maximum performance
-codegen-units = 1
-strip = "symbols" # Strips symbols and debuginfo from the binary for minimal file size
+lto = "thin"        # Thin ~= fat quality, ~0.5x the link time
+codegen-units = 16  # Parallel codegen (16-way)
+strip = "symbols"
 overflow-checks = false
+
+# Max-optimized release — use `cargo build --profile max` for shipping
+[profile.max]
+inherits = "release"
+lto = "fat"
+codegen-units = 1
 

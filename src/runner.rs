@@ -1,4 +1,5 @@
-use crate::agent::get_compaction_config;
+use crate::agent::{get_compaction_config, get_intra_compaction_config};
+use adk_rust::agent::LlmEventSummarizer;
 use futures::StreamExt;
 use std::sync::Arc;
 use tokio::time::Duration;
@@ -91,6 +92,7 @@ impl AgentRunner {
                 .await?;
         }
 
+        let model_name = self.model.name();
         let runner = Runner::builder()
             .app_name(&self.app_name)
             .agent(self.agent.clone())
@@ -98,6 +100,8 @@ impl AgentRunner {
             .memory_service(self.memory.clone())
             .artifact_service(self.artifacts.clone())
             .compaction_config(get_compaction_config(self.model.clone()))
+            .intra_compaction_config(get_intra_compaction_config(&model_name))
+            .intra_compaction_summarizer(Arc::new(LlmEventSummarizer::new(self.model.clone())))
             .build()?;
 
         let content = Content::new("user").with_text(input);

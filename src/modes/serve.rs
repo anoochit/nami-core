@@ -1,4 +1,7 @@
 use crate::agent::get_compaction_config;
+use crate::modes::command_registry::CommandRegistry;
+use crate::modes::slash_dispatcher::{self, SlashAction, SlashRequest};
+use crate::utils::get_nami_dir;
 use adk_rust::Agent;
 use adk_rust::Launcher;
 use adk_rust::Llm;
@@ -11,10 +14,11 @@ use axum::{
     middleware::{self, Next},
     response::{IntoResponse, Redirect},
     routing::get,
-    Router,
+    Json, Router,
 };
 use rust_embed::RustEmbed;
 use tower_http::cors::CorsLayer;
+use serde_json::json;
 
 #[derive(RustEmbed)]
 #[folder = "webui/dist/"]
@@ -51,6 +55,7 @@ pub async fn run_serve(
         })))
         .fallback(static_handler)
         .layer(middleware::from_fn(intercept_ui))
+        .layer(middleware::from_fn(command_middleware))
         .layer(middleware::from_fn(stats_middleware))
         .layer(cors);
 
@@ -155,6 +160,68 @@ pub async fn static_handler(uri: Uri) -> impl IntoResponse {
             } else {
                 (StatusCode::NOT_FOUND, "Not Found").into_response()
             }
+        }
+    }
+}
+
+pub async fn command_middleware(req: Request, next: Next) -> impl IntoResponse {
+    let path = req.uri().path().to_string();
+    let is_run_path = path.contains("/api/run/") || path.contains("/run_sse");
+    if !is_run_path {
+        return next.run(req).await;
+    }
+
+    let (parts, body) = req.into_parts();
+    let Ok(bytes) = axum::body::to_bytes(body, 1024 * 1024).await else {
+        return next.run(Request::from_parts(parts, Body::empty())).await;
+    };
+
+    let Ok(mut value) = serde_json::from_slice::<serde_json::Value>(&bytes) else {
+        let body = Body::from(bytes);
+        return next.run(Request::from_parts(parts, body)).await;
+    };
+
+    let text = value
+        .get("new_message")
+        .and_then(|v| v.as_str())
+        .map(|s| s.to_string());
+
+    let Some(text) = text else {
+        let body = Body::from(bytes);
+        return next.run(Request::from_parts(parts, body)).await;
+    };
+
+    if !text.starts_with('/') {
+        let body = Body::from(bytes);
+        return next.run(Request::from_parts(parts, body)).await;
+    }
+
+    let cmd_parts: Vec<&str> = text.splitn(2, ' ').collect();
+    let command = cmd_parts[0];
+    let args = cmd_parts.get(1).copied().unwrap_or("");
+
+    let config_path = get_nami_dir().join("config.toml");
+    let registry =
+        CommandRegistry::load_from_config(&config_path.to_string_lossy()).unwrap_or_default();
+
+    match slash_dispatcher::dispatch(SlashRequest {
+        command,
+        args,
+        registry: &registry,
+    }) {
+        SlashAction::RunPrompt(prompt) => {
+            if let Some(obj) = value.as_object_mut() {
+                obj.insert("new_message".to_string(), json!(prompt));
+            }
+            let new_body = Body::from(serde_json::to_vec(&value).unwrap_or(bytes.to_vec()));
+            next.run(Request::from_parts(parts, new_body)).await
+        }
+        SlashAction::Reply(reply) => {
+            (StatusCode::OK, Json(json!({ "response": reply }))).into_response()
+        }
+        SlashAction::PassThrough => {
+            let body = Body::from(bytes);
+            next.run(Request::from_parts(parts, body)).await
         }
     }
 }

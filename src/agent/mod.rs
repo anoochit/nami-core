@@ -6,6 +6,6 @@ pub mod reflection;
 pub mod specialists;
 
 pub use agent::{
-    AppConfig, ModelConfig, build_agent, get_compaction_config, load_config_sync,
-    save_config_sync, load_model_with_fallback,
+    AppConfig, ModelConfig, build_agent, get_compaction_config, get_intra_compaction_config,
+    load_config_sync, save_config_sync, load_model_with_fallback,
 };

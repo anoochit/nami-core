@@ -5,11 +5,13 @@ use regex::Regex;
 use rustyline::{Config, Editor};
 use std::io::{self, Write};
 use std::sync::Arc;
+use std::time::Instant;
 use termimad::MadSkin;
 use uuid::Uuid;
 
 // use crate::agent::agent::{check_config_mtime, create_agent, get_config_mtime, get_skills_mtime};
-use crate::agent::get_compaction_config;
+use crate::agent::{get_compaction_config, get_intra_compaction_config};
+use adk_rust::agent::LlmEventSummarizer;
 use crate::modes::command_registry::CommandRegistry;
 use crate::utils::get_nami_dir;
 
@@ -776,6 +778,37 @@ async fn run_grill_flow(
 }
 
 
+fn read_aggregate_stats() -> (usize, f64, usize, Option<String>) {
+    let stats_path = crate::utils::get_nami_dir().join("stats.json");
+    if !stats_path.exists() {
+        return (0, 0.0, 0, None);
+    }
+    let content = match std::fs::read_to_string(&stats_path) {
+        Ok(c) => c,
+        Err(_) => return (0, 0.0, 0, None),
+    };
+    let entries: Vec<serde_json::Value> = match serde_json::from_str(&content) {
+        Ok(e) => e,
+        Err(_) => return (0, 0.0, 0, None),
+    };
+    let count = entries.len();
+    let mut total_tokens: usize = 0;
+    let mut total_duration: f64 = 0.0;
+    let mut last_ts: Option<String> = None;
+    for entry in &entries {
+        if let Some(t) = entry.get("tokens_consumed").and_then(|v| v.as_u64()) {
+            total_tokens += t as usize;
+        }
+        if let Some(d) = entry.get("duration_seconds").and_then(|v| v.as_f64()) {
+            total_duration += d;
+        }
+        if let Some(ts) = entry.get("timestamp").and_then(|v| v.as_str()) {
+            last_ts = Some(ts.to_string());
+        }
+    }
+    (count, total_duration, total_tokens, last_ts)
+}
+
 pub async fn handle_slash_command(
     trimmed: &str,
     runner: &mut Runner,
@@ -793,6 +826,7 @@ pub async fn handle_slash_command(
     skill_count: &mut usize,
     last_response: &mut Option<String>,
     agent: &mut Arc<dyn Agent>,
+    session_start: &Instant,
 ) -> anyhow::Result<bool> {
     let parts: Vec<&str> = trimmed.splitn(2, ' ').collect();
     let command_name = parts[0];
@@ -811,12 +845,15 @@ pub async fn handle_slash_command(
             *mcp_count = fresh_mcp_count;
             *skill_count = fresh_skill_count;
 
+            let model_name_str = model.name();
             *runner = Runner::builder()
                 .app_name(app_name)
                 .agent(agent.clone())
                 .session_service(sessions.clone())
                 .artifact_service(artifacts.clone())
                 .compaction_config(get_compaction_config(model.clone()))
+                .intra_compaction_config(get_intra_compaction_config(&model_name_str))
+                .intra_compaction_summarizer(Arc::new(LlmEventSummarizer::new(model.clone())))
                 .build()?;
 
             println!("{} Successfully switched to {} using model {}!\n", 
@@ -938,6 +975,39 @@ pub async fn handle_slash_command(
             run_and_stream_prompt(runner, user_id, session_id, "Please retrieve and report the system status using your system_status skill.", nami_skin, provider, model_name).await?;
         }
 
+        "/stats" => {
+            let event_count = sessions
+                .get(GetRequest {
+                    app_name: app_name.to_string(),
+                    user_id: user_id.to_string(),
+                    session_id: session_id.to_string(),
+                    num_recent_events: None,
+                    after: None,
+                })
+                .await
+                .ok()
+                .map(|s| s.events().len())
+                .unwrap_or(0);
+
+            let elapsed = session_start.elapsed();
+            let workspace = std::env::current_dir()
+                .map(|p| p.to_string_lossy().to_string())
+                .unwrap_or_default();
+            let (total_sessions, _, total_tokens, last_ts) = read_aggregate_stats();
+            let last_str = last_ts.as_deref().unwrap_or("never");
+
+            println!("Session: {} | Events: {}", session_id, event_count);
+            println!("Model:   {} / {}", provider, model_name);
+            println!("Server:  {} MCP \u{b7} {} skills", mcp_count, skill_count);
+            println!("Workspace: {}", workspace);
+            println!();
+            println!("This session: ~{} est. tokens \u{b7} {:.0}s",
+                event_count.saturating_sub(1) * 50,
+                elapsed.as_secs_f64());
+            println!("All time:     {} sessions \u{b7} ~{}K tokens \u{b7} last {}",
+                total_sessions, total_tokens / 1000, last_str);
+        }
+
         _ => {
             println!("{} {}\n", style::style("Unknown command:").red(), trimmed);
         }
@@ -966,6 +1036,7 @@ pub async fn run_cli(
     let user_id = "default_user";
 
     let mut session_id = Uuid::new_v4().to_string();
+    let session_start = Instant::now();
 
     render_banner(&provider, &model_name, &session_id, mcp_count, skill_count);
 
@@ -1043,6 +1114,7 @@ pub async fn run_cli(
                         &mut skill_count,
                         &mut last_response,
                         &mut agent,
+                        &session_start,
                     )
                     .await?
                     {

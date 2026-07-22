@@ -1,4 +1,5 @@
-use crate::agent::get_compaction_config;
+use crate::agent::{get_compaction_config, get_intra_compaction_config};
+use adk_rust::agent::LlmEventSummarizer;
 use adk_rust::{Agent, Llm};
 use adk_rust::prelude::*;
 use adk_rust::runner::Runner;
@@ -20,12 +21,15 @@ pub async fn run_scheduler_loop_with_deps(
 
     ensure_session(&sessions, app_name, user_id, session_id).await?;
 
+    let model_name = model.name();
     let runner = Runner::builder()
         .app_name(app_name)
         .agent(agent)
         .session_service(sessions.clone())
         .artifact_service(artifacts)
-        .compaction_config(get_compaction_config(model))
+        .compaction_config(get_compaction_config(model.clone()))
+        .intra_compaction_config(get_intra_compaction_config(&model_name))
+        .intra_compaction_summarizer(Arc::new(LlmEventSummarizer::new(model)))
         .build()?;
 
     let mut interval = tokio::time::interval(std::time::Duration::from_secs(60));

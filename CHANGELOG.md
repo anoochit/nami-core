@@ -1,5 +1,27 @@
 # Changelog
 
+## [0.9.46] - 2026-07-22
+
+### Added
+
+- **Unified Slash Command Dispatcher**: Implemented a shared `slash_dispatcher` module (`src/modes/slash_dispatcher.rs`) used by CLI, Bot, Line, and Serve modes, replacing ad-hoc per-mode command handling. Supports `RunPrompt`, `Reply`, and `PassThrough` action types for mode-appropriate responses.
+- **CLI `/context` Command**: Added a new built-in slash command that displays live session statistics — event count, model/provider, MCP/skill count, workspace, session duration, and aggregate stats from `~/.nami/stats.json`.
+- **Intra-Invocation Token Guard**: Wired `IntraCompactionConfig` + `LlmEventSummarizer` into all Runner builder call sites (CLI, Scheduler, Direct Run, AgentRunner) to proactively compact context when estimated tokens exceed 70% of model context window, preventing token overflow without aggressive preemptive compaction.
+- **`read_aggregate_stats()` Helper**: Centralized stats aggregation from `~/.nami/stats.json` for use by `/context` and future tooling.
+
+### Changed
+
+- **Model-Aware Context Compaction**: `get_compaction_config()` now dynamically adjusts `compaction_interval` based on model context window — 6 turns for 1M+ token models (Gemini), 4 for 200K (Claude), 3 for smaller windows. `overlap_size` increased from 1 to 2 for better conversational continuity. `get_intra_compaction_config()` returns a model-aware `IntraCompactionConfig` at 70% of context window.
+- **Release Build Profile**: Switched `lto` from `"fat"` to `"thin"` and `codegen-units` from 1 to 16 for ~2-4x faster release builds. Added `[profile.max]` with `lto = "fat"` / `codegen-units = 1` for shipping builds via `cargo build --profile max`.
+- **`.cargo/config.toml`**: Created with `[build] jobs = 8` to enable parallel job execution.
+- **Skills Summary Prose Format**: Reformatted `get_global_skills_summary()` output from a bullet list to prose with explicit "do NOT call as a function" language, preventing LLMs from hallucinating skill names as callable tools.
+- **`CommandRegistry` Default Derive**: Added `Default` derive for safe fallback when config has no `[commands]` section.
+
+### Fixed
+
+- **Slash Command Coverage in Bot/Line/Serve Modes**: Bot mode had only 3 teloxide-specific commands; Line and Serve modes had none. All three now intercept `/<command>` patterns and dispatch through the shared `slash_dispatcher` module.
+- **Skill/Tool Confusion in System Instruction**: The ADK-injected `[skill:name]` syntax was being interpreted by LLMs as function calls. Strengthened rule text: "Skills are reference documents — NOT callable tools or functions. Never invoke a skill name as a tool or function."
+
 ## [0.9.45] - 2026-07-17
 
 ### Added

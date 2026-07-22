@@ -1,6 +1,7 @@
 use adk_runner::EventsCompactionConfig;
 use adk_rust::agent::LlmEventSummarizer;
 use adk_rust::prelude::*;
+use adk_rust::IntraCompactionConfig;
 use anyhow::Context;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -221,25 +222,10 @@ pub fn load_global_skills() -> anyhow::Result<SkillIndex> {
     Ok(index)
 }
 
-/// Dynamically discovers and formats a list of all available global and local skills and descriptions.
+/// Returns a generic instruction about skill guide discovery.
+/// Skill names are deliberately omitted to prevent LLMs from hallucinating them as callable functions.
 pub fn get_global_skills_summary() -> String {
-    if let Ok(skills_index) = load_global_skills() {
-        let mut summaries = Vec::new();
-        for skill in skills_index.skills() {
-            summaries.push(format!("- {}: {}", skill.name, skill.description));
-        }
-        if summaries.is_empty() {
-            String::new()
-        } else {
-            summaries.sort();
-            format!(
-                "━━━ AVAILABLE AGENT SKILLS ━━━\n{}\n\n",
-                summaries.join("\n")
-            )
-        }
-    } else {
-        String::new()
-    }
+    "Skill reference guides are available as Markdown files. When you need domain knowledge or step-by-step instructions for a task, use the filesystem tool to find and read the relevant SKILL.md file from the ~/.agents/skills/ or ~/.nami/skills/ directories.".to_string()
 }
 
 /// Counts the number of skills in global directories (~/.agents/skills/ and ~/.nami/skills/).
@@ -251,12 +237,41 @@ async fn count_skills() -> usize {
     }
 }
 
-/// Generates the compaction configuration for managing agent history events.
+fn model_context_window(model_name: &str) -> u64 {
+    let n = model_name.to_lowercase();
+    if n.contains("gemini-2.5") || n.contains("gemini-3") || n.contains("gemini-2.0") {
+        1_000_000
+    } else if n.contains("claude") {
+        200_000
+    } else if n.contains("gpt-4") || n.contains("gpt-3.5") {
+        128_000
+    } else if n.contains("deepseek") {
+        64_000
+    } else if n.contains("command") || n.contains("aya") {
+        128_000
+    } else {
+        128_000
+    }
+}
+
 pub fn get_compaction_config(model: Arc<dyn Llm>) -> EventsCompactionConfig {
+    let window = model_context_window(&model.name());
+    let interval = if window >= 500_000 { 6 } else if window >= 200_000 { 4 } else { 3 };
+    let overlap = 2;
     EventsCompactionConfig {
-        compaction_interval: 3,
-        overlap_size: 1,
+        compaction_interval: interval,
+        overlap_size: overlap,
         summarizer: Arc::new(LlmEventSummarizer::new(model)),
+    }
+}
+
+/// Generates a model-aware intra-invocation compaction config (token threshold guard).
+pub fn get_intra_compaction_config(model_name: &str) -> IntraCompactionConfig {
+    let window = model_context_window(model_name);
+    IntraCompactionConfig {
+        token_threshold: window * 70 / 100,
+        overlap_event_count: 10,
+        chars_per_token: 4,
     }
 }
 
@@ -338,9 +353,10 @@ pub async fn create_agent(
         .model(model.clone());
 
     builder = configure_agent_tools(builder, model.clone(), specialists, core_tools);
-    if let Some(skills) = global_skills {
-        builder = builder.with_skills(skills);
-    }
+    // NOTE: Skills are deliberately NOT registered with the ADK's with_skills().
+    // Doing so causes the ADK to inject [skill:name] tags into user messages at runtime,
+    // which LLMs consistently hallucinate as callable function calls.
+    // The agent discovers skill content via filesystem tools instead.
     if let Some(ref ts) = mcp_toolset {
         builder = builder.toolset(ts.clone());
     }
@@ -525,7 +541,6 @@ fn format_persona(soul: &str, user: &str, memory: &str, skills_summary: &str) ->
 {memory}
 
 — RULES —
-• [MANDATORY] Read relevant SKILL.md via file tools before acting. (Skills are instructions, not tool names.)
 • Default to English. Match user's tone and technical level.
 • Lead with direct answers. Summarize tool output; never dump verbatim unless asked.
 • Use Markdown (tables, alerts). Keep cells short.

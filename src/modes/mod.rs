@@ -11,6 +11,7 @@ pub mod api;
 pub mod run;
 pub mod serve;
 pub mod line;
+pub mod slash_dispatcher;
 pub mod startup;
 pub mod scheduler;
 pub mod eval;
