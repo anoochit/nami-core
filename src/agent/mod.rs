@@ -1,7 +1,4 @@
-//! The `agent` module orchestrates the core AI agent logic.
-//!
-//! This module includes agent construction, specialist tool management, 
-//! MCP server integration, and reflection services.
+//! Orchestrates the core AI agent logic including construction, specialists, MCP, and reflection.
 
 pub mod agent;
 pub mod mcp;

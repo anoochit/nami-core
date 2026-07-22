@@ -1,4 +1,4 @@
-use crate::utils::{get_nami_dir, get_workspace_dir};
+use crate::utils::{get_nami_dir};
 use adk_rust::Tool;
 use adk_rust::serde::Deserialize;
 use adk_rust::prelude::*;
@@ -39,7 +39,7 @@ impl Tool for ProposeEvolution {
     }
 
     fn description(&self) -> &str {
-        "Scans recent interaction logs and errors, then generates an evolutionary proposal (workspace/EVOLUTION_PLAN.md) for updating memories, agent behavior, or repairing tools."
+        "Scans recent interaction logs and errors, then generates an evolutionary proposal (~/.nami/EVOLUTION_PLAN.md) for updating memories, agent behavior, or repairing tools."
     }
 
     fn parameters_schema(&self) -> Option<Value> {
@@ -151,7 +151,7 @@ Be extremely specific and practical. Return only the markdown content, no wrappi
         Ok(json!({
             "status": "success",
             "message": "Evolution proposal generated successfully.",
-            "path": "workspace/EVOLUTION_PLAN.md",
+            "path": "~/.nami/EVOLUTION_PLAN.md",
             "preview": plan_content.chars().take(800).collect::<String>() + "..."
         }))
     }
@@ -166,7 +166,7 @@ impl Tool for ApplyEvolution {
     }
 
     fn description(&self) -> &str {
-        "Applies the approved updates proposed in workspace/EVOLUTION_PLAN.md to MEMORIES.md, AGENT.md, or skill tools, and creates a Git commit."
+        "Applies the approved updates proposed in ~/.nami/EVOLUTION_PLAN.md to MEMORIES.md, AGENT.md, or skill tools, and creates a Git commit."
     }
 
     fn parameters_schema(&self) -> Option<Value> {
@@ -180,7 +180,7 @@ impl Tool for ApplyEvolution {
 
     async fn execute(&self, _ctx: Arc<dyn adk_rust::tool::ToolContext>, args: Value) -> std::result::Result<Value, AdkError> {
         let _args: ApplyEvolutionArgs = serde_json::from_value(args).map_err(|e| AdkError::tool(e.to_string()))?;
-        let workspace_dir = get_workspace_dir().await.map_err(|e| AdkError::tool(e.to_string()))?;
+        let workspace_dir = get_nami_dir();
         let plan_path = workspace_dir.join("EVOLUTION_PLAN.md");
 
         if !plan_path.exists() {
