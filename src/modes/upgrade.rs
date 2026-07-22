@@ -1,5 +1,5 @@
 use std::env;
-use std::fs::{File, set_permissions, rename};
+use std::fs::{File, rename};
 use std::io::Write;
 use reqwest::Client;
 use inquire::Confirm;

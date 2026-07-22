@@ -266,29 +266,28 @@ pub fn get_compaction_config(model: Arc<dyn Llm>) -> EventsCompactionConfig {
 pub async fn create_agent(
     app_config: &AppConfig,
 ) -> anyhow::Result<(Arc<dyn Agent>, Arc<dyn Llm>, usize, usize)> {
-    let model = load_model(&app_config.model).await?;
-    let context = load_persona_context().await?;
-
-    // Load image generation model
-    let image_model = if let Some(ref image_cfg) = app_config.image_generation {
-        Some(load_model_with_fallback(&Some(image_cfg.clone()), &app_config.model).await?)
-    } else {
-        None
-    };
-
-    // Load audio generation model
-    let audio_model = if let Some(ref audio_cfg) = app_config.audio_generation {
-        Some(load_model_with_fallback(&Some(audio_cfg.clone()), &app_config.model).await?)
-    } else {
-        None
-    };
-
-    // Load video generation model
-    let video_model = if let Some(ref video_cfg) = app_config.video_generation {
-        Some(load_model_with_fallback(&Some(video_cfg.clone()), &app_config.model).await?)
-    } else {
-        None
-    };
+    let (
+        model,
+        (soul, user, memory),
+        image_model,
+        audio_model,
+        video_model,
+        specialist_models,
+        (mcp_toolset, mcp_count),
+    ) = tokio::try_join!(
+        load_model(&app_config.model),
+        load_persona_context(),
+        load_optional_model(&app_config.image_generation, &app_config.model),
+        load_optional_model(&app_config.audio_generation, &app_config.model),
+        load_optional_model(&app_config.video_generation, &app_config.model),
+        async {
+            match &app_config.specialists {
+                Some(specs) => specs.load_all_models(&app_config.model).await,
+                None => Ok(HashMap::new()),
+            }
+        },
+        mcp::build_mcp_toolset(),
+    )?;
 
     let shell_config = app_config
         .tools
@@ -306,7 +305,6 @@ pub async fn create_agent(
         .as_ref()
         .and_then(|t| t.enabled_categories.clone());
 
-    // Generate core tools modularly
     let core_tools = tools::create_core_tools(tools::ToolFactoryConfig {
         model: model.clone(),
         model_name: app_config.model.model_name.clone(),
@@ -317,15 +315,7 @@ pub async fn create_agent(
         enabled_categories,
     });
 
-    // Load specialist models elegantly using helper
-    let mut specialist_models = HashMap::new();
-    if let Some(ref specs) = app_config.specialists {
-        specialist_models = specs.load_all_models(&app_config.model).await?;
-    }
-
-    let (mcp_toolset, mcp_count) = mcp::build_mcp_toolset().await?;
     let global_skills = load_global_skills().ok();
-
     let custom_specs = app_config.specialists.as_ref().and_then(|s| s.custom.clone());
 
     let specialists =
@@ -343,7 +333,7 @@ pub async fn create_agent(
     let mut builder = LlmAgentBuilder::new("nami")
         .description("A helpful and playful AI assistant")
         .instruction(format_persona(
-            &context.0, &context.1, &context.2, &skills_summary,
+            &soul, &user, &memory, &skills_summary,
         ))
         .model(model.clone());
 
@@ -459,6 +449,14 @@ pub async fn load_model_with_fallback(
 ) -> anyhow::Result<Arc<dyn Llm>> {
     match specific {
         Some(config) => {
+            if config.provider.is_some()
+                && config.api_key_env.is_some()
+                && config.base_url.is_some()
+                && config.project_id.is_some()
+                && config.location.is_some()
+            {
+                return load_model(config).await;
+            }
             let mut effective_config = config.clone();
             if effective_config.provider.is_none() {
                 effective_config.provider = default.provider.clone();
@@ -481,20 +479,30 @@ pub async fn load_model_with_fallback(
     }
 }
 
+async fn load_optional_model(
+    cfg: &Option<ModelConfig>,
+    default: &ModelConfig,
+) -> anyhow::Result<Option<Arc<dyn Llm>>> {
+    match cfg {
+        Some(c) => Ok(Some(load_model_with_fallback(&Some(c.clone()), default).await?)),
+        None => Ok(None),
+    }
+}
+
 async fn load_persona_context() -> anyhow::Result<(String, String, String)> {
     let nami_dir = get_nami_dir();
 
-    let agent_md = tokio::fs::read_to_string(nami_dir.join("AGENT.md"))
-        .await
-        .unwrap_or_else(|_| "Standard Assistant".to_string());
-    let user_md = tokio::fs::read_to_string(nami_dir.join("USER.md"))
-        .await
-        .unwrap_or_else(|_| "Developer".to_string());
-    let memories_md = tokio::fs::read_to_string(nami_dir.join("MEMORIES.md"))
-        .await
-        .unwrap_or_else(|_| "No previous memories.".to_string());
+    let (agent_md, user_md, memories_md) = tokio::join!(
+        tokio::fs::read_to_string(nami_dir.join("AGENT.md")),
+        tokio::fs::read_to_string(nami_dir.join("USER.md")),
+        tokio::fs::read_to_string(nami_dir.join("MEMORIES.md")),
+    );
 
-    Ok((agent_md, user_md, memories_md))
+    Ok((
+        agent_md.unwrap_or_else(|_| "Standard Assistant".to_string()),
+        user_md.unwrap_or_else(|_| "Developer".to_string()),
+        memories_md.unwrap_or_else(|_| "No previous memories.".to_string()),
+    ))
 }
 
 /// Formats the system instruction string based on the provided persona context.
@@ -502,38 +510,33 @@ async fn load_persona_context() -> anyhow::Result<(String, String, String)> {
 /// This instruction defines the agent's behavior, output format, and operational priorities.
 fn format_persona(soul: &str, user: &str, memory: &str, skills_summary: &str) -> String {
     format!(
-        r#"You are Nami, a highly efficient, focused execution assistant. Drive tasks to completion with minimal friction and maximum clarity.
+        r#"You are Nami — a focused execution assistant. Drive tasks to completion with minimal friction.
 
-━━━ IDENTITY & SOUL ━━━
+— IDENTITY —
 {soul}
 
-━━━ USER PROFILE ━━━
+— USER —
 {user}
 
-━━━ SKILLS SUMMARY ━━━
+— SKILLS —
 {skills_summary}
 
-━━━ CONTEXT & MEMORIES ━━━
+— MEMORY —
 {memory}
 
-━━━ OPERATIONAL GUIDELINES ━━━
-• [MANDATORY] Skills Priority: If a relevant Skill exists, you MUST load, view, and follow its instructions BEFORE calling tools. (Skills are instructions, NOT executable tools; do NOT call skill names directly).
-• Language & Tone: Default to English. Match the user's technical depth, language, and conversational tone.
-• High-Signal Communication: Avoid conversational filler. Lead with direct answers. Do not repeat verbose tool outputs or full files unless requested; summarize, highlight changes, and explain significance.
-• Premium Formatting: Use structured Markdown, alerts, and tables. Keep lists and table cells extremely concise to prevent browser line-wrapping.
-• Interactive Alignment: If a task or design choice is ambiguous, do not guess. Offer clear, numbered options or multiple-choice questions to resolve decisions.
-• Codebase Integrity: Keep existing comments, docstrings, and unrelated code completely intact. Show proposed edits clearly.
-• Accuracy & Trust: No fabrication. Never expose internal secrets. Flag uncertainty or errors immediately.
+— RULES —
+• [MANDATORY] Read relevant SKILL.md via file tools before acting. (Skills are instructions, not tool names.)
+• Default to English. Match user's tone and technical level.
+• Lead with direct answers. Summarize tool output; never dump verbatim unless asked.
+• Use Markdown (tables, alerts). Keep cells short.
+• Ask numbered questions when ambiguous.
+• Preserve existing code intact.
+• No fabrication. Flag uncertainty.
+• If unknown, ask user — do not search project files unsolicited.
+• External search = last resort. Disclose its use.
 
-━━━ TOOL STRATEGY ━━━
-1. Skills: Read the `SKILL.md` using file tools first. Never call a skill name as a tool.
-2. System Tools: Invoke core capabilities only after checking available skills.
-3. Knowledge/Wiki: If a query is not found, stop and ask the user before searching project files.
-4. External Search: Use as a last resort; explicitly state when used.
-5. Sequential Execution: Call exactly ONE tool/function at a time. Always await the result before deciding on the next tool call. No parallel tool execution.
-
-━━━ OBJECTIVE ━━━
-Minimize friction ━━▶ Maximize execution velocity"#,
+— GOAL —
+Minimize friction → Maximize velocity"#,
         soul = soul.trim(),
         user = user.trim(),
         skills_summary = skills_summary,
@@ -548,6 +551,7 @@ fn configure_agent_tools(
     specialists: std::collections::HashMap<String, Arc<dyn Tool>>,
     mut tools: Vec<Arc<dyn Tool>>,
 ) -> LlmAgentBuilder {
+    tools.reserve(tools.len() + 3);
     tools.extend(tools::parallel_tasks::parallel_tasks_tool(
         specialists.clone(),
     ));

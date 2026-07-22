@@ -5,7 +5,6 @@ sessions.db
 memory.db
 .cli*
 workspace/*
-!/ref
 .idea/
 idea/*
 note/*

@@ -266,54 +266,11 @@ location = ""
         provider_selection.to_string()
     };
 
-    let models = match provider.as_str() {
-        "anthropic" => vec![
-            "claude-opus-4-6",
-            "claude-sonnet-4-6",
-            "claude-haiku-4-5-20251001",
-            "claude-opus-4-5-20251101",
-            "claude-sonnet-4-5-20250929",
-            "custom",
-        ],
-        "gemini" => vec![
-            "gemini-pro-latest",
-            "gemini-flash-latest",
-            "gemini-3.1-pro-preview",
-            "gemini-3-flash-preview",
-            "gemini-2.5-pro",
-            "gemini-2.5-flash",
-            "custom",
-        ],
-        "vertex" => vec![
-            "gemini-3.1-pro-preview",
-            "gemini-3-flash-preview",
-            "gemini-2.5-pro",
-            "gemini-2.5-flash",
-            "custom",
-        ],
-        "ollama" => vec!["deepseek-r1:1.5b", "custom"],
-        "openai" => vec!["gpt-5", "gpt-4.1", "custom"],
-        "openrouter" => vec![
-            "anthropic/claude-3.5-sonnet",
-            "tencent/hy3-preview:free",
-            "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free",
-            "nvidia/nemotron-3-super-120b-a12b:free",
-            "openrouter/free",
-            "custom",
-        ],
-        "thaillm" => vec![
-            "openthaigpt-thaillm-8b-instruct-v7.2",
-            "pathumma-thaillm-qwen3-8b-think-3.0.0",
-            "typhoon-s-thaillm-8b-instruct",
-            "thalle-0.2-thaillm-8b-fa",
-            "custom",
-        ],
-        _ => vec!["custom"],
-    };
+    let models = crate::utils::fetch_models_for_provider(&provider).await;
 
-    let starting_model_index = models.iter().position(|&m| m == default_model_name).unwrap_or_else(|| {
-        if models.contains(&"custom") {
-            models.iter().position(|&m| m == "custom").unwrap_or(0)
+    let starting_model_index = models.iter().position(|m| *m == default_model_name).unwrap_or_else(|| {
+        if models.iter().any(|m| m == "custom") {
+            models.iter().position(|m| m == "custom").unwrap_or(0)
         } else {
             0
         }

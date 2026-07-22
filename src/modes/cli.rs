@@ -1097,14 +1097,7 @@ async fn run_switch_flow() -> anyhow::Result<Option<(String, String)>> {
     let providers = vec!["gemini", "openai", "anthropic", "ollama", "openrouter"];
     let selected_provider = Select::new("Choose LLM Provider:", providers).prompt()?;
 
-    let standard_models = match selected_provider {
-        "gemini" => vec!["gemini-2.5-flash", "gemini-2.5-pro", "gemini-1.5-flash", "gemini-1.5-pro", "custom"],
-        "openai" => vec!["gpt-4o", "gpt-4o-mini", "o1-mini", "o1-preview", "custom"],
-        "anthropic" => vec!["claude-3-5-sonnet-latest", "claude-3-5-haiku-latest", "claude-3-opus-latest", "custom"],
-        "ollama" => vec!["llama3", "mistral", "phi3", "custom"],
-        "openrouter" => vec!["meta-llama/llama-3-70b-instruct", "mistralai/mistral-7b-instruct", "custom"],
-        _ => vec!["custom"],
-    };
+    let standard_models = crate::utils::fetch_models_for_provider(selected_provider).await;
 
     let model_choice = Select::new(&format!("Choose model for {}:", selected_provider), standard_models).prompt()?;
 
