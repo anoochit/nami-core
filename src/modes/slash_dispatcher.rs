@@ -1,5 +1,22 @@
 use crate::modes::command_registry::CommandRegistry;
 
+pub const PLAN_EXECUTE_PROMPT: &str = "\
+Create a detailed step-by-step implementation plan for the following task. \
+The plan must outline: \
+1. Goals & Requirements, 2. Design Decisions & Architecture, \
+3. Success Criteria & Verification Steps, \
+and 4. A sequential task list with concrete steps under a section \
+'## Implementation Steps' (3-6 Steps) where each step is a checkbox list item \
+of the exact format:\n\
+'- [ ] Step N: <detailed task explanation>'\n\
+For example:\n\
+'- [ ] Step 1: Create the main function'\n\
+'- [ ] Step 2: Implement error handling'\n\n\
+Save the compiled plan to the workspace or `~/.nami/plans/` directory \
+(e.g., as `plan_[date-time].md`) as a user-facing artifact, \
+and present it clearly to the user for feedback and approval \
+before executing any code. Task: ";
+
 pub struct SlashRequest<'a> {
     pub command: &'a str,
     pub args: &'a str,
@@ -25,24 +42,7 @@ pub fn dispatch(req: SlashRequest) -> SlashAction {
             if args.is_empty() {
                 return SlashAction::Reply("Usage: /plan <task description>".to_string());
             }
-            let prompt = format!(
-                "Create a detailed step-by-step implementation plan for the following task. \
-                 The plan must outline: \
-                 1. Goals & Requirements, 2. Design Decisions & Architecture, \
-                 3. Success Criteria & Verification Steps, \
-                 and 4. A sequential task list with concrete steps under a section \
-                 '## Implementation Steps' (3-6 Steps) where each step is a checkbox list item \
-                 of the exact format:\n\
-                 '- [ ] Step N: <detailed task explanation>'\n\
-                 For example:\n\
-                 '- [ ] Step 1: Create the main function'\n\
-                 '- [ ] Step 2: Implement error handling'\n\n\
-                 Save the compiled plan to the workspace or `~/.nami/plans/` directory \
-                 (e.g., as `plan_[date-time].md`) as a user-facing artifact, \
-                 and present it clearly to the user for feedback and approval \
-                 before executing any code. Task: {}",
-                args
-            );
+            let prompt = format!("{PLAN_EXECUTE_PROMPT}{}", args);
             SlashAction::RunPrompt(prompt)
         }
         "/status" => {
@@ -64,12 +64,15 @@ pub fn dispatch(req: SlashRequest) -> SlashAction {
 pub fn get_help(registry: &CommandRegistry) -> String {
     let mut help = String::new();
     help.push_str("Available Commands\n\n");
-    help.push_str("- /help: Show this help\n");
+    help.push_str("- /?, /help: Show this help\n");
     help.push_str("- /clear: Clear session\n");
     help.push_str("- /new: New session\n");
+    help.push_str("- /copy: Copy last response to clipboard\n");
     help.push_str("- /status: Agent status\n");
     help.push_str("- /version: CLI version\n");
+    help.push_str("- /switch: Switch LLM model and provider dynamically\n");
     help.push_str("- /plan: Create a structured execution/implementation plan\n");
+    help.push_str("- /exit: Quit\n");
 
     if !registry.commands.is_empty() {
         help.push_str("\nCustom Commands\n\n");
@@ -80,6 +83,6 @@ pub fn get_help(registry: &CommandRegistry) -> String {
         }
     }
 
-    help.push_str("\nExamples:\n  /plan Build AI research system\n");
+    help.push_str("\nExamples:\n  /plan Build AI research system\n  /wiki Rust async traits\n  /memo User prefers concise output\n");
     help
 }

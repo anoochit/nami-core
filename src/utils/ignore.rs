@@ -1,4 +1,4 @@
-use crate::utils::get_workspace_dir;
+use crate::utils::paths::get_workspace_dir;
 use globset::{Glob, GlobSet, GlobSetBuilder};
 use std::path::Path;
 use tokio::fs;

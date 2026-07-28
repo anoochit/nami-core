@@ -3,8 +3,9 @@ use adk_rust::agent::LlmEventSummarizer;
 use adk_rust::{Agent, Llm};
 use adk_rust::prelude::*;
 use adk_rust::runner::Runner;
-use adk_session::{CreateRequest, GetRequest, SessionService};
+use adk_session::SessionService;
 use crate::tools::scheduler::{load_schedule, save_schedule};
+use crate::utils::session;
 use chrono::Utc;
 use futures::StreamExt;
 use std::sync::Arc;
@@ -19,7 +20,7 @@ pub async fn run_scheduler_loop_with_deps(
     let user_id = "system";
     let session_id = "background_tasks";
 
-    ensure_session(&sessions, app_name, user_id, session_id).await?;
+    session::ensure_session(&sessions, app_name, user_id, session_id).await?;
 
     let model_name = model.name();
     let runner = Runner::builder()
@@ -86,33 +87,4 @@ pub async fn run_scheduler_loop_with_deps(
             let _ = save_schedule(&tasks).await;
         }
     }
-}
-
-async fn ensure_session(
-    sessions: &Arc<dyn SessionService>,
-    app_name: &str,
-    user_id: &str,
-    session_id: &str,
-) -> anyhow::Result<()> {
-    if sessions
-        .get(GetRequest {
-            app_name: app_name.to_string(),
-            user_id: user_id.to_string(),
-            session_id: session_id.to_string(),
-            after: None,
-            num_recent_events: None,
-        })
-        .await
-        .is_err()
-    {
-        sessions
-            .create(CreateRequest {
-                app_name: app_name.to_string(),
-                user_id: user_id.to_string(),
-                session_id: Some(session_id.to_string()),
-                state: std::collections::HashMap::new(),
-            })
-            .await?;
-    }
-    Ok(())
 }

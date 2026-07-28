@@ -16,4 +16,5 @@ pub mod startup;
 pub mod scheduler;
 pub mod eval;
 pub mod upgrade;
-pub mod commands;
+pub mod grill;
+pub mod switch;

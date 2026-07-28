@@ -9,43 +9,17 @@ use std::time::Instant;
 use termimad::MadSkin;
 use uuid::Uuid;
 
-// use crate::agent::agent::{check_config_mtime, create_agent, get_config_mtime, get_skills_mtime};
 use crate::agent::{get_compaction_config, get_intra_compaction_config};
 use adk_rust::agent::LlmEventSummarizer;
 use crate::modes::command_registry::CommandRegistry;
-use crate::utils::get_nami_dir;
+use crate::modes::{grill, slash_dispatcher, switch};
+use crate::utils::{get_nami_dir, session};
 
 use adk_rust::Agent;
 use adk_rust::prelude::*;
-use adk_session::{CreateRequest, GetRequest, SessionService};
+use adk_session::{GetRequest, SessionService};
 
 use crate::modes::cli_helper::{NamiHelper, check_cancellation_event, CancellationType};
-
-pub fn render_help(registry: &CommandRegistry) -> String {
-    let mut help = String::new();
-    help.push_str("Available Commands\n\n");
-    
-    // Render static commands
-    help.push_str("- /clear: Clear screen\n");
-    help.push_str("- /new: New session\n");
-    help.push_str("- /copy: Copy last response to clipboard!\n");
-    help.push_str("- /status: Agent status\n");
-    help.push_str("- /version: CLI version\n");
-    help.push_str("- /switch: Switch LLM model and provider dynamically\n");
-    help.push_str("- /plan: Create a structured execution/implementation plan\n");
-    help.push_str("- /exit: Quit\n");
-
-    // Render dynamic commands from registry
-    help.push_str("\nCustom Commands\n\n");
-    let mut commands: Vec<_> = registry.commands.iter().collect();
-    commands.sort_by(|a, b| a.0.cmp(b.0));
-    for (name, cmd) in commands {
-        help.push_str(&format!("- {}: {}\n", name, cmd.help));
-    }
-
-    help.push_str("\nExamples:\n  /plan Build AI research system\n  /wiki Rust async traits\n  /memo User prefers concise output\n");
-    help
-}
 
 async fn process_file_references(input: &str) -> String {
     let mut final_prompt = input.to_string();
@@ -108,54 +82,6 @@ async fn process_file_references(input: &str) -> String {
 fn format_error(e: impl std::fmt::Display) -> String {
     let clean_msg = crate::utils::clean_error_message(e);
     format!("\n\n> ❌ Error\n> \n> {}\n\n", clean_msg)
-}
-
-#[allow(dead_code)]
-fn highlight_json(json: &str) -> String {
-    let mut result = Vec::new();
-    let re_key_val = Regex::new(r#"^(\s*)"([^"]+)"(\s*:\s*)(.*)$"#).unwrap();
-    let re_str_val = Regex::new(r#"^"([^"]*)"(.*)$"#).unwrap();
-    let re_num_bool_null = Regex::new(r#"^(true|false|null|-?\d+(?:\.\d+)?)(.*)$"#).unwrap();
-
-    for line in json.lines() {
-        let formatted_line = if let Some(caps) = re_key_val.captures(line) {
-            let indent = &caps[1];
-            let key = &caps[2];
-            let colon = &caps[3];
-            let val = &caps[4];
-            
-            let styled_key = style::style(format!("\"{}\"", key)).with(style::Color::Rgb { r: 0, g: 240, b: 255 }).bold();
-            let styled_colon = style::style(colon).dim();
-            
-            let mut styled_val = val.to_string();
-            if val.starts_with('"') {
-                if let Some(val_caps) = re_str_val.captures(val) {
-                    let str_content = &val_caps[1];
-                    let suffix = &val_caps[2];
-                    styled_val = format!("{}{}", style::style(format!("\"{}\"", str_content)).with(style::Color::Rgb { r: 255, g: 0, b: 128 }), style::style(suffix).dim());
-                }
-            } else if val == "{" || val == "[" || val == "}," || val == "]," || val == "}" || val == "]" {
-                styled_val = style::style(val).white().bold().to_string();
-            } else {
-                if let Some(num_caps) = re_num_bool_null.captures(val) {
-                    let num_val = &num_caps[1];
-                    let suffix = &num_caps[2];
-                    let color_val = match num_val {
-                        "true" | "false" => style::style(num_val).with(style::Color::Rgb { r: 180, g: 100, b: 255 }),
-                        "null" => style::style(num_val).dark_grey(),
-                        _ => style::style(num_val).with(style::Color::Rgb { r: 100, g: 255, b: 100 }), // green numbers
-                    };
-                    styled_val = format!("{}{}", color_val, style::style(suffix).dim());
-                }
-            }
-            
-            format!("{}{}{}{}", indent, styled_key, styled_colon, styled_val)
-        } else {
-            style::style(line).white().bold().to_string()
-        };
-        result.push(formatted_line);
-    }
-    result.join("\n")
 }
 
 fn print_tool_call(name: &str, args: &str) -> io::Result<()> {
@@ -241,7 +167,10 @@ pub async fn run_and_stream_prompt(
 ) -> anyhow::Result<String> {
     // Trigger Gemini context cache invalidation handler if using a Gemini model
     if model_name.to_lowercase().contains("gemini") {
-        let _ = crate::utils::gemini_cache::get_or_create_context_cache(model_name).await;
+        let model_name = model_name.to_string();
+        tokio::spawn(async move {
+            let _ = crate::utils::gemini_cache::get_or_create_context_cache(&model_name).await;
+        });
     }
 
     print_status_line(
@@ -489,38 +418,6 @@ fn render_banner(provider: &str, model_name: &str, session_id: &str, mcp_count: 
     println!("Use {} for file references.\n", style::style("@file").with(cyan).bold());
 }
 
-pub async fn ensure_session(
-    sessions: &Arc<dyn SessionService>,
-    app_name: &str,
-    user_id: &str,
-    session_id: &str,
-) -> anyhow::Result<()> {
-    if sessions
-        .get(GetRequest {
-            app_name: app_name.to_string(),
-            user_id: user_id.to_string(),
-            session_id: session_id.to_string(),
-            num_recent_events: Some(0),
-            after: None,
-        })
-        .await
-        .is_ok()
-    {
-        return Ok(());
-    }
-
-    sessions
-        .create(CreateRequest {
-            app_name: app_name.to_string(),
-            user_id: user_id.to_string(),
-            session_id: Some(session_id.to_string()),
-            state: Default::default(),
-        })
-        .await?;
-
-    Ok(())
-}
-
 fn clear_current_line(stdout: &mut io::Stdout) -> io::Result<()> {
     queue!(
         stdout,
@@ -549,233 +446,11 @@ fn print_status_line(stdout: &mut io::Stdout, text: &str) -> io::Result<()> {
 }
 
 
-async fn execute_silent_prompt(
-    runner: &mut Runner,
-    user_id: &str,
-    session_id: &str,
-    prompt: &str,
-) -> anyhow::Result<String> {
-    let content = Content::new("user").with_text(prompt);
-    let mut stream = runner.run_str(user_id, session_id, content).await?;
-    let mut response = String::new();
-    while let Some(result) = stream.next().await {
-        let event = result?;
-        if let Some(content) = &event.llm_response.content {
-            for part in &content.parts {
-                if let Some(text) = part.text() {
-                    response.push_str(text);
-                }
-            }
-        }
-    }
-    Ok(response)
-}
 
-fn parse_plan_steps(plan: &str) -> Vec<String> {
-    let mut steps = Vec::new();
-    let mut in_steps_section = false;
 
-    for line in plan.lines() {
-        let trimmed = line.trim();
-        
-        if trimmed.starts_with('#') && (trimmed.to_lowercase().contains("step") || trimmed.to_lowercase().contains("plan")) {
-            in_steps_section = true;
-            continue;
-        }
 
-        if in_steps_section {
-            if trimmed.starts_with('-') || trimmed.starts_with('*') || (trimmed.chars().next().map_or(false, |c| c.is_digit(10)) && trimmed.contains('.')) {
-                let cleaned = trimmed
-                    .trim_start_matches(|c: char| c == '-' || c == '*' || c == ' ' || c == '[' || c == ']' || c == 'x' || c == 'X' || c.is_digit(10) || c == '.')
-                    .trim()
-                    .to_string();
-                
-                if !cleaned.is_empty() && cleaned.to_lowercase().contains("step") {
-                    let mut step_desc = cleaned;
-                    if let Some(colon_idx) = step_desc.find(':') {
-                        let potential_step = &step_desc[..colon_idx].to_lowercase();
-                        if potential_step.contains("step") {
-                            step_desc = step_desc[colon_idx + 1..].trim().to_string();
-                        }
-                    } else if let Some(dash_idx) = step_desc.find('-') {
-                        let potential_step = &step_desc[..dash_idx].to_lowercase();
-                        if potential_step.contains("step") {
-                            step_desc = step_desc[dash_idx + 1..].trim().to_string();
-                        }
-                    }
-                    if !step_desc.is_empty() {
-                        steps.push(step_desc);
-                    }
-                } else if !cleaned.is_empty() {
-                    steps.push(cleaned);
-                }
-            }
-        }
-    }
 
-    if steps.is_empty() {
-        for line in plan.lines() {
-            let trimmed = line.trim();
-            if trimmed.starts_with('-') || trimmed.starts_with('*') {
-                let cleaned = trimmed.trim_start_matches(|c| c == '-' || c == '*' || c == ' ' || c == '[' || c == ']').trim().to_string();
-                if cleaned.to_lowercase().contains("step") {
-                    if let Some(colon_idx) = cleaned.find(':') {
-                        steps.push(cleaned[colon_idx + 1..].trim().to_string());
-                    } else {
-                        steps.push(cleaned);
-                    }
-                }
-            }
-        }
-    }
 
-    steps
-}
-
-async fn run_grill_flow(
-    args: &str,
-    runner: &mut Runner,
-    user_id: &str,
-    session_id: &str,
-    nami_skin: &MadSkin,
-    provider: &str,
-    model_name: &str,
-    last_response: &mut Option<String>,
-) -> anyhow::Result<()> {
-    if args.trim().is_empty() {
-        println!("{} Please provide a goal or topic. Usage: /grill <your goal>\n", style::style("⚠️").yellow());
-        return Ok(());
-    }
-
-    let generate_questions_prompt = format!(
-        "The user wants to plan the following goal: '{}'. \
-         Please generate 3 to 5 highly precise, concise clarification questions to help design this plan. \
-         Format your response ONLY as a plain list of questions, one per line, with each line starting with 'Q: ' and nothing else.",
-         args
-    );
-
-    println!("\n{} Analyzing goal and generating clarification questions...", style::style("🧠").magenta().bold());
-    let questions_resp = execute_silent_prompt(runner, user_id, session_id, &generate_questions_prompt).await?;
-    
-    let mut questions = Vec::new();
-    for line in questions_resp.lines() {
-        let trimmed = line.trim();
-        if trimmed.starts_with("Q:") {
-            let q = trimmed["Q:".len()..].trim().to_string();
-            if !q.is_empty() {
-                questions.push(q);
-            }
-        } else if trimmed.starts_with("Q: ") {
-            let q = trimmed["Q: ".len()..].trim().to_string();
-            if !q.is_empty() {
-                questions.push(q);
-            }
-        }
-    }
-
-    if questions.is_empty() {
-        for line in questions_resp.lines() {
-            let trimmed = line.trim();
-            if !trimmed.is_empty() && (trimmed.ends_with('?') || trimmed.starts_with('-') || trimmed.starts_with('*')) {
-                let q = trimmed.trim_start_matches(|c: char| c == '-' || c == '*' || c == ' ' || c.is_digit(10) || c == '.').trim().to_string();
-                if !q.is_empty() {
-                    questions.push(q);
-                }
-            }
-        }
-    }
-
-    if questions.is_empty() {
-        questions.push("Can you describe any specific requirements or preferences for this plan?".to_string());
-    }
-
-    let mut answers = Vec::new();
-    for (i, q) in questions.iter().enumerate() {
-        println!("\n{} {}/{} > {}", style::style("❓").magenta().bold(), i + 1, questions.len(), style::style(q).bold());
-        print!("Your Answer > ");
-        io::stdout().flush()?;
-        let mut answer = String::new();
-        io::stdin().read_line(&mut answer)?;
-        let trimmed_answer = answer.trim().to_string();
-        answers.push(format!("Q: {}\nA: {}", q, trimmed_answer));
-    }
-
-    println!("\n{} Synthesizing implementation plan...", style::style("⚙️").cyan().bold());
-    let qa_context = answers.join("\n\n");
-    let plan_prompt = format!(
-        "Based on the user's goal: '{}' and their answers to the clarification questions:\n\n{}\n\n\
-         Please synthesize a highly precise, step-by-step implementation plan. \
-         The plan MUST be formatted as a Markdown document. \
-         It MUST contain a section '## Implementation Steps' (3-6 Steps) where each step is a checkbox list item of the exact format:\
-         '- [ ] Step N: <detailed task explanation>'\n\
-         For example:\
-         '- [ ] Step 1: Create the main function'\n\
-         '- [ ] Step 2: Implement error handling'\n\n\
-         Keep the steps concrete and actionable so they can be parsed and executed programmatically.",
-        args, qa_context
-    );
-
-    let plan_content = run_and_stream_prompt(runner, user_id, session_id, &plan_prompt, nami_skin, provider, model_name).await?;
-
-    let nami_dir = crate::utils::get_nami_dir();
-    let plans_dir = nami_dir.join("plans");
-    let _ = std::fs::create_dir_all(&plans_dir);
-    let timestamp = chrono::Local::now().format("%Y%m%d_%H%M%S").to_string();
-    let plan_filename = format!("plan_{}.md", timestamp);
-    let plan_path = plans_dir.join(&plan_filename);
-    let _ = std::fs::write(&plan_path, &plan_content);
-
-    println!("{} Plan saved to {}", style::style("💾").green(), style::style(plan_path.to_string_lossy()).underlined());
-
-    let steps = parse_plan_steps(&plan_content);
-    if steps.is_empty() {
-        println!("{} No executable steps could be parsed from the plan.\n", style::style("⚠️").yellow());
-        return Ok(());
-    }
-
-    println!("\n{} Parsed {} steps for execution.", style::style("📋").cyan().bold(), steps.len());
-    for (i, step) in steps.iter().enumerate() {
-        println!("  {}. {}", i + 1, step);
-    }
-
-    print!("\n{} Do you want to execute this plan? (y/n) > ", style::style("🤔").yellow().bold());
-    io::stdout().flush()?;
-    let mut confirm = String::new();
-    io::stdin().read_line(&mut confirm)?;
-    if confirm.trim().to_lowercase() != "y" && confirm.trim().to_lowercase() != "yes" {
-        println!("{} Plan execution cancelled.\n", style::style("❌").red());
-        return Ok(());
-    }
-
-    println!("\n{} Starting execution of plan steps...", style::style("🚀").green().bold());
-    for (i, step) in steps.iter().enumerate() {
-        let header = format!("🚀 Executing Step {} of {}: {}", i + 1, steps.len(), step);
-        println!("\n{}", style::style(&header).green().bold());
-        println!("{}", style::style("─".repeat(header.chars().count())).green().dim());
-        
-        let step_prompt = if let Some(prev_resp) = last_response.as_deref() {
-            format!(
-                "Previous step output / state handoff:\n{}\n\n\
-                 Please execute the following subsequent step of our plan, building directly upon the state / results of the previous step.\n\
-                 Step {} of {}: {}",
-                prev_resp, i + 1, steps.len(), step
-            )
-        } else {
-            format!(
-                "Execute the following step of our plan.\n\
-                 Step {} of {}: {}",
-                i + 1, steps.len(), step
-            )
-        };
-
-        let resp = run_and_stream_prompt(runner, user_id, session_id, &step_prompt, nami_skin, provider, model_name).await?;
-        *last_response = Some(resp);
-    }
-
-    println!("\n{} All {} steps of the plan have been successfully executed! 🎉\n", style::style("✅").green().bold(), steps.len());
-
-    Ok(())
-}
 
 
 fn read_aggregate_stats() -> (usize, f64, usize, Option<String>) {
@@ -833,7 +508,7 @@ pub async fn handle_slash_command(
     let args = parts.get(1).unwrap_or(&"");
 
     if command_name == "/switch" {
-        if let Some((new_prov, new_model)) = run_switch_flow().await? {
+        if let Some((new_prov, new_model)) = switch::run_switch_flow().await? {
             *provider = new_prov;
             *model_name = new_model;
 
@@ -866,7 +541,7 @@ pub async fn handle_slash_command(
     }
 
     if command_name == "/grill" {
-        run_grill_flow(
+        grill::run_grill_flow(
             args,
             runner,
             user_id,
@@ -880,18 +555,7 @@ pub async fn handle_slash_command(
     }
 
     if command_name == "/plan" {
-        let prompt = format!(
-            "Create a detailed step-by-step implementation plan for the following task. The plan must outline: \
-             1. Goals & Requirements, 2. Design Decisions & Architecture, 3. Success Criteria & Verification Steps, \
-             and 4. A sequential task list with concrete steps under a section '## Implementation Steps' (3-6 Steps) where each step is a checkbox list item of the exact format:\n\
-             '- [ ] Step N: <detailed task explanation>'\n\
-             For example:\n\
-             '- [ ] Step 1: Create the main function'\n\
-             '- [ ] Step 2: Implement error handling'\n\n\
-             Save the compiled plan to the workspace or `~/.nami/plans/` directory (e.g., as `plan_[date-time].md`) as a user-facing artifact, \
-             and present it clearly to the user for feedback and approval before executing any code. Task: {}",
-            args
-        );
+        let prompt = format!("{}{}", slash_dispatcher::PLAN_EXECUTE_PROMPT, args);
         let resp = run_and_stream_prompt(runner, user_id, session_id, &prompt, nami_skin, provider, model_name).await?;
         *last_response = Some(resp);
         return Ok(false);
@@ -927,7 +591,7 @@ pub async fn handle_slash_command(
     // Fallback to static commands
     match trimmed {
         "/?" => {
-            println!("{}", render_help(registry));
+            println!("{}", slash_dispatcher::get_help(registry));
         }
 
         "/exit" | "/quit" => {
@@ -946,7 +610,7 @@ pub async fn handle_slash_command(
 
         "/new" => {
             let session_id_new = Uuid::new_v4().to_string();
-            ensure_session(sessions, app_name, user_id, &session_id_new).await?;
+            session::ensure_session(sessions, app_name, user_id, &session_id_new).await?;
 
             execute!(
                 io::stdout(),
@@ -1040,7 +704,7 @@ pub async fn run_cli(
 
     render_banner(&provider, &model_name, &session_id, mcp_count, skill_count);
 
-    ensure_session(&sessions, app_name, user_id, &session_id).await?;
+    session::ensure_session(&sessions, app_name, user_id, &session_id).await?;
 
     let mut runner = Runner::builder()
         .app_name(app_name)
@@ -1160,115 +824,8 @@ pub async fn run_cli(
 Ok(())
 }
 
-async fn run_switch_flow() -> anyhow::Result<Option<(String, String)>> {
-    use inquire::Select;
-    use inquire::Text;
 
-    println!("\n🔄 Let's switch your LLM provider and model dynamically!");
 
-    let providers = vec!["gemini", "openai", "anthropic", "ollama", "openrouter"];
-    let selected_provider = Select::new("Choose LLM Provider:", providers).prompt()?;
 
-    let standard_models = crate::utils::fetch_models_for_provider(selected_provider).await;
 
-    let model_choice = Select::new(&format!("Choose model for {}:", selected_provider), standard_models).prompt()?;
 
-    let final_model = if model_choice == "custom" {
-        Text::new("Enter custom model name:").prompt()?
-    } else {
-        model_choice.to_string()
-    };
-
-    let default_env = match selected_provider {
-        "gemini" => "GOOGLE_API_KEY",
-        "openai" => "OPENAI_API_KEY",
-        "anthropic" => "ANTHROPIC_API_KEY",
-        "ollama" => "",
-        "openrouter" => "OPENROUTER_API_KEY",
-        _ => "",
-    };
-
-    let final_env = if !default_env.is_empty() {
-        let env_prompt = Text::new("Enter Environment Variable Name for API Key:")
-            .with_default(default_env)
-            .prompt()?;
-        Some(env_prompt)
-    } else {
-        None
-    };
-
-    // Prompt for API key value and update ~/.nami/.env if specified
-    if let Some(ref env_name) = final_env {
-        use inquire::Password;
-        let prompt_text = format!("Enter API Key value for {}:", env_name);
-        let key_input = Password::new(&prompt_text)
-            .with_display_mode(inquire::PasswordDisplayMode::Masked)
-            .prompt()?;
-        if !key_input.is_empty() {
-            let env_path = get_nami_dir().join(".env");
-            let mut lines = Vec::new();
-            let mut updated = false;
-            if env_path.exists() {
-                if let Ok(content) = std::fs::read_to_string(&env_path) {
-                    for line in content.lines() {
-                        if let Some(idx) = line.find('=') {
-                            let k = line[..idx].trim();
-                            if k == env_name {
-                                lines.push(format!("{}={}", env_name, key_input));
-                                updated = true;
-                            } else {
-                                lines.push(line.to_string());
-                            }
-                        } else {
-                            lines.push(line.to_string());
-                        }
-                    }
-                }
-            }
-            if !updated {
-                lines.push(format!("{}={}", env_name, key_input));
-            }
-            if let Err(e) = std::fs::write(&env_path, lines.join("\n") + "\n") {
-                println!("⚠️ Failed to write API key to .env: {}", e);
-            } else {
-                println!("✅ Successfully updated API key in ~/.nami/.env");
-            }
-        }
-    }
-
-    // Update config.toml
-    let config_path = get_nami_dir().join("config.toml");
-    if config_path.exists() {
-        if let Ok(config_str) = std::fs::read_to_string(&config_path) {
-            if let Ok(mut toml_val) = toml::from_str::<toml::Value>(&config_str) {
-                if let Some(model_table) = toml_val.get_mut("model") {
-                    if let Some(table) = model_table.as_table_mut() {
-                        table.insert("provider".to_string(), toml::Value::String(selected_provider.to_string()));
-                        table.insert("model_name".to_string(), toml::Value::String(final_model.clone()));
-                        if let Some(env) = final_env {
-                            table.insert("api_key_env".to_string(), toml::Value::String(env));
-                        } else {
-                            table.remove("api_key_env");
-                        }
-                    }
-                } else if let Some(root_table) = toml_val.as_table_mut() {
-                    let mut model_table = toml::value::Table::new();
-                    model_table.insert("provider".to_string(), toml::Value::String(selected_provider.to_string()));
-                    model_table.insert("model_name".to_string(), toml::Value::String(final_model.clone()));
-                    if let Some(env) = final_env {
-                        model_table.insert("api_key_env".to_string(), toml::Value::String(env));
-                    }
-                    root_table.insert("model".to_string(), toml::Value::Table(model_table));
-                }
-
-                if let Ok(updated_str) = toml::to_string_pretty(&toml_val) {
-                    if let Err(e) = std::fs::write(&config_path, updated_str) {
-                        println!("⚠️ Failed to persist changes to config.toml: {}", e);
-                    }
-                }
-            }
-        }
-    }
-
-    Ok(Some((selected_provider.to_string(), final_model)))
-}

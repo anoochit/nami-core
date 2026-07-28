@@ -5,12 +5,8 @@ use std::time::{Duration, Instant};
 use adk_rust::Tool;
 use adk_rust::serde::Deserialize;
 use adk_tool::{AdkError, tool};
-use reqwest::Client;
 use schemars::JsonSchema;
 use serde_json::{Value, json};
-
-// Built once, reused across every call — avoids TLS handshake setup per request
-static CLIENT: OnceLock<Client> = OnceLock::new();
 
 struct CacheEntry {
     result: Value,
@@ -18,19 +14,6 @@ struct CacheEntry {
 }
 
 static CACHE: OnceLock<Mutex<HashMap<String, CacheEntry>>> = OnceLock::new();
-
-fn get_client() -> Result<&'static Client, AdkError> {
-    CLIENT.get_or_init(|| {
-        Client::builder()
-            .user_agent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) adk-rust-bot/1.0")
-            .connect_timeout(Duration::from_secs(10))
-            .timeout(Duration::from_secs(30))
-            .redirect(reqwest::redirect::Policy::limited(10))
-            .build()
-            .expect("Failed to build HTTP client")
-    });
-    CLIENT.get().ok_or_else(|| AdkError::tool("HTTP client unavailable"))
-}
 
 fn get_cache() -> &'static Mutex<HashMap<String, CacheEntry>> {
     CACHE.get_or_init(|| Mutex::new(HashMap::new()))
@@ -81,7 +64,7 @@ async fn web_fetch(args: WebFetchArgs) -> std::result::Result<Value, AdkError> {
     }
 
     // 2. Perform the actual fresh fetch if not cached or bypassed
-    let client = get_client()?;
+    let client = crate::utils::http_client();
     let response = client
         .get(&args.url)
         .send()

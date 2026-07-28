@@ -67,7 +67,10 @@ impl AgentRunner {
         // Trigger Gemini context cache invalidation handler if using a Gemini model
         let model_name = self.model.name();
         if model_name.to_lowercase().contains("gemini") {
-            let _ = crate::utils::gemini_cache::get_or_create_context_cache(model_name).await;
+            let model_name = model_name.to_string();
+            tokio::spawn(async move {
+                let _ = crate::utils::gemini_cache::get_or_create_context_cache(&model_name).await;
+            });
         }
         // ensure session exists
         if self

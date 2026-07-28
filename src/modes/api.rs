@@ -13,16 +13,12 @@ use crate::utils::{get_wiki_dir, get_workspace_dir, sandbox, ignore::NamiIgnore,
 
 #[tracing::instrument]
 async fn list_sessions() -> impl IntoResponse {
-    use sqlx::{SqlitePool, Row};
+    use sqlx::Row;
 
-    let db_path = get_nami_dir().join("sessions.db");
-    let pool = match SqlitePool::connect(&format!("sqlite:{}?mode=ro", db_path.to_string_lossy())).await {
-        Ok(p) => p,
-        Err(e) => return (StatusCode::INTERNAL_SERVER_ERROR, format!("Failed to connect to database: {}", e)).into_response(),
-    };
+    let pool = crate::utils::db_pool();
 
     let sessions = match sqlx::query("SELECT session_id, app_name, user_id, created_at FROM sessions WHERE EXISTS (SELECT 1 FROM events WHERE events.session_id = sessions.session_id) ORDER BY created_at DESC")
-        .fetch_all(&pool)
+        .fetch_all(pool)
         .await
     {
         Ok(rows) => {
@@ -48,17 +44,13 @@ use crate::modes::command_registry::CommandRegistry;
 
 #[tracing::instrument]
 async fn get_session_messages(Path(session_id): Path<String>) -> impl IntoResponse {
-    use sqlx::{SqlitePool, Row};
+    use sqlx::Row;
 
-    let db_path = get_nami_dir().join("sessions.db");
-    let pool = match SqlitePool::connect(&format!("sqlite:{}?mode=ro", db_path.to_string_lossy())).await {
-        Ok(p) => p,
-        Err(e) => return (StatusCode::INTERNAL_SERVER_ERROR, format!("Failed to connect to database: {}", e)).into_response(),
-    };
+    let pool = crate::utils::db_pool();
 
     let messages = match sqlx::query("SELECT llm_response, author, timestamp FROM events WHERE session_id = ? ORDER BY timestamp ASC")
         .bind(session_id)
-        .fetch_all(&pool)
+        .fetch_all(pool)
         .await
     {
         Ok(rows) => {
@@ -80,8 +72,6 @@ async fn get_session_messages(Path(session_id): Path<String>) -> impl IntoRespon
 
 #[tracing::instrument]
 async fn create_session_handler(Json(payload): Json<serde_json::Value>) -> impl IntoResponse {
-    use sqlx::SqlitePool;
-    
     let app_name = payload["appName"].as_str().unwrap_or("nami");
     let user_id = payload["userId"].as_str().unwrap_or("user1");
     let session_id = payload["sessionId"].as_str().unwrap_or("");
@@ -90,11 +80,7 @@ async fn create_session_handler(Json(payload): Json<serde_json::Value>) -> impl 
         return (StatusCode::BAD_REQUEST, "Missing sessionId").into_response();
     }
 
-    let db_path = get_nami_dir().join("sessions.db");
-    let pool = match SqlitePool::connect(&format!("sqlite:{}?mode=rwc", db_path.to_string_lossy())).await {
-        Ok(p) => p,
-        Err(e) => return (StatusCode::INTERNAL_SERVER_ERROR, format!("Failed to connect to database: {}", e)).into_response(),
-    };
+    let pool = crate::utils::db_pool();
 
     let now = chrono::Utc::now().to_rfc3339();
 
@@ -105,7 +91,7 @@ async fn create_session_handler(Json(payload): Json<serde_json::Value>) -> impl 
         .bind("{}") // Empty state
         .bind(&now)
         .bind(&now)
-        .execute(&pool)
+        .execute(pool)
         .await
     {
         Ok(_) => Json(json!({ "session_id": session_id })).into_response(),

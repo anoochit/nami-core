@@ -1,11 +1,11 @@
 use std::sync::Arc;
 
-use adk_session::{CreateRequest, DeleteRequest, GetRequest, SessionService};
+use adk_session::{DeleteRequest, SessionService};
 use teloxide::{prelude::*, utils::command::BotCommands};
 use crate::modes::command_registry::CommandRegistry;
 use crate::modes::slash_dispatcher::{self, SlashAction, SlashRequest};
 use crate::runner::AgentRunner;
-use crate::utils::get_nami_dir;
+use crate::utils::{get_nami_dir, session};
 
 #[derive(BotCommands, Clone, Debug)]
 #[command(rename_rule = "lowercase")]
@@ -44,35 +44,6 @@ pub async fn run_bot(
         .dispatch()
         .await;
 
-    Ok(())
-}
-
-async fn ensure_session(
-    sessions: &Arc<dyn SessionService>,
-    app_name: &str,
-    user_id: &str,
-    session_id: &str,
-) -> anyhow::Result<()> {
-    if sessions
-        .get(GetRequest {
-            app_name: app_name.to_string(),
-            user_id: user_id.to_string(),
-            session_id: session_id.to_string(),
-            num_recent_events: Some(0),
-            after: None,
-        })
-        .await
-        .is_err()
-    {
-        sessions
-            .create(CreateRequest {
-                app_name: app_name.to_string(),
-                user_id: user_id.to_string(),
-                session_id: Some(session_id.to_string()),
-                state: Default::default(),
-            })
-            .await?;
-    }
     Ok(())
 }
 
@@ -118,7 +89,7 @@ async fn handle_message(
     let chat_id = msg.chat.id.to_string();
     log::info!("Received message from {}: {}", chat_id, text);
 
-    ensure_session(&sessions, "telegram", &chat_id, &chat_id).await?;
+    session::ensure_session(&sessions, "telegram", &chat_id, &chat_id).await?;
 
     let resolved_text = if text.starts_with('/') {
         let parts: Vec<&str> = text.splitn(2, ' ').collect();
@@ -137,7 +108,7 @@ async fn handle_message(
                     session_id: chat_id.clone(),
                 })
                 .await?;
-            ensure_session(&sessions, "telegram", &chat_id, &chat_id).await?;
+session::ensure_session(&sessions, "telegram", &chat_id, &chat_id).await?;
             bot.send_message(msg.chat.id, "✅ New session started!").await?;
             return Ok(());
         }

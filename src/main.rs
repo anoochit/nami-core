@@ -5,7 +5,7 @@ use nami::modes;
 use nami::modes::init::run_init;
 use nami::modes::startup::setup_dependencies;
 use nami::runner::AgentRunner;
-use tracing_subscriber::{fmt, util::SubscriberInitExt};
+use tracing_subscriber::{fmt, util::SubscriberInitExt, EnvFilter};
 use std::fs::File;
 use std::sync::Arc;
 use std::time::Duration;
@@ -86,26 +86,14 @@ async fn main() -> anyhow::Result<()> {
     }
 
     // Logging & Telemetry setup
-    let rust_log = std::env::var("RUST_LOG").unwrap_or_else(|_| "".to_string());
-    if rust_log.is_empty() {
-        if is_quiet {
-            unsafe { std::env::set_var("RUST_LOG", "error") };
-        } else {
-            unsafe { std::env::set_var("RUST_LOG", "info") };
-        }
-    } else if is_quiet {
-        unsafe { std::env::set_var("RUST_LOG", "error") };
-    }
-    if is_quiet {
-        unsafe { std::env::set_var("npm_config_loglevel", "error") };
-        unsafe { std::env::set_var("NPM_CONFIG_LOGLEVEL", "error") };
-    }
+    let log_level = if is_quiet {
+        "error".to_string()
+    } else {
+        std::env::var("RUST_LOG").unwrap_or_else(|_| "info".to_string())
+    };
 
     if !is_quiet {
-        println!(
-            "RUST_LOG set to '{}'",
-            std::env::var("RUST_LOG").unwrap()
-        );
+        println!("RUST_LOG set to '{}'", log_level);
     }
 
     let otel_endpoint = std::env::var("OTEL_COLLECTOR").unwrap_or_else(|_| "NOT_SET".to_string());
@@ -126,6 +114,7 @@ async fn main() -> anyhow::Result<()> {
             let log_path = nami::utils::get_nami_dir().join("nami.log");
             let log_file = File::create(log_path).expect("Failed to create log file");
             let _ = tracing_subscriber::registry()
+                .with(EnvFilter::new(&log_level))
                 .with(fmt::layer().with_writer(log_file))
                 .try_init();
         } else if use_telemetry {
@@ -231,7 +220,6 @@ async fn main() -> anyhow::Result<()> {
             modes::bot::run_bot(runner, deps.sessions.clone()).await?;
         }
         Commands::Cli => {
-            unsafe { std::env::set_var("RUST_LOG", "error") };
             modes::cli::run_cli(agent, deps.sessions, deps.artifacts.clone(), model, provider, model_name, mcp_count, skill_count).await?;
         }
         Commands::Run { prompt } => {
@@ -240,6 +228,7 @@ async fn main() -> anyhow::Result<()> {
         }
         Commands::Serve { port, host } => {
             log::info!("Running in serve mode");
+            nami::utils::init_db_pool().await;
             let host = host.unwrap_or_else(|| "127.0.0.1".to_string());
             modes::serve::run_serve(
                 agent,

@@ -2,6 +2,7 @@ use adk_rust::agent::LlmEventSummarizer;
 use adk_rust::Agent;
 use adk_rust::prelude::*;
 use adk_session::SessionService;
+use crate::utils::session;
 use futures::StreamExt;
 use std::sync::Arc;
 
@@ -18,7 +19,7 @@ pub async fn run_direct(
     let user_id = "default_user";
     let session_id = "run_session";
 
-    crate::modes::cli::ensure_session(&sessions, app_name, user_id, session_id).await?;
+    session::ensure_session(&sessions, app_name, user_id, session_id).await?;
 
     let runner = Runner::builder()
         .app_name(app_name)
