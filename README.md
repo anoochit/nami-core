@@ -96,7 +96,7 @@ Nami Core is designed for extreme extensibility. You can add new capabilities by
 * **Observability Stack**: Integrated OpenTelemetry collector and MLflow for robust tracing and experiment tracking.
 * **Live Web Search**: Integrated Google Search via Serper.dev.
 * **Performance Optimized Builds**: Highly tuned release profile with Link-Time Optimization (LTO), single codegen units, and automatic symbol stripping for maximum runtime efficiency.
-* **Modular Architecture**: Organized structure for adding capabilities (Weather, Search, Shell, Wiki, etc.).
+* **Organized Codebase**: Clean source tree with 27+ focused modules in `agent/`, `modes/`, `tools/`, and `utils/` directories. Large modules split into submodules (wiki, filesystem, init, cli, utils) for maintainability. Duplicated and dead code eliminated.
 
 ## 🛠 Prerequisites
 

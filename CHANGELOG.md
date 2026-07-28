@@ -1,5 +1,25 @@
 # Changelog
 
+## [0.9.47] - 2026-07-28
+
+### Changed
+
+- **Major Codebase Restructuring (9 → 27 source files)**: Split oversized modules into focused submodules for maintainability:
+  - `cli.rs` (1014→443 lines) → `grill.rs` + `switch.rs`
+  - `init.rs` (745 lines) → `init/{mod,helpers,download}.rs`
+  - `wiki/mod.rs` (904 lines) → 6 submodules (read, write, search, list, misc)
+  - `filesystem/mod.rs` (630 lines) → 4 submodules (read, write, list, media)
+  - `agent/agent.rs` (527 lines) → `agent/config.rs` extracted
+  - `utils/mod.rs` (650 lines) → 13 focused submodules (client, db, env, error, paths, persist, providers, retry, session, shell, stats, text)
+- **Duplicate Elimination**: Consolidated 4 copies of `ensure_session()` into shared `utils/session.rs`; merged duplicate HTTP clients into `utils/client.rs`; unified shared SQLite pool in `utils/db.rs`
+- **Provider String Centralization**: Moved hardcoded model→env-var mappings into `utils/providers.rs`
+- **Safe Environment Variable Management**: Replaced `unsafe { set_var }` with RAII `EnvVarGuard` wrapper in `utils/env.rs`
+- **Async Non-Blocking Gemini Cache**: Moved Gemini context cache operations to background `tokio::spawn` tasks
+
+### Removed
+
+- **Dead Code**: Deleted `modes/commands.rs` module and `highlight_json` utility function
+
 ## [0.9.46] - 2026-07-22
 
 ### Added
