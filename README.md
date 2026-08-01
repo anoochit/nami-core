@@ -235,7 +235,7 @@ Here are some best practices for extending and maintaining Nami:
 
 * **New Skills**: You can add new capabilities by deploying modules to the `workspace/.skills/` directory. Use the `skill-creator` extension to initialize, package, and validate them.
 * **Specialist Agents**: For complex tasks, delegate to existing specialists (`coder`, `researcher`, `writer`) via the `parallel_tasks` tool or `/parallel` slash command.
-* **Wiki-First Development**: Always document successful patterns in your `km/` vault. Use the "Knowledge Base-before-Google" protocol to reduce noise and maintain project-specific context.
+* **Knowledge Base-First Development**: Always document successful patterns in your `km/` vault. Use the "Knowledge Base-before-Google" protocol to reduce noise and maintain project-specific context.
 
 ### 🧠 System Architecture & Advanced Features
 
