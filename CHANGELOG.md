@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.9.50] - 2026-08-01
+
+### Fixed
+
+- **Template Placeholder Injection in Skill Bodies**: Skill files containing `{identifier}` patterns (e.g. JavaScript template literals like `${deepLink}`) no longer cause `State variable 'deepLink' not found` errors. Added `escape_template_braces()` to sanitize skill body content before injection into the instruction template processed by ADK's `inject_session_state`.
+
 ## [0.9.49] - 2026-08-01
 
 ### Changed
@@ -17,6 +23,10 @@
 ### Added
 
 - **Convention File Discovery**: Enabled discovery of ADK convention files (AGENTS.md, CLAUDE.md, GEMINI.md, etc.) from `<workspace>/.agents/skills`, `~/.agents/skills`, and `~/.nami/skills` directories via `load_skill_index_with_extras()`.
+
+### Fixed
+
+- **Template Placeholder Injection in Skill Bodies**: Skill files containing `{identifier}` patterns (e.g. JavaScript template literals like `${deepLink}`) no longer cause `State variable 'deepLink' not found` errors. Added `escape_template_braces()` to sanitize skill body content before injection into the instruction template processed by ADK's `inject_session_state`.
 
 ## [0.9.48] - 2026-08-01
 

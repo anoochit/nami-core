@@ -88,6 +88,22 @@ pub fn get_global_skills_summary() -> String {
     "Skill reference guides are available as Markdown files. When you need domain knowledge or step-by-step instructions for a task, use the filesystem tool to find and read the relevant SKILL.md file from the workspace .agents/skills/, ~/.agents/skills/ or ~/.nami/skills/ directories.".to_string()
 }
 
+/// Escapes `{` characters in skill body content so that
+/// `inject_session_state` does not interpret them as template placeholders.
+/// Code blocks in skill files (e.g. JavaScript template literals like `${deepLink}`)
+/// would otherwise be parsed as required state variables and cause runtime errors.
+fn escape_template_braces(body: &str) -> String {
+    let mut out = String::with_capacity(body.len());
+    for ch in body.chars() {
+        match ch {
+            '{' => out.push_str("{ "),
+            '}' => out.push_str("} "),
+            _ => out.push(ch),
+        }
+    }
+    out
+}
+
 /// Returns the full skill content for injection into the system prompt.
 /// This avoids ADK's with_skills() which injects [skill:name] tags that LLMs hallucinate as callable functions.
 pub fn get_global_skills_content() -> String {
@@ -95,7 +111,7 @@ pub fn get_global_skills_content() -> String {
         Ok(index) if !index.is_empty() => {
             let skills_content: Vec<String> = index.skills()
                 .iter()
-                .map(|s| format!("## Skill: {}\n{}", s.name, s.body))
+                .map(|s| format!("## Skill: {}\n{}", s.name, escape_template_braces(&s.body)))
                 .collect();
             skills_content.join("\n\n---\n\n")
         }

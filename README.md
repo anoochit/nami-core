@@ -205,7 +205,7 @@ graph TD
     Agent --> LLM[ThaiLLM/Gemini/OpenAI]
     Agent --> SubAgents[Sub-Agents: Coder, Researcher, Writer, Verifier, Ralph]
     Agent --> Tools[Tools: Filesystem, Memory, Autonomous Planner, etc.]
-    Agent --> Wiki[Obsidian-Style Knowledge Base: Graph, Tags, Daily Notes]
+    Agent --> KnowledgeBase[Obsidian-Style Knowledge Base: Graph, Tags, Daily Notes]
     Agent --> Persona[AGENT.md & USER.md]
 
     Reflection --> Memory
