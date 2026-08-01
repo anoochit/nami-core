@@ -15,7 +15,7 @@ A modular, extensible AI-powered `Nami` built on top of [adk-rust](https://githu
 * **Agent Reflection Service**: A background service that periodically analyzes session logs to synthesize "Learnings" (facts, preferences, project context) and automatically update `MEMORIES.md` and searchable memory.
 * **AI Gateway Integration**: Support for high-availability routing via **MLflow Deployments**, enabling load balancing and fallback strategies across multiple LLM providers.
 * **Native PDF & Marp Slides Rendering**: Directly view PDF documents and render Marp Markdown presentations (using `marp: true` frontmatter) within the WebUI preview canvas.
-* **Specialist Agents**: Ecosystem of specialized agents (`coder`, `researcher`, `writer`, `generalist`, `verifier`, `ralph`) with full access to core tools (filesystem, search, wiki), allowing for autonomous complex task execution.
+* **Specialist Agents**: Ecosystem of specialized agents (`coder`, `researcher`, `writer`, `generalist`, `verifier`, `ralph`) with full access to core tools (filesystem, search, knowledge base), allowing for autonomous complex task execution.
 * **Autonomous Planner (PEV Loop)**: A unified toolset (`plan_create`, `plan_execute`, etc.) that automatically generates multi-step implementation plans, delegates steps to specialized agents, verifies execution correctness via critic feedback, and triggers self-healing dynamic replanning on verification failures.
 * **Native Image Generation**: Implemented a native image generation tool using `gemini-2.5-flash-image-preview`, providing high-quality, efficient visuals directly within the agent's workflow without external script dependencies.
 * **Parallel Task Execution**: A custom `parallel_tasks` tool that orchestrates multiple specialists simultaneously for high-speed multi-tasking.
@@ -26,7 +26,7 @@ A modular, extensible AI-powered `Nami` built on top of [adk-rust](https://githu
 ### 💻 Rich User Interface
 
 * **Premium Antigravity 2.0 WebUI**: A modern, decomposed component architecture (`ChatHeader`, `MessageList`, `MessageItem`, `ChatInput`) overhauled to look premium using Outfit (headings) and Inter (UI/body copy) Google Fonts, ultra-thin slate lines, responsive session history cards, slate-900 user bubbles, and soft tech-gray assistant cards.
-* **Wiki Files & Folder Explorer**: A dedicated "Wiki" tab in the WebUI sidebar allowing users to browse their Obsidian-style wiki vault via an interactive, hierarchical folder-tree. Clicking any wiki file instantly renders its content inside the rich preview panel.
+* **Knowledge Base Explorer**: A dedicated "Knowledge Base" tab in the WebUI sidebar allowing users to browse their Obsidian-style knowledge vault via an interactive, hierarchical folder-tree. Clicking any knowledge file instantly renders its content inside the rich preview panel.
 * **Modern CLI**: A rich, interactive CLI experience with a custom ASCII banner, animated indicators, **startup discovery counts for MCP/Skills**, pretty error rendering with intelligent hints, and structured layout.
 * **Focused Input Control**: Implements terminal raw mode during processing to block echoes, ensuring a clean and focused agent execution state.
 * **Silent Cancellation**: Support for both `Ctrl+C` and silent `ESC` interruption, allowing users to cancel requests without terminal clutter.
@@ -38,7 +38,7 @@ A modular, extensible AI-powered `Nami` built on top of [adk-rust](https://githu
   * `/schedule`: Manage automated tasks with cron expressions.
   * `/grill`: Start an interactive Q&A alignment session to refine goals and generate precise plans (Grill-Me).
   * `/status`: View real-time agent and system status.
-  * `/wiki`: Search the project wiki vault.
+  * `/km`: Search the knowledge vault.
   * `/memo`: Save information to long-term memory.
   * `/recall`: Search and recall facts from memory.
   * `/learn`: Reflect on recent successes or corrections to capture reusable skills or rules.
@@ -50,13 +50,13 @@ A modular, extensible AI-powered `Nami` built on top of [adk-rust](https://githu
 * **Globalized Sandbox System**: Fully migrated from purely local workspaces to a centralized, global environment residing in `~/.nami/`. Central databases, global logging, globalized skills, and system-wide state protocol tracking are securely sandboxed inside the user's home directory.
 * **Multi-Workspace Auto-Discovery**: Automatically discover, switch, and track configurations and state across multiple active project workspaces from the central system.
 * **Long-Term Searchable Memory**: Integrated `adk-memory` with a SQLite backend. This allows the agent to search past conversations for relevant facts and projects across all modes (CLI, Bot, Serve, Desktop).
-* **Obsidian-Style Wiki KM**: A transparent, human-readable Knowledge Management system using OKF v0.2 `.md` files with strict Wiki-first search prioritization and automatic external search knowledge capture.
-  * `add_wiki_page`: Markdown saving with `[[wikilink]]` syntax and OKF v0.2 YAML frontmatter.
-  * `get_wiki_graph`: Knowledge graph visualization.
-  * `search_wiki_by_tag`: Filter notes by specific `#tags`.
+* **Obsidian-Style Knowledge Base**: A transparent, human-readable Knowledge Management system using OKF v0.2 `.md` files with strict Knowledge Base-first search prioritization and automatic external search knowledge capture.
+  * `add_km_page`: Markdown saving with `[[wikilink]]` syntax and OKF v0.2 YAML frontmatter.
+  * `get_km_graph`: Knowledge graph visualization.
+  * `search_km_by_tag`: Filter notes by specific `#tags`.
   * `create_daily_note`: Journal entries for the current date.
   * `get_backlinks`: List pages linking to a specific note.
-  * `rename_wiki_page`: Safe renaming with link updates.
+  * `rename_km_page`: Safe renaming with link updates.
 * **Persistent Sessions**: SQLite-backed conversation history keyed by Telegram user ID.
 * **Todo Management**: Built-in task manager for tracking goals and daily items (`add_todo`, `list_todos`, `mark_todo_done`).
 
@@ -96,7 +96,7 @@ Nami Core is designed for extreme extensibility. You can add new capabilities by
 * **Observability Stack**: Integrated OpenTelemetry collector and MLflow for robust tracing and experiment tracking.
 * **Live Web Search**: Integrated Google Search via Serper.dev.
 * **Performance Optimized Builds**: Highly tuned release profile with Link-Time Optimization (LTO), single codegen units, and automatic symbol stripping for maximum runtime efficiency.
-* **Organized Codebase**: Clean source tree with 27+ focused modules in `agent/`, `modes/`, `tools/`, and `utils/` directories. Large modules split into submodules (wiki, filesystem, init, cli, utils) for maintainability. Duplicated and dead code eliminated.
+* **Organized Codebase**: Clean source tree with 27+ focused modules in `agent/`, `modes/`, `tools/`, and `utils/` directories. Large modules split into submodules (knowledge, filesystem, init, cli, utils) for maintainability. Duplicated and dead code eliminated.
 
 ## 🛠 Prerequisites
 
@@ -205,7 +205,7 @@ graph TD
     Agent --> LLM[ThaiLLM/Gemini/OpenAI]
     Agent --> SubAgents[Sub-Agents: Coder, Researcher, Writer, Verifier, Ralph]
     Agent --> Tools[Tools: Filesystem, Memory, Autonomous Planner, etc.]
-    Agent --> Wiki[Obsidian-Style Wiki: Graph, Tags, Daily Notes]
+    Agent --> Wiki[Obsidian-Style Knowledge Base: Graph, Tags, Daily Notes]
     Agent --> Persona[AGENT.md & USER.md]
 
     Reflection --> Memory
@@ -235,11 +235,11 @@ Here are some best practices for extending and maintaining Nami:
 
 * **New Skills**: You can add new capabilities by deploying modules to the `workspace/.skills/` directory. Use the `skill-creator` extension to initialize, package, and validate them.
 * **Specialist Agents**: For complex tasks, delegate to existing specialists (`coder`, `researcher`, `writer`) via the `parallel_tasks` tool or `/parallel` slash command.
-* **Wiki-First Development**: Always document successful patterns in your `wiki/` vault. Use the "Wiki-before-Google" protocol to reduce noise and maintain project-specific context.
+* **Wiki-First Development**: Always document successful patterns in your `km/` vault. Use the "Knowledge Base-before-Google" protocol to reduce noise and maintain project-specific context.
 
 ### 🧠 System Architecture & Advanced Features
 
-* **RAG & Memory**: Consider connecting your `wiki/` vault to a vector database (e.g., Qdrant/Milvus) for semantic search if your knowledge base outgrows simple file-based retrieval.
+* **RAG & Memory**: Consider connecting your `km/` vault to a vector database (e.g., Qdrant/Milvus) for semantic search if your knowledge base outgrows simple file-based retrieval.
 * **Tooling Strategy**: When creating new skills, prefer native Rust `#[tool]` macros over external scripts for better performance, type safety, and security.
 * **Agentic Intelligence**: Explore the potential of Meta-Agents that review tool outputs for quality, automatically triggering re-tries or pivots when thresholds aren't met.
 * **Task-Knowledge Bridging**: Automate your daily note templates to automatically pull active tasks from the `StateManager` to maintain a living sync between your todo list and your knowledge base.

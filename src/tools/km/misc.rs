@@ -1,4 +1,4 @@
-use crate::utils::get_wiki_dir;
+use crate::utils::get_km_dir;
 use adk_rust::Tool;
 use adk_tool::{AdkError, tool};
 use serde_json::{Value, json};
@@ -9,14 +9,14 @@ use tokio::fs;
 use walkdir::WalkDir;
 use super::{
     get_relative_title, to_title_case, ensure_cache_initialized,
-    get_cache, git_auto_commit, SummarizeWikiArgs, SanitizeWikiVaultArgs,
+    get_cache, git_auto_commit, SummarizeKmArgs, SanitizeKmVaultArgs,
 };
 
 /// Generates 'index.md' (and 'SUMMARY.md') indexing all concept pages recursively per OKF v0.2 §8.
 #[tool]
-async fn summarize_wiki(_args: SummarizeWikiArgs) -> std::result::Result<Value, AdkError> {
-    let wiki_dir = get_wiki_dir().await?;
-    ensure_cache_initialized(&wiki_dir).await?;
+async fn summarize_km(_args: SummarizeKmArgs) -> std::result::Result<Value, AdkError> {
+    let km_dir = get_km_dir().await?;
+    ensure_cache_initialized(&km_dir).await?;
 
     let mut pages_to_read = Vec::new();
     {
@@ -63,12 +63,12 @@ async fn summarize_wiki(_args: SummarizeWikiArgs) -> std::result::Result<Value, 
         index_content.push_str(&format!("- **[{}]({})** (`{}`): {}\n", display, path, ctype, desc));
     }
 
-    let index_path = wiki_dir.join("index.md");
+    let index_path = km_dir.join("index.md");
     fs::write(&index_path, &index_content)
         .await
         .map_err(|e| AdkError::tool(format!("Failed to write index.md: {}", e)))?;
 
-    let summary_path = wiki_dir.join("SUMMARY.md");
+    let summary_path = km_dir.join("SUMMARY.md");
     fs::write(&summary_path, &index_content)
         .await
         .map_err(|e| AdkError::tool(format!("Failed to write SUMMARY.md: {}", e)))?;
@@ -76,17 +76,17 @@ async fn summarize_wiki(_args: SummarizeWikiArgs) -> std::result::Result<Value, 
     Ok(json!({"status": "success", "message": "Knowledge Index (index.md & SUMMARY.md) updated per OKF v0.2!"}))
 }
 
-/// Sanitizes wiki vault titles and pages from Cache.
+/// Sanitizes knowledge vault titles and pages from Cache.
 #[tool]
-async fn sanitize_wiki_vault(_args: SanitizeWikiVaultArgs) -> std::result::Result<Value, AdkError> {
-    let wiki_dir = get_wiki_dir().await?;
+async fn sanitize_km_vault(_args: SanitizeKmVaultArgs) -> std::result::Result<Value, AdkError> {
+    let km_dir = get_km_dir().await?;
     let mut rename_map: HashMap<String, String> = HashMap::new();
     let mut files_to_process = Vec::new();
 
-    for entry in WalkDir::new(&wiki_dir).into_iter().filter_map(|e| e.ok()) {
+    for entry in WalkDir::new(&km_dir).into_iter().filter_map(|e| e.ok()) {
         let path = entry.path();
         if path.is_file() && path.extension().and_then(|s| s.to_str()) == Some("md") {
-            let relative_title = get_relative_title(&wiki_dir, path);
+            let relative_title = get_relative_title(&km_dir, path);
             files_to_process.push(path.to_path_buf());
 
             let file_stem = path.file_stem().unwrap_or_default().to_string_lossy().to_string();
@@ -106,25 +106,25 @@ async fn sanitize_wiki_vault(_args: SanitizeWikiVaultArgs) -> std::result::Resul
     let mut links_updated_count = 0;
 
     for (old_title, new_title) in &rename_map {
-        let old_path = wiki_dir.join(format!("{}.md", old_title));
-        let new_path = wiki_dir.join(format!("{}.md", new_title));
+        let old_path = km_dir.join(format!("{}.md", old_title));
+        let new_path = km_dir.join(format!("{}.md", new_title));
 
         if old_path.exists() && !new_path.exists() {
             fs::rename(&old_path, &new_path).await.map_err(|e| {
                 AdkError::tool(format!("Failed to rename {:?} to {:?}: {}", old_path, new_path, e))
             })?;
             renamed_count += 1;
-            git_auto_commit(&wiki_dir, &old_path, &format!("wiki: sanitize rename delete {}", old_title));
-            git_auto_commit(&wiki_dir, &new_path, &format!("wiki: sanitize rename create {}", new_title));
+            git_auto_commit(&km_dir, &old_path, &format!("km: sanitize rename delete {}", old_title));
+            git_auto_commit(&km_dir, &new_path, &format!("km: sanitize rename create {}", new_title));
         }
     }
 
     let current_files: Vec<PathBuf> = files_to_process
         .into_iter()
         .map(|p| {
-            let relative = get_relative_title(&wiki_dir, &p);
+            let relative = get_relative_title(&km_dir, &p);
             if let Some(new_rel) = rename_map.get(&relative) {
-                wiki_dir.join(format!("{}.md", new_rel))
+                km_dir.join(format!("{}.md", new_rel))
             } else {
                 p
             }
@@ -149,7 +149,7 @@ async fn sanitize_wiki_vault(_args: SanitizeWikiVaultArgs) -> std::result::Resul
                 fs::write(&path, new_content).await.map_err(|e| {
                     AdkError::tool(format!("Failed to update links in {:?}: {}", path, e))
                 })?;
-                git_auto_commit(&wiki_dir, &path, "wiki: sanitize update links");
+                git_auto_commit(&km_dir, &path, "km: sanitize update links");
             }
         }
     }
@@ -158,7 +158,7 @@ async fn sanitize_wiki_vault(_args: SanitizeWikiVaultArgs) -> std::result::Resul
     if let Ok(mut cache) = get_cache().write() {
         cache.initialized = false;
     }
-    let _ = ensure_cache_initialized(&wiki_dir).await;
+    let _ = ensure_cache_initialized(&km_dir).await;
 
     Ok(json!({
         "status": "success",
@@ -171,7 +171,7 @@ async fn sanitize_wiki_vault(_args: SanitizeWikiVaultArgs) -> std::result::Resul
 
 pub fn tools() -> Vec<Arc<dyn Tool>> {
     vec![
-        Arc::new(SummarizeWiki),
-        Arc::new(SanitizeWikiVault),
+        Arc::new(SummarizeKm),
+        Arc::new(SanitizeKmVault),
     ]
 }

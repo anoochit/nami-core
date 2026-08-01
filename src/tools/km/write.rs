@@ -1,4 +1,4 @@
-use crate::utils::get_wiki_dir;
+use crate::utils::get_km_dir;
 use adk_rust::Tool;
 use adk_tool::{AdkError, tool};
 use chrono::{Datelike, Utc};
@@ -8,19 +8,19 @@ use std::sync::Arc;
 use tokio::fs;
 use walkdir::WalkDir;
 use super::{
-    sanitize_title, parse_wiki_file_sync, get_cache, git_auto_commit,
+    sanitize_title, parse_km_file_sync, get_cache, git_auto_commit,
     expand_template_variables, ensure_cache_initialized,
-    AddWikiArgs, WikiPageArgs, CreateDailyNoteArgs,
-    ApplyTemplateArgs, RenameWikiPageArgs,
+    AddKmArgs, KmPageArgs, CreateDailyNoteArgs,
+    ApplyTemplateArgs, RenameKmPageArgs,
 };
 
-/// Adds or updates a wiki page in the 'wiki/' directory. Supports nested folders.
+/// Adds or updates a knowledge page in the 'km/' directory. Supports nested folders.
 #[tool]
-async fn add_wiki_page(args: AddWikiArgs) -> std::result::Result<Value, AdkError> {
-    let wiki_dir = get_wiki_dir().await?;
+async fn add_km_page(args: AddKmArgs) -> std::result::Result<Value, AdkError> {
+    let km_dir = get_km_dir().await?;
     let sanitized_title = sanitize_title(&args.title);
     let filename = format!("{}.md", sanitized_title);
-    let path = wiki_dir.join(&filename);
+    let path = km_dir.join(&filename);
 
     if let Some(parent) = path.parent()
         && !parent.exists()
@@ -37,7 +37,7 @@ async fn add_wiki_page(args: AddWikiArgs) -> std::result::Result<Value, AdkError
         existing.push_str(&args.content);
         fs::write(&path, existing)
             .await
-            .map_err(|e| AdkError::tool(format!("Failed to append to wiki page: {}", e)))?;
+            .map_err(|e| AdkError::tool(format!("Failed to append to knowledge page: {}", e)))?;
     } else {
         let mut final_content = args.content.trim().to_string();
 
@@ -70,11 +70,11 @@ async fn add_wiki_page(args: AddWikiArgs) -> std::result::Result<Value, AdkError
 
         fs::write(&path, &final_content)
             .await
-            .map_err(|e| AdkError::tool(format!("Failed to write wiki page: {}", e)))?;
+            .map_err(|e| AdkError::tool(format!("Failed to write knowledge page: {}", e)))?;
     }
 
     // Parse and update cache synchronously to avoid locks across awaits
-    if let Ok(metadata) = parse_wiki_file_sync(&wiki_dir, &path)
+    if let Ok(metadata) = parse_km_file_sync(&km_dir, &path)
         && let Ok(mut cache) = get_cache().write()
     {
         cache.pages.insert(sanitized_title.clone(), metadata);
@@ -82,20 +82,20 @@ async fn add_wiki_page(args: AddWikiArgs) -> std::result::Result<Value, AdkError
 
     // Git auto commit
     let action_msg = if is_append {
-        format!("wiki: append to {}", sanitized_title)
+        format!("km: append to {}", sanitized_title)
     } else {
-        format!("wiki: update {}", sanitized_title)
+        format!("km: update {}", sanitized_title)
     };
-    git_auto_commit(&wiki_dir, &path, &action_msg);
+    git_auto_commit(&km_dir, &path, &action_msg);
 
     Ok(json!({
         "status": "success",
-        "message": format!("Saved wiki page '{}'", args.title),
-        "path": format!("wiki/{}", filename)
+        "message": format!("Saved knowledge page '{}'", args.title),
+        "path": format!("km/{}", filename)
     }))
 }
 
-/// Creates a new wiki page for the current date with dynamic variable expansion.
+/// Creates a new knowledge page for the current date with dynamic variable expansion.
 #[tool]
 async fn create_daily_note(args: CreateDailyNoteArgs) -> std::result::Result<Value, AdkError> {
     let today = Utc::now();
@@ -109,15 +109,15 @@ async fn create_daily_note(args: CreateDailyNoteArgs) -> std::result::Result<Val
     let mut final_content = args.content.unwrap_or_else(|| format!("# {}\n\n", title));
 
     if let Some(template_name) = args.template {
-        let wiki_dir = get_wiki_dir().await?;
-        let template_path = wiki_dir.join("Templates").join(format!("{}.md", template_name));
+        let km_dir = get_km_dir().await?;
+        let template_path = km_dir.join("Templates").join(format!("{}.md", template_name));
         if template_path.exists() {
             let template_content = fs::read_to_string(&template_path).await.unwrap_or_default();
             final_content = expand_template_variables(&template_content, &title);
         }
     }
 
-    let add_args = AddWikiArgs {
+    let add_args = AddKmArgs {
         title: title.clone(),
         content: final_content,
         r#type: Some("Concept".to_string()),
@@ -125,7 +125,7 @@ async fn create_daily_note(args: CreateDailyNoteArgs) -> std::result::Result<Val
         append: Some(false),
     };
 
-    add_wiki_page(add_args).await?;
+    add_km_page(add_args).await?;
 
     Ok(json!({"status": "success", "message": format!("Created daily note for '{}'", title)}))
 }
@@ -133,8 +133,8 @@ async fn create_daily_note(args: CreateDailyNoteArgs) -> std::result::Result<Val
 /// Applies a template to a page expanding dynamic placeholders.
 #[tool]
 async fn apply_template(args: ApplyTemplateArgs) -> std::result::Result<Value, AdkError> {
-    let wiki_dir = get_wiki_dir().await?;
-    let template_path = wiki_dir.join("Templates").join(format!("{}.md", args.template_name));
+    let km_dir = get_km_dir().await?;
+    let template_path = km_dir.join("Templates").join(format!("{}.md", args.template_name));
 
     if !template_path.exists() {
         return Err(AdkError::tool(format!("Template '{}' not found in Templates folder.", args.template_name)));
@@ -147,7 +147,7 @@ async fn apply_template(args: ApplyTemplateArgs) -> std::result::Result<Value, A
     let title_basename = Path::new(&args.title).file_stem().unwrap_or_default().to_string_lossy().to_string();
     let final_content = expand_template_variables(&template_content, &title_basename);
 
-    let add_args = AddWikiArgs {
+    let add_args = AddKmArgs {
         title: args.title.clone(),
         content: final_content,
         r#type: Some("Concept".to_string()),
@@ -155,7 +155,7 @@ async fn apply_template(args: ApplyTemplateArgs) -> std::result::Result<Value, A
         append: Some(false),
     };
 
-    add_wiki_page(add_args).await?;
+    add_km_page(add_args).await?;
 
     Ok(json!({
         "status": "success",
@@ -163,18 +163,18 @@ async fn apply_template(args: ApplyTemplateArgs) -> std::result::Result<Value, A
     }))
 }
 
-/// Renames a wiki page updating cache and executing silent Git commits.
+/// Renames a knowledge page updating cache and executing silent Git commits.
 #[tool]
-async fn rename_wiki_page(args: RenameWikiPageArgs) -> std::result::Result<Value, AdkError> {
-    let wiki_dir = get_wiki_dir().await?;
+async fn rename_km_page(args: RenameKmPageArgs) -> std::result::Result<Value, AdkError> {
+    let km_dir = get_km_dir().await?;
     let old_sanitized = sanitize_title(&args.old_title);
     let new_sanitized = sanitize_title(&args.new_title);
 
-    let old_path = wiki_dir.join(format!("{}.md", old_sanitized));
-    let new_path = wiki_dir.join(format!("{}.md", new_sanitized));
+    let old_path = km_dir.join(format!("{}.md", old_sanitized));
+    let new_path = km_dir.join(format!("{}.md", new_sanitized));
 
     if !old_path.exists() {
-        return Err(AdkError::tool(format!("Wiki page '{}' not found.", args.old_title)));
+        return Err(AdkError::tool(format!("Knowledge page '{}' not found.", args.old_title)));
     }
 
     if new_path.exists() {
@@ -201,7 +201,7 @@ async fn rename_wiki_page(args: RenameWikiPageArgs) -> std::result::Result<Value
     let old_link_short = format!("[[{}]]", old_filename);
     let new_link = format!("[[{}]]", args.new_title);
 
-    for entry in WalkDir::new(&wiki_dir).into_iter().filter_map(|e| e.ok()) {
+    for entry in WalkDir::new(&km_dir).into_iter().filter_map(|e| e.ok()) {
         let path = entry.path();
         if path.is_file() && path.extension().and_then(|s| s.to_str()) == Some("md") {
             let content = fs::read_to_string(&path).await.unwrap_or_default();
@@ -233,11 +233,11 @@ async fn rename_wiki_page(args: RenameWikiPageArgs) -> std::result::Result<Value
     if let Ok(mut cache) = get_cache().write() {
         cache.initialized = false;
     }
-    let _ = ensure_cache_initialized(&wiki_dir).await;
+    let _ = ensure_cache_initialized(&km_dir).await;
 
     // Git commits
-    git_auto_commit(&wiki_dir, &old_path, &format!("wiki: rename delete {}", old_sanitized));
-    git_auto_commit(&wiki_dir, &new_path, &format!("wiki: rename create {}", new_sanitized));
+    git_auto_commit(&km_dir, &old_path, &format!("km: rename delete {}", old_sanitized));
+    git_auto_commit(&km_dir, &new_path, &format!("km: rename create {}", new_sanitized));
 
     Ok(json!({
         "status": "success",
@@ -246,41 +246,41 @@ async fn rename_wiki_page(args: RenameWikiPageArgs) -> std::result::Result<Value
     }))
 }
 
-/// Deletes a wiki page from the directory, resetting cache and commiting.
+/// Deletes a knowledge page from the directory, resetting cache and commiting.
 #[tool]
-async fn delete_wiki_page(args: WikiPageArgs) -> std::result::Result<Value, AdkError> {
-    let wiki_dir = get_wiki_dir().await?;
+async fn delete_km_page(args: KmPageArgs) -> std::result::Result<Value, AdkError> {
+    let km_dir = get_km_dir().await?;
     let sanitized_title = sanitize_title(&args.title);
     let filename = format!("{}.md", sanitized_title);
-    let path = wiki_dir.join(&filename);
+    let path = km_dir.join(&filename);
 
     if !path.exists() {
-        return Err(AdkError::tool(format!("Wiki page '{}' not found.", args.title)));
+        return Err(AdkError::tool(format!("Knowledge page '{}' not found.", args.title)));
     }
 
     fs::remove_file(&path)
         .await
-        .map_err(|e| AdkError::tool(format!("Failed to delete wiki page: {}", e)))?;
+        .map_err(|e| AdkError::tool(format!("Failed to delete knowledge page: {}", e)))?;
 
     if let Ok(mut cache) = get_cache().write() {
         cache.pages.remove(&sanitized_title);
     }
 
-    git_auto_commit(&wiki_dir, &path, &format!("wiki: delete {}", sanitized_title));
+    git_auto_commit(&km_dir, &path, &format!("km: delete {}", sanitized_title));
 
     Ok(json!({
         "status": "success",
-        "message": format!("Successfully deleted wiki page '{}'.", args.title),
-        "path": format!("wiki/{}", filename)
+        "message": format!("Successfully deleted knowledge page '{}'.", args.title),
+        "path": format!("km/{}", filename)
     }))
 }
 
 pub fn tools() -> Vec<Arc<dyn Tool>> {
     vec![
-        Arc::new(AddWikiPage),
+        Arc::new(AddKmPage),
         Arc::new(CreateDailyNote),
         Arc::new(ApplyTemplate),
-        Arc::new(RenameWikiPage),
-        Arc::new(DeleteWikiPage),
+        Arc::new(RenameKmPage),
+        Arc::new(DeleteKmPage),
     ]
 }

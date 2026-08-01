@@ -1,5 +1,23 @@
 # Changelog
 
+## [0.9.49] - 2026-08-01
+
+### Changed
+
+- **Wiki → Knowledge Base (km) Rename**: Renamed the `wiki/` directory to `km/` (Knowledge Base) with full tool and API updates:
+  - Directory rename: `src/tools/wiki/` → `src/tools/km/`
+  - Tool functions: `add_wiki_page` → `add_km_page`, `get_wiki_page` → `get_km_page`, `search_wiki` → `search_km`, etc.
+  - Slash command: `/wiki` → `/km`
+  - API routes: `/api/wiki/pages` → `/api/km/pages`
+  - All error messages and git commit messages updated
+  - Persona instructions: `Wiki` → `Knowledge Base`
+  - Config files: scheduler.json, task_states.json updated
+  - Documentation: README.md, CHANGELOG.md, persona files updated
+
+### Added
+
+- **Convention File Discovery**: Enabled discovery of ADK convention files (AGENTS.md, CLAUDE.md, GEMINI.md, etc.) from `<workspace>/.agents/skills`, `~/.agents/skills`, and `~/.nami/skills` directories via `load_skill_index_with_extras()`.
+
 ## [0.9.48] - 2026-08-01
 
 ### Added

@@ -46,7 +46,7 @@ Once inside the interactive CLI, you can use the following built-in and custom s
   Safely closes the CLI session.
 
 ### 🧠 Custom & Dynamic Commands (Configurable via `config.toml`)
-- `/wiki <query>`  
+- `/km <query>`  
   Searches your Obsidian-style Markdown vault.
 - `/memo <info>`  
   Saves user-specific preferences, rules, or information to long-term memory.

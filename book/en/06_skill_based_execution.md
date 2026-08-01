@@ -31,10 +31,10 @@ Core tools are organized into logical domain categories configured in `config.to
 
 ```toml
 [tools]
-enabled_categories = ["filesystem", "web_fetch", "search", "shell", "generation", "memory", "wiki"]
+enabled_categories = ["filesystem", "web_fetch", "search", "shell", "generation", "memory", "km"]
 ```
 
-When initialized, Nami's `create_core_tools` factory dynamically instantiates the enabled tool modules (such as `filesystem`, `web_fetch`, `image_generator`, `video_generator`, `audio_generator`, `shell`, `wiki`, `memory`, `scheduler`, `todo`, `evolution`).
+When initialized, Nami's `create_core_tools` factory dynamically instantiates the enabled tool modules (such as `filesystem`, `web_fetch`, `image_generator`, `video_generator`, `audio_generator`, `shell`, `km`, `memory`, `scheduler`, `todo`, `evolution`).
 
 ### Executable Agent Skills
 

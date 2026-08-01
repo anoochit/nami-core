@@ -16,7 +16,7 @@ pub mod shell;
 pub mod soul;
 pub mod todo;
 pub mod web_fetch;
-pub mod wiki;
+pub mod km;
 pub mod evolution;
 pub mod supervised_delegate;
 
@@ -82,8 +82,8 @@ pub fn create_core_tools(config: ToolFactoryConfig) -> Vec<Arc<dyn Tool>> {
     if is_enabled("web_fetch") {
         tools.extend(web_fetch::web_fetch_tools());
     }
-    if is_enabled("wiki") {
-        tools.extend(wiki::wiki_tools());
+    if is_enabled("km") {
+        tools.extend(km::km_tools());
     }
     if is_enabled("evolution") {
         tools.extend(evolution::evolution_tools(config.model.clone()));

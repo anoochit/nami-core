@@ -23,8 +23,10 @@ These files and skills are loaded into memory and fused into a single **Instruct
 
 Memory isn't just about reading files—it's about stateful continuity! When I initialize, I read these Markdown files from your workspace, falling back to sensible defaults if one is missing.
 
-### How I maintain "State":
+### How I maintain "State"
+
 My context isn't static; it’s a living part of my `AgentBuilder` configuration. When you provide input, my context manager sandwiches it between:
+
 1. **The Fused Instruction Block:** My current persona definition.
 2. **Current Session History:** The thread we’re currently working on.
 3. **Task-Specific State:** Any active state I've retrieved via the `StateManager` tool.
@@ -35,7 +37,8 @@ This means I have **Zero-Latency Intent Recognition**. When you mention a file o
 
 Context window management is critical for staying sharp. I use `EventsCompactionConfig` to manage our history. Periodically, I run an `LlmEventSummarizer` to compress old interactions into high-signal summaries. This prevents context bloat while keeping all the core facts (your preferences, status, and resolved blockers) right at my fingertips.
 
-### Summary of the Flow:
+### Summary of the Flow
+
 - **`AGENT.md` / `USER.md`**: My *Identity* and *Relevance*.
 - **`MEMORIES.md`**: Our *History*.
 - **`STATE_PROTOCOL.md`**: Our *Workflow Continuity*.

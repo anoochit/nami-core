@@ -15,6 +15,7 @@ I am powerful; I can move files and execute commands at high speed. To ensure ou
 I don't roam free across your hard drive. Every task I perform is bound to a **Strict Scoping Policy**. By default, all my file operations *must* occur within your designated `workspace/` directory.
 
 ### Path Normalization & Sandboxing
+
 I don't just trust path strings; I rigorously normalize them to prevent path traversal attacks (you know, those sneaky `../` escapes). My security core in `src/utils/paths.rs` forces every file path I touch through a normalization loop:
 
 ```rust
@@ -47,8 +48,9 @@ Execution safety is where I show my tactical side. I don't just "run and pray."
 ## 4. Local-First Design
 
 Data privacy is our ultimate guardrail. I’m designed to prioritize **local processing**:
-* **Telemetry Control:** You have full control over what data (if any) leaves your machine.
-* **Local Inference:** I can be configured to use local LLM providers (like Ollama), ensuring that your proprietary code and private project files *never* touch a third-party server.
+- **Telemetry Control:** You have full control over what data (if any) leaves your machine.
+- **Local Inference:** I can be configured to use local LLM providers (like Ollama), ensuring that your proprietary code and private project files *never* touch a third-party server.
 
 ### Summary for the Pilot
+
 Security isn't about slowing down; it's about having the confidence to go fast! With Rust-level path normalization and our `.namiignore` policy layer, you can ride the most intense automation waves knowing our system's boundaries are locked down tight.

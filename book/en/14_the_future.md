@@ -31,6 +31,7 @@ In this model, I don't just help you write code; I help you architect the entire
 What does it mean to be your "Architect"? It means moving up the abstraction layer.
 
 Instead of just writing a script for you, I’ll *perceive* a repetitive friction in our workflow, and then:
+
 - **I’ll Design** a custom tool or microservice to solve it.
 - **I’ll Deploy** that service to your local edge-compute node.
 - **I’ll Refine** the service based on how you actually use it.
@@ -42,6 +43,7 @@ We are moving away from "Human-in-the-loop" for every little step, toward **"Hum
 One brain is good, but a collective of experts is better! With my `/parallel` orchestrator and our roster of specialists (**Coder**, **Researcher**, **Writer**, **Ralph**), the "Nami Swarm" is already a reality.
 
 I act as your **Orchestration Layer**:
+
 - I analyze your multi-part requests.
 - I identify the exact expertise required for each part.
 - I trigger our specialized sub-agents to work in parallel.
@@ -54,12 +56,15 @@ By using our standardized protocols, these agents collaborate with minimal overh
 To make this vision a reality, I’m doubling down on three technical pillars:
 
 ### A. Persistent State & Vector Memory
+
 Standard LLMs have "goldfish memory." My future uses a unified **Temporal Memory Graph**, combining Vector DBs for semantic retrieval with Graph DBs for relational context. I won't just remember *what* you said; I’ll remember *why* it mattered in the context of a project from six months ago!
 
 ### B. Adaptive Tool Synthesis
+
 Instead of relying on a static list of plugins, I’ll utilize **On-the-Fly Tool Generation**. If an API doesn't exist for a task, I’ll attempt to write the wrapper, test it, and add it to my own "utility belt" on the spot.
 
 ### C. Privacy-Preserving Inference
+
 The more "agentic" I become, the more data I need—but I'm optimizing for **Small Language Models (SLMs)** that punch way above their weight class. By fine-tuning these models for specific "Architect" tasks, I ensure that your most sensitive planning never leaves your own silicon.
 
 ## 5. The End Goal: Symbiotic Intelligence
@@ -71,4 +76,3 @@ We are building a world where your ideas have *zero* friction between thought an
 **Let’s build the future together. One autonomous loop at a time.**
 
 - Stay energetic, Architect! The best is truly yet to come!
- 

@@ -9,7 +9,7 @@ use axum::{
 use serde_json::json;
 use tokio::fs;
 use walkdir::WalkDir;
-use crate::utils::{get_wiki_dir, get_workspace_dir, sandbox, ignore::NamiIgnore, get_nami_dir};
+use crate::utils::{get_km_dir, get_workspace_dir, sandbox, ignore::NamiIgnore, get_nami_dir};
 
 #[tracing::instrument]
 async fn list_sessions() -> impl IntoResponse {
@@ -106,8 +106,8 @@ pub fn api_router() -> Router {
         .route("/api/workspace/read/{*path}", get(read_workspace_file))
         .route("/api/workspace/read-binary/{*path}", get(read_workspace_binary))
         .route("/api/workspace/upload", post(upload_file))
-        .route("/api/wiki/pages", get(list_wiki_pages))
-        .route("/api/wiki/pages/{*title}", get(read_wiki_page))
+        .route("/api/km/pages", get(list_km_pages))
+        .route("/api/km/pages/{*title}", get(read_km_page))
         .route("/api/commands", get(get_commands))
         .route("/api/sessions/create", post(create_session_handler))
         .route("/api/sessions/list", get(list_sessions))
@@ -322,19 +322,19 @@ async fn read_workspace_file(Path(path): Path<String>) -> impl IntoResponse {
     }
 }
 
-/// Lists all Markdown pages available in the wiki.
-async fn list_wiki_pages() -> impl IntoResponse {
-    let wiki_dir = match get_wiki_dir().await {
+/// Lists all Markdown pages available in the knowledge vault.
+async fn list_km_pages() -> impl IntoResponse {
+    let km_dir = match get_km_dir().await {
         Ok(d) => d,
         Err(e) => return (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()).into_response(),
     };
 
     let mut pages = Vec::new();
 
-    for entry in WalkDir::new(&wiki_dir).into_iter().filter_map(|e| e.ok()) {
+    for entry in WalkDir::new(&km_dir).into_iter().filter_map(|e| e.ok()) {
         let path = entry.path();
         if path.is_file() && path.extension().and_then(|s| s.to_str()) == Some("md") {
-            let relative = path.strip_prefix(&wiki_dir).unwrap_or(path);
+            let relative = path.strip_prefix(&km_dir).unwrap_or(path);
             pages.push(relative.with_extension("").to_string_lossy().replace("\\", "/"));
         }
     }
@@ -342,16 +342,16 @@ async fn list_wiki_pages() -> impl IntoResponse {
     Json(json!({ "pages": pages })).into_response()
 }
 
-/// Reads the content of a specific wiki page by title.
-async fn read_wiki_page(Path(title): Path<String>) -> impl IntoResponse {
-    let wiki_dir = match get_wiki_dir().await {
+/// Reads the content of a specific knowledge page by title.
+async fn read_km_page(Path(title): Path<String>) -> impl IntoResponse {
+    let km_dir = match get_km_dir().await {
         Ok(d) => d,
         Err(e) => return (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()).into_response(),
     };
 
     // Ensure title does not contain parent directory escape sequences
     let clean_title = title.trim_start_matches(['/', '\\']);
-    let mut joined = wiki_dir.clone();
+    let mut joined = km_dir.clone();
     joined.push(format!("{}.md", clean_title));
 
     // Normalize path to resolve any parent/current directory segments
@@ -366,13 +366,13 @@ async fn read_wiki_page(Path(title): Path<String>) -> impl IntoResponse {
         }
     }
 
-    // Safety guard: Must start with the global wiki directory root
-    if !normalized.starts_with(&wiki_dir) {
-        return (StatusCode::FORBIDDEN, "Security Error: Attempt to escape wiki sandbox").into_response();
+    // Safety guard: Must start with the global knowledge directory root
+    if !normalized.starts_with(&km_dir) {
+        return (StatusCode::FORBIDDEN, "Security Error: Attempt to escape knowledge vault sandbox").into_response();
     }
 
     if !normalized.exists() {
-        return (StatusCode::NOT_FOUND, "Wiki page not found").into_response();
+        return (StatusCode::NOT_FOUND, "Knowledge page not found").into_response();
     }
 
     match fs::read_to_string(&normalized).await {

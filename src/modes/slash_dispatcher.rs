@@ -83,6 +83,6 @@ pub fn get_help(registry: &CommandRegistry) -> String {
         }
     }
 
-    help.push_str("\nExamples:\n  /plan Build AI research system\n  /wiki Rust async traits\n  /memo User prefers concise output\n");
+    help.push_str("\nExamples:\n  /plan Build AI research system\n  /km Rust async traits\n  /memo User prefers concise output\n");
     help
 }

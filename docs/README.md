@@ -42,7 +42,7 @@ A comprehensive guide on validating Nami's capabilities, logic correctness, and 
 
 The official setup guide and contribution standards for building, testing, and developing new features for Nami Core.
 
-- **Key topics**: Prerequisites, build toolchains (`Makefile`), coding guidelines, adding a new tool, and writing task retrospective reports for our wiki-first culture.
+- **Key topics**: Prerequisites, build toolchains (`Makefile`), coding guidelines, adding a new tool, and writing task retrospective reports for our knowledge-first culture.
 
 ---
 

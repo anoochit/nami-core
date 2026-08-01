@@ -5,7 +5,7 @@ The `workspace/` directory serves as the primary sandbox and configuration hub f
 ## Directory Structure
 
 - `.skills/`: Contains custom Agent Skills that extend Nami's capabilities.
-- `wiki/`: A repository for project-specific knowledge, documentation, and notes.
+- `km/`: A repository for project-specific knowledge, documentation, and notes.
 - `project/`, `blog/`, `generated/`, `images/`, `plans/`: Dedicated directories for project outputs, assets, and temporary files.
 
 ## Core Configuration & Context Files

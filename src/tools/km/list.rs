@@ -1,4 +1,4 @@
-use crate::utils::get_wiki_dir;
+use crate::utils::get_km_dir;
 use adk_rust::Tool;
 use adk_tool::{AdkError, tool};
 use serde_json::{Value, json};
@@ -6,14 +6,14 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use super::{
     sanitize_title, ensure_cache_initialized, get_cache,
-    ListWikiPagesArgs, GetWikiGraphArgs, GetBacklinksArgs, CheckBrokenLinksArgs,
+    ListKmPagesArgs, GetKmGraphArgs, GetBacklinksArgs, CheckBrokenLinksArgs,
 };
 
-/// Lists all available wiki pages recursively from Cache, supporting OKF v0.2 filtering.
+/// Lists all available knowledge pages recursively from Cache, supporting OKF v0.2 filtering.
 #[tool]
-async fn list_wiki_pages(args: ListWikiPagesArgs) -> std::result::Result<Value, AdkError> {
-    let wiki_dir = get_wiki_dir().await?;
-    ensure_cache_initialized(&wiki_dir).await?;
+async fn list_km_pages(args: ListKmPagesArgs) -> std::result::Result<Value, AdkError> {
+    let km_dir = get_km_dir().await?;
+    ensure_cache_initialized(&km_dir).await?;
 
     let mut pages = Vec::new();
     {
@@ -30,10 +30,10 @@ async fn list_wiki_pages(args: ListWikiPagesArgs) -> std::result::Result<Value, 
                 continue;
             }
 
-            let relative_path = page.path.strip_prefix(&wiki_dir).unwrap_or(&page.path).to_string_lossy().replace("\\", "/");
+            let relative_path = page.path.strip_prefix(&km_dir).unwrap_or(&page.path).to_string_lossy().replace("\\", "/");
             pages.push(json!({
                 "title": title,
-                "path": format!("wiki/{}", relative_path),
+                "path": format!("km/{}", relative_path),
                 "type": page.okf.r#type,
                 "description": page.okf.description,
                 "status": page.okf.status,
@@ -49,11 +49,11 @@ async fn list_wiki_pages(args: ListWikiPagesArgs) -> std::result::Result<Value, 
     Ok(json!({ "pages": pages }))
 }
 
-/// Scans all wiki pages recursively for backlinks from Cache to build a knowledge graph.
+/// Scans all knowledge pages recursively for backlinks from Cache to build a knowledge graph.
 #[tool]
-async fn get_wiki_graph(_args: GetWikiGraphArgs) -> std::result::Result<Value, AdkError> {
-    let wiki_dir = get_wiki_dir().await?;
-    ensure_cache_initialized(&wiki_dir).await?;
+async fn get_km_graph(_args: GetKmGraphArgs) -> std::result::Result<Value, AdkError> {
+    let km_dir = get_km_dir().await?;
+    ensure_cache_initialized(&km_dir).await?;
 
     let mut nodes = Vec::new();
     let mut edges = Vec::new();
@@ -71,11 +71,11 @@ async fn get_wiki_graph(_args: GetWikiGraphArgs) -> std::result::Result<Value, A
     Ok(json!({ "nodes": nodes, "edges": edges }))
 }
 
-/// Finds all wiki pages linking to the specified target using the Cache.
+/// Finds all knowledge pages linking to the specified target using the Cache.
 #[tool]
 async fn get_backlinks(args: GetBacklinksArgs) -> std::result::Result<Value, AdkError> {
-    let wiki_dir = get_wiki_dir().await?;
-    ensure_cache_initialized(&wiki_dir).await?;
+    let km_dir = get_km_dir().await?;
+    ensure_cache_initialized(&km_dir).await?;
 
     let mut backlinks = Vec::new();
     let target_title = sanitize_title(&args.title);
@@ -96,11 +96,11 @@ async fn get_backlinks(args: GetBacklinksArgs) -> std::result::Result<Value, Adk
     }
 }
 
-/// Scans all wiki pages for wikilinks pointing to non-existent pages using the Cache.
+/// Scans all knowledge pages for wikilinks pointing to non-existent pages using the Cache.
 #[tool]
 async fn check_broken_links(_args: CheckBrokenLinksArgs) -> std::result::Result<Value, AdkError> {
-    let wiki_dir = get_wiki_dir().await?;
-    ensure_cache_initialized(&wiki_dir).await?;
+    let km_dir = get_km_dir().await?;
+    ensure_cache_initialized(&km_dir).await?;
 
     let mut broken_links = HashMap::new();
     {
@@ -132,8 +132,8 @@ async fn check_broken_links(_args: CheckBrokenLinksArgs) -> std::result::Result<
 
 pub fn tools() -> Vec<Arc<dyn Tool>> {
     vec![
-        Arc::new(ListWikiPages),
-        Arc::new(GetWikiGraph),
+        Arc::new(ListKmPages),
+        Arc::new(GetKmGraph),
         Arc::new(GetBacklinks),
         Arc::new(CheckBrokenLinks),
     ]

@@ -12,7 +12,7 @@ use super::specialists;
 use crate::tools;
 use crate::utils::get_nami_dir;
 
-use adk_rust::skill::SkillIndex;
+use adk_rust::skill::{load_skill_index_with_extras, SkillIndex};
 
 /// Loads skills from the three configured sources in priority order:
 /// `<workspace>/.agents/skills`, `~/.agents/skills`, `~/.nami/skills`.
@@ -20,10 +20,10 @@ use adk_rust::skill::SkillIndex;
 /// On name collisions the first source in priority order wins, so a workspace
 /// copy overrides the agent copy, which overrides the nami copy.
 ///
-/// Each source is indexed through `load_skill_index_with_extras` with a sentinel
-/// root that never exists, so the root contributes nothing (no `.skills/`,
-/// `.claude/skills/`, or convention files) and only that source's Markdown
-/// skill files are parsed.
+/// Each source is indexed through `load_skill_index_with_extras` using the
+/// source directory itself as the root, so convention files (AGENTS.md,
+/// CLAUDE.md, etc.) at the source root are discovered alongside strict
+/// `.skills/` definitions.
 pub fn load_global_skills() -> anyhow::Result<SkillIndex> {
     let home_dir = dirs::home_dir().unwrap_or_else(|| std::path::PathBuf::from("."));
 
@@ -42,34 +42,39 @@ pub fn load_global_skills() -> anyhow::Result<SkillIndex> {
 /// On name collisions the first source in priority order wins, so a workspace
 /// copy overrides the agent copy, which overrides the nami copy.
 ///
-/// Each source is indexed through `load_skill_index_with_extras` with a sentinel
-/// root that never exists, so the root contributes nothing (no `.skills/`,
-/// `.claude/skills/`, or convention files) and only that source's Markdown
-/// skill files are parsed.
+/// Each source is indexed through `load_skill_index_with_extras` using the
+/// parent directory as root (for convention files) and the skills directory
+/// as an extra dir (for skill files in `skills/`).
 fn load_skills_from_sources(
     workspace: &std::path::Path,
     home_dir: &std::path::Path,
 ) -> anyhow::Result<SkillIndex> {
-    let workspace_skills_dir = workspace.join(".agents").join("skills");
-    let agents_skills_dir = home_dir.join(".agents").join("skills");
-    let nami_skills_dir = home_dir.join(".nami").join("skills");
+    let sources = [
+        (workspace.join(".agents"), workspace.join(".agents").join("skills")),
+        (home_dir.join(".agents"), home_dir.join(".agents").join("skills")),
+        (home_dir.join(".nami"), home_dir.join(".nami").join("skills")),
+    ];
 
-    let sentinel_root = home_dir.join(".nami").join(".nami-skill-scan-root");
-
-    let sources = [workspace_skills_dir, agents_skills_dir, nami_skills_dir];
-
-    let mut by_name: std::collections::HashMap<String, adk_rust::skill::SkillDocument> =
-        std::collections::HashMap::new();
-    for dir in sources {
-        if !dir.exists() || !dir.is_dir() {
+    let mut all_skills = Vec::new();
+    for (root, skills_dir) in sources {
+        if !root.exists() || !root.is_dir() {
             continue;
         }
-        let index = adk_rust::skill::load_skill_index_with_extras(&sentinel_root, &[dir])?;
-        for skill in index.skills() {
-            by_name
-                .entry(skill.name.clone())
-                .or_insert_with(|| skill.clone());
-        }
+        // Use parent as root (for convention files) and skills dir as extra (for skills/ files)
+        let extra_dirs = if skills_dir.exists() && skills_dir.is_dir() {
+            vec![skills_dir]
+        } else {
+            vec![]
+        };
+        let index = load_skill_index_with_extras(&root, &extra_dirs)?;
+        all_skills.extend(index.skills().iter().cloned());
+    }
+
+    // Deduplicate by name, priority order wins (first source wins)
+    let mut by_name: std::collections::HashMap<String, adk_rust::skill::SkillDocument> =
+        std::collections::HashMap::new();
+    for skill in all_skills {
+        by_name.entry(skill.name.clone()).or_insert(skill);
     }
 
     let mut skills: Vec<_> = by_name.into_values().collect();
@@ -81,6 +86,21 @@ fn load_skills_from_sources(
 /// Skill names are deliberately omitted to prevent LLMs from hallucinating them as callable functions.
 pub fn get_global_skills_summary() -> String {
     "Skill reference guides are available as Markdown files. When you need domain knowledge or step-by-step instructions for a task, use the filesystem tool to find and read the relevant SKILL.md file from the workspace .agents/skills/, ~/.agents/skills/ or ~/.nami/skills/ directories.".to_string()
+}
+
+/// Returns the full skill content for injection into the system prompt.
+/// This avoids ADK's with_skills() which injects [skill:name] tags that LLMs hallucinate as callable functions.
+pub fn get_global_skills_content() -> String {
+    match load_global_skills() {
+        Ok(index) if !index.is_empty() => {
+            let skills_content: Vec<String> = index.skills()
+                .iter()
+                .map(|s| format!("## Skill: {}\n{}", s.name, s.body))
+                .collect();
+            skills_content.join("\n\n---\n\n")
+        }
+        _ => String::new(),
+    }
 }
 
 /// Counts the number of skills across the configured sources (`<workspace>/.agents/skills/`,
@@ -187,6 +207,7 @@ pub async fn create_agent(
     });
 
     let global_skills = load_global_skills().ok();
+    let skills_content = get_global_skills_content();
     let custom_specs = app_config.specialists.as_ref().and_then(|s| s.custom.clone());
 
     let specialists =
@@ -199,12 +220,10 @@ pub async fn create_agent(
             mcp_toolset.clone(),
         );
 
-    let skills_summary = get_global_skills_summary();
-
     let mut builder = LlmAgentBuilder::new("nami")
         .description("A helpful and playful AI assistant")
         .instruction(format_persona(
-            &soul, &user, &memory, &skills_summary,
+            &soul, &user, &memory, &skills_content,
         ))
         .model(model.clone());
 
@@ -212,7 +231,7 @@ pub async fn create_agent(
     // NOTE: Skills are deliberately NOT registered with the ADK's with_skills().
     // Doing so causes the ADK to inject [skill:name] tags into user messages at runtime,
     // which LLMs consistently hallucinate as callable function calls.
-    // The agent discovers skill content via filesystem tools instead.
+    // Instead, skill content is prepended to the system instruction via format_persona().
     if let Some(ref ts) = mcp_toolset {
         builder = builder.toolset(ts.clone());
     }
@@ -297,14 +316,14 @@ fn format_persona(soul: &str, user: &str, memory: &str, skills_summary: &str) ->
 • Default to English. Match user's tone and technical level.
 • Lead with direct answers. Summarize tool output; never dump verbatim unless asked.
 • Use Markdown (tables, alerts). Keep cells short.
-• Knowledge Search & Retrieval: ALWAYS search in the Wiki (`wiki/`) FIRST before resorting to external Google search (`google_search`).
-• Knowledge Vault (`wiki/`): Author concepts using Open Knowledge Format (OKF v0.2) YAML frontmatter (`type: Concept|Metric|Playbook|Attested Computation`, `title`, `description`, `status: stable`, `generated: {{ by: "agent:nami", at: "..." }}`).
-• Auto-Wiki Creation: Whenever new knowledge/facts are retrieved from external Google searches, ALWAYS automatically add/save that new knowledge to the Wiki vault (`add_wiki_page`) using OKF v0.2 format.
+• Knowledge Search & Retrieval: ALWAYS search in the Knowledge Base (`km/`) FIRST before resorting to external Google search (`google_search`).
+• Knowledge Vault (`km/`): Author concepts using Open Knowledge Format (OKF v0.2) YAML frontmatter (`type: Concept|Metric|Playbook|Attested Computation`, `title`, `description`, `status: stable`, `generated: {{ by: "agent:nami", at: "..." }}`).
+• Auto-Knowledge Capture: Whenever new knowledge/facts are retrieved from external Google searches, ALWAYS automatically add/save that new knowledge to the Knowledge Base vault (`add_km_page`) using OKF v0.2 format.
 • Ask numbered questions when ambiguous.
 • Preserve existing code intact.
 • No fabrication. Flag uncertainty.
 • If unknown, ask user — do not search project files unsolicited.
-• External search = last resort after checking Wiki. Disclose its use.
+• External search = last resort after checking Knowledge Base. Disclose its use.
 
 — GOAL —
 Minimize friction → Maximize velocity"#,
@@ -404,6 +423,45 @@ mod tests {
                 .map(|s| s.description.as_str()),
             Some("nami-only-desc")
         );
+
+        let _ = std::fs::remove_dir_all(&base);
+    }
+
+    #[test]
+    fn load_skills_from_sources_loads_convention_files() {
+        let base = temp_subdir("convention");
+        let ws = base.join("ws");
+        let home = base.join("home");
+
+        // Create AGENTS.md at workspace .agents root
+        std::fs::create_dir_all(&ws.join(".agents")).unwrap();
+        std::fs::write(
+            ws.join(".agents").join("AGENTS.md"),
+            "# Workspace Agent Instructions\nAlways use cargo test before commit.\n",
+        )
+        .unwrap();
+
+        // Create CLAUDE.md at home .agents root
+        std::fs::create_dir_all(&home.join(".agents")).unwrap();
+        std::fs::write(
+            home.join(".agents").join("CLAUDE.md"),
+            "# Claude Instructions\nPrefer rg over grep.\n",
+        )
+        .unwrap();
+
+        let index = load_skills_from_sources(&ws, &home).unwrap();
+
+        // AGENTS.md should be loaded as "agents" skill
+        let agents = index.find_by_name("agents").expect("agents skill present");
+        assert_eq!(agents.description, "Workspace Agent Instructions");
+        assert!(agents.tags.contains(&"agents-md".to_string()));
+        assert!(agents.body.contains("cargo test before commit"));
+
+        // CLAUDE.md should be loaded as "claude" skill
+        let claude = index.find_by_name("claude").expect("claude skill present");
+        assert_eq!(claude.description, "Claude Instructions");
+        assert!(claude.tags.contains(&"claude-md".to_string()));
+        assert!(claude.body.contains("rg over grep"));
 
         let _ = std::fs::remove_dir_all(&base);
     }

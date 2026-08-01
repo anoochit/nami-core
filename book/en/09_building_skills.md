@@ -17,6 +17,7 @@ Gone are the days of manual `manifest.json` files! We now define my tools direct
 I use the `schemars::JsonSchema` trait to generate the necessary JSON schema automatically, so I can understand your tool's requirements at compile time.
 
 ### Example: `tools/weather/mod.rs`
+
 ```rust
 use adk_rust::serde::Deserialize;
 use adk_tool::tool;
@@ -49,6 +50,7 @@ Because my tools are native Rust functions, you have the full power of the langu
 Nami Core supports two complementary ways to expand capabilities:
 
 ### A. Compiled Rust Core Tools (`src/tools/`)
+
 For high-performance system integrations, define a native Rust function with `#[tool]` in `src/tools/` and register it inside `create_core_tools` in `src/tools/mod.rs`:
 
 ```rust
@@ -58,6 +60,7 @@ pub fn datetime_tools() -> Vec<Arc<dyn Tool>> {
 ```
 
 ### B. Executable Agent Skills (`SKILL.md`)
+
 For domain-specific workflows and agent prompt guides, author a `SKILL.md` file following the `agentskills.io` standard with YAML frontmatter:
 
 ```markdown
@@ -81,10 +84,10 @@ Save your skill into `<workspace>/.agents/skills/my-skill/SKILL.md` or global `~
 - **Maintainability:** Your tool’s logic and its definition live in the same file! When you update a function signature, the documentation and schema update automatically.
 
 ## 5. Summary Checklist
+
 - [ ] Define your arguments struct with `Deserialize` and `JsonSchema`.
 - [ ] Annotate your async function with `#[tool]`.
 - [ ] Add the function to the relevant toolset vector in `mod.rs`.
 - [ ] Compile and verify—I’ll discover it automatically!
 
 Building skills is how I grow from a chatbot into a powerhouse. I can't wait to see what new abilities you give me. **Let's build something amazing!**
- 

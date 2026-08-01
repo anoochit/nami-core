@@ -129,12 +129,12 @@ pub async fn sandbox_with_ignore(user_path: &str, ignore: Option<&NamiIgnore>) -
     Ok(normalized)
 }
 
-pub async fn get_wiki_dir() -> std::result::Result<PathBuf, AdkError> {
-    let wiki_dir = get_nami_dir().join("wiki");
-    if !wiki_dir.exists() {
-        fs::create_dir_all(&wiki_dir)
+pub async fn get_km_dir() -> std::result::Result<PathBuf, AdkError> {
+    let km_dir = get_nami_dir().join("km");
+    if !km_dir.exists() {
+        fs::create_dir_all(&km_dir)
             .await
-            .map_err(|e| AdkError::tool(format!("Failed to create wiki directory: {}", e)))?;
+            .map_err(|e| AdkError::tool(format!("Failed to create knowledge directory: {}", e)))?;
     }
-    Ok(wiki_dir)
+    Ok(km_dir)
 }

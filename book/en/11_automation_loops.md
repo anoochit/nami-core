@@ -15,6 +15,7 @@ In this chapter, we’re diving into **Automation Loops**—the proactive workfl
 In Nami Core, I implement automation loops through the `AgentRunner` and the `Runner` builder pattern. This structure lets me maintain our session context, handle asynchronous event streams, and orchestrate our complex agentic flows.
 
 ### My Heartbeat Implementation
+
 Rather than a loose `while` loop, I encapsulate our automation logic within a structured runner that manages our session state and my tool execution context:
 
 ```rust
@@ -43,6 +44,7 @@ pub async fn run(
 Automation loops are meaningless if I forget where I left off! That's why I use the `StateManager` tool (`src/tools/state_manager/mod.rs`).
 
 My `StateManager` lets me:
+
 - **Initialize Tasks:** Use `init_task` to set a goal and a list of steps.
 - **Track Progress:** Use `update_task` to save my progress, including the `last_step` and a `context_payload` that carries data forward to my next run.
 - **Resume Tasks:** Use `get_task` or `list_active_tasks` to pick up exactly where I left off after a restart.
@@ -54,11 +56,13 @@ This ensures my background automation is resilient, restartable, and fully trans
 I've expanded my "Heartbeat" architecture with two powerful loop protocols:
 
 ### A. Autonomous Goal Seeking (`/goal`)
+
 The **Ralph Wiggum Loop** (`/goal`) is designed for those tasks where the path to success isn't linear. You give me a high-level goal and a stop condition, and I iterate (up to 5 times!) using the `ralph` specialist. I autonomously evaluate my progress, pivot if I need to, and persist until the condition is met or we hit the limit.
 
 *Usage:* `/goal "Find a solution to the dependency conflict" | "The project compiles successfully"`
 
 ### B. Persistent Background Scheduling (`/schedule`)
+
 A true partner works even when you aren't looking. My **Persistent Task Scheduler** lets you register tasks using standard **Cron expressions**. These run in a background loop within the CLI, persisting their state in `workspace/scheduler.json`.
 
 - **Auto-Retry Integration:** If a task fails, I check its state via `StateManager`. If it’s not marked as `Completed`, I’ll automatically re-trigger it on the next tick!
@@ -68,6 +72,7 @@ A true partner works even when you aren't looking. My **Persistent Task Schedule
 ## 4. Background Tasks: The Engine Room
 
 Automation loops allow for **Asynchronous Task Execution**. Common background tasks for me include:
+
 - **Session Management:** Automatically ensuring our sessions persist via `SqliteSessionService`.
 - **State Checkpointing:** Updating my task states via the `StateManager`.
 - **Log Management:** Parsing errors and providing you summaries so you don't have to wade through them.
@@ -93,4 +98,3 @@ Running loops is powerful, but dangerous! To keep us safe:
 Automation loops turn me from a passive tool into a real **teammate**. I’m not just sitting on your hard drive; I’m patrolling your workflow, keeping things tidy, and making sure nothing falls through the cracks!
 
 Stay flowing!
- 

@@ -16,8 +16,8 @@ mod list;
 mod misc;
 
 #[derive(Deserialize, JsonSchema)]
-struct WikiPageArgs {
-    /// The title of the wiki page/concept (e.g., 'project-notes'). This will be used as the filename.
+struct KmPageArgs {
+    /// The title of the knowledge page/concept (e.g., 'project-notes'). This will be used as the filename.
     title: String,
     /// Optional: The starting line number to read (1-indexed, inclusive).
     start_line: Option<usize>,
@@ -26,8 +26,8 @@ struct WikiPageArgs {
 }
 
 #[derive(Deserialize, JsonSchema)]
-struct AddWikiArgs {
-    /// The title of the wiki page/concept.
+struct AddKmArgs {
+    /// The title of the knowledge page/concept.
     title: String,
     /// The content in Markdown format (including OKF v0.2 frontmatter if applicable).
     content: String,
@@ -40,8 +40,8 @@ struct AddWikiArgs {
 }
 
 #[derive(Deserialize, JsonSchema)]
-struct SearchWikiArgs {
-    /// The keyword or phrase to search for across all wiki pages.
+struct SearchKmArgs {
+    /// The keyword or phrase to search for across all knowledge pages.
     query: String,
     /// Optional: If true, treats the query as a Regular Expression.
     use_regex: Option<bool>,
@@ -56,19 +56,19 @@ struct SearchWikiArgs {
 }
 
 #[derive(Deserialize, JsonSchema)]
-struct SearchWikiByTagArgs {
+struct SearchKmByTagArgs {
     /// The tag to search for (e.g., 'rust', 'project-ideas'). Do not include the '#' symbol.
     tag: String,
 }
 
 #[derive(Deserialize, JsonSchema)]
-struct GlobFindWikiArgs {
-    /// The glob pattern to match against wiki page paths or titles (e.g. "Projects/*.md" or "**/ideas.md").
+struct GlobFindKmArgs {
+    /// The glob pattern to match against knowledge page paths or titles (e.g. "Projects/*.md" or "**/ideas.md").
     pattern: String,
 }
 
 #[derive(Deserialize, JsonSchema)]
-struct ListWikiPagesArgs {
+struct ListKmPagesArgs {
     /// Optional: Filter listed pages by OKF concept type (e.g., 'Concept', 'Metric', 'Playbook', 'Attested Computation').
     r#type: Option<String>,
     /// Optional: Filter listed pages by OKF status ('draft', 'stable', 'deprecated').
@@ -76,7 +76,7 @@ struct ListWikiPagesArgs {
 }
 
 #[derive(Deserialize, JsonSchema)]
-struct GetWikiGraphArgs {}
+struct GetKmGraphArgs {}
 
 #[derive(Deserialize, JsonSchema)]
 struct CreateDailyNoteArgs {
@@ -87,11 +87,11 @@ struct CreateDailyNoteArgs {
 }
 
 #[derive(Deserialize, JsonSchema)]
-struct SanitizeWikiVaultArgs {}
+struct SanitizeKmVaultArgs {}
 
 #[derive(Deserialize, JsonSchema)]
 struct GetBacklinksArgs {
-    /// The title of the wiki page to find backlinks for.
+    /// The title of the knowledge page to find backlinks for.
     title: String,
 }
 
@@ -99,23 +99,23 @@ struct GetBacklinksArgs {
 struct CheckBrokenLinksArgs {}
 
 #[derive(Deserialize, JsonSchema)]
-struct RenameWikiPageArgs {
-    /// The current title of the wiki page.
+struct RenameKmPageArgs {
+    /// The current title of the knowledge page.
     old_title: String,
-    /// The new title for the wiki page.
+    /// The new title for the knowledge page.
     new_title: String,
 }
 
 #[derive(Deserialize, JsonSchema)]
 struct ApplyTemplateArgs {
-    /// The title of the wiki page to create or overwrite.
+    /// The title of the knowledge page to create or overwrite.
     title: String,
     /// The name of the template file in the 'Templates' folder (without .md extension).
     template_name: String,
 }
 
 #[derive(Deserialize, JsonSchema, Debug)]
-struct SummarizeWikiArgs {}
+struct SummarizeKmArgs {}
 
 // --- OKF v0.2 DATA STRUCTURES ---
 
@@ -246,7 +246,7 @@ fn default_status() -> String {
 // --- CACHING STRUCTURES ---
 
 #[derive(Clone, Debug)]
-pub struct WikiPageMetadata {
+pub struct KmPageMetadata {
     pub title: String,
     pub path: PathBuf,
     pub tags: Vec<String>,
@@ -258,23 +258,23 @@ pub struct WikiPageMetadata {
     pub content: Option<String>,
 }
 
-struct WikiCache {
-    pages: HashMap<String, WikiPageMetadata>,
+struct KmCache {
+    pages: HashMap<String, KmPageMetadata>,
     initialized: bool,
 }
 
-static WIKI_CACHE: OnceLock<RwLock<WikiCache>> = OnceLock::new();
+static KM_CACHE: OnceLock<RwLock<KmCache>> = OnceLock::new();
 
-fn get_cache() -> &'static RwLock<WikiCache> {
-    WIKI_CACHE.get_or_init(|| {
-        RwLock::new(WikiCache {
+fn get_cache() -> &'static RwLock<KmCache> {
+    KM_CACHE.get_or_init(|| {
+        RwLock::new(KmCache {
             pages: HashMap::new(),
             initialized: false,
         })
     })
 }
 
-async fn ensure_cache_initialized(wiki_dir: &Path) -> std::result::Result<(), AdkError> {
+async fn ensure_cache_initialized(km_dir: &Path) -> std::result::Result<(), AdkError> {
     let is_initialized = {
         let cache = get_cache().read().map_err(|e| AdkError::tool(format!("Failed to acquire cache read lock: {}", e)))?;
         cache.initialized
@@ -286,12 +286,12 @@ async fn ensure_cache_initialized(wiki_dir: &Path) -> std::result::Result<(), Ad
 
     let mut cache = get_cache().write().map_err(|e| AdkError::tool(format!("Failed to acquire cache write lock: {}", e)))?;
     cache.pages.clear();
-    for entry in WalkDir::new(wiki_dir).into_iter().filter_map(|e| e.ok()) {
+    for entry in WalkDir::new(km_dir).into_iter().filter_map(|e| e.ok()) {
         let path = entry.path();
         if path.is_file() && path.extension().and_then(|s| s.to_str()) == Some("md") {
-            let relative_title = get_relative_title(wiki_dir, path);
+            let relative_title = get_relative_title(km_dir, path);
             // Parse synchronously to avoid holding lock across await boundaries
-            if let Ok(metadata) = parse_wiki_file_sync(wiki_dir, path) {
+            if let Ok(metadata) = parse_km_file_sync(km_dir, path) {
                 cache.pages.insert(relative_title, metadata);
             }
         }
@@ -300,9 +300,9 @@ async fn ensure_cache_initialized(wiki_dir: &Path) -> std::result::Result<(), Ad
     Ok(())
 }
 
-fn parse_wiki_file_sync(wiki_dir: &Path, path: &Path) -> anyhow::Result<WikiPageMetadata> {
+fn parse_km_file_sync(km_dir: &Path, path: &Path) -> anyhow::Result<KmPageMetadata> {
     let content = std::fs::read_to_string(path)?;
-    let title = get_relative_title(wiki_dir, path);
+    let title = get_relative_title(km_dir, path);
     
     let mut tags = Vec::new();
     let mut links = Vec::new();
@@ -417,7 +417,7 @@ fn parse_wiki_file_sync(wiki_dir: &Path, path: &Path) -> anyhow::Result<WikiPage
         false
     };
 
-    Ok(WikiPageMetadata {
+    Ok(KmPageMetadata {
         title,
         path: path.to_path_buf(),
         tags,
@@ -432,10 +432,10 @@ fn parse_wiki_file_sync(wiki_dir: &Path, path: &Path) -> anyhow::Result<WikiPage
 
 // --- GIT VERSIONING HELPER ---
 
-fn git_auto_commit(wiki_dir: &Path, file_path: &Path, action_message: &str) {
-    let git_dir = wiki_dir.join(".git");
+fn git_auto_commit(km_dir: &Path, file_path: &Path, action_message: &str) {
+    let git_dir = km_dir.join(".git");
     let is_git = git_dir.exists() || {
-        let mut p = wiki_dir.to_path_buf();
+        let mut p = km_dir.to_path_buf();
         let mut found = false;
         while p.pop() {
             if p.join(".git").exists() {
@@ -450,14 +450,14 @@ fn git_auto_commit(wiki_dir: &Path, file_path: &Path, action_message: &str) {
         let _ = std::process::Command::new("git")
             .arg("add")
             .arg(file_path)
-            .current_dir(wiki_dir)
+            .current_dir(km_dir)
             .output();
 
         let _ = std::process::Command::new("git")
             .arg("commit")
             .arg("-m")
             .arg(action_message)
-            .current_dir(wiki_dir)
+            .current_dir(km_dir)
             .output();
     }
 }
@@ -526,9 +526,9 @@ fn sanitize_title(title: &str) -> String {
     parts.join("/")
 }
 
-fn get_relative_title(wiki_dir: &Path, file_path: &Path) -> String {
+fn get_relative_title(km_dir: &Path, file_path: &Path) -> String {
     file_path
-        .strip_prefix(wiki_dir)
+        .strip_prefix(km_dir)
         .unwrap_or(file_path)
         .with_extension("")
         .to_string_lossy()
@@ -537,7 +537,7 @@ fn get_relative_title(wiki_dir: &Path, file_path: &Path) -> String {
 
 // --- TOOLS ---
 
-pub fn wiki_tools() -> Vec<Arc<dyn Tool>> {
+pub fn km_tools() -> Vec<Arc<dyn Tool>> {
     let mut all = Vec::new();
     all.extend(read::tools());
     all.extend(write::tools());
@@ -560,8 +560,8 @@ mod tests {
 
     #[test]
     fn parses_okf_v02_frontmatter_and_derives_metadata() {
-        let wiki_dir = create_test_dir("okf-parse");
-        let concept_file = wiki_dir.join("revenue.md");
+        let km_dir = create_test_dir("okf-parse");
+        let concept_file = km_dir.join("revenue.md");
 
         let okf_md = r#"---
 type: Attested Computation
@@ -593,7 +593,7 @@ See also [Customers Table](/tables/customers.md) or [[Orders Page]].
 
         std::fs::write(&concept_file, okf_md).unwrap();
 
-        let metadata = parse_wiki_file_sync(&wiki_dir, &concept_file).unwrap();
+        let metadata = parse_km_file_sync(&km_dir, &concept_file).unwrap();
 
         assert_eq!(metadata.okf.r#type, "Attested Computation");
         assert_eq!(metadata.okf.title.as_deref(), Some("Revenue for fiscal year"));
@@ -607,13 +607,13 @@ See also [Customers Table](/tables/customers.md) or [[Orders Page]].
         assert!(metadata.links.iter().any(|l| l.to_lowercase().contains("customers")));
         assert!(metadata.links.iter().any(|l| l.to_lowercase().contains("orders")));
 
-        let _ = std::fs::remove_dir_all(&wiki_dir);
+        let _ = std::fs::remove_dir_all(&km_dir);
     }
 
     #[test]
     fn parses_unverified_untyped_concept_fallback() {
-        let wiki_dir = create_test_dir("okf-fallback");
-        let concept_file = wiki_dir.join("note.md");
+        let km_dir = create_test_dir("okf-fallback");
+        let concept_file = km_dir.join("note.md");
 
         let legacy_md = r#"---
 title: Quick Note
@@ -625,13 +625,13 @@ Just a simple note.
 
         std::fs::write(&concept_file, legacy_md).unwrap();
 
-        let metadata = parse_wiki_file_sync(&wiki_dir, &concept_file).unwrap();
+        let metadata = parse_km_file_sync(&km_dir, &concept_file).unwrap();
 
         assert_eq!(metadata.okf.r#type, "Concept");
         assert_eq!(metadata.okf.status, "stable");
         assert_eq!(metadata.trust_tier, "unverified");
         assert_eq!(metadata.is_stale, false);
 
-        let _ = std::fs::remove_dir_all(&wiki_dir);
+        let _ = std::fs::remove_dir_all(&km_dir);
     }
 }
