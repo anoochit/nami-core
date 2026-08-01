@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.9.48] - 2026-08-01
+
+### Added
+
+- **Wiki-First Search & Auto-Knowledge Capture Workflow**: Enforced a strict Wiki-first information lookup protocol across agent system instructions (`format_persona`, `persona/system_instruction.txt`, `persona/SYSTEM2.md`, `persona/SYSTEM3.md`, `persona/AGENT.md`, and initialization templates in `src/modes/init/mod.rs`). The agent now searches the local Wiki vault (`wiki/`) before attempting external Google searches, and automatically captures and persists new facts/knowledge acquired from external search results to the Wiki vault in OKF v0.2 Markdown format.
+
 ## [0.9.47] - 2026-07-28
 
 ### Changed

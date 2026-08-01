@@ -50,8 +50,8 @@ A modular, extensible AI-powered `Nami` built on top of [adk-rust](https://githu
 * **Globalized Sandbox System**: Fully migrated from purely local workspaces to a centralized, global environment residing in `~/.nami/`. Central databases, global logging, globalized skills, and system-wide state protocol tracking are securely sandboxed inside the user's home directory.
 * **Multi-Workspace Auto-Discovery**: Automatically discover, switch, and track configurations and state across multiple active project workspaces from the central system.
 * **Long-Term Searchable Memory**: Integrated `adk-memory` with a SQLite backend. This allows the agent to search past conversations for relevant facts and projects across all modes (CLI, Bot, Serve, Desktop).
-* **Obsidian-Style Wiki KM**: A transparent, human-readable Knowledge Management system using `.md` files.
-  * `add_wiki_page`: Markdown saving with `[[wikilink]]` syntax.
+* **Obsidian-Style Wiki KM**: A transparent, human-readable Knowledge Management system using OKF v0.2 `.md` files with strict Wiki-first search prioritization and automatic external search knowledge capture.
+  * `add_wiki_page`: Markdown saving with `[[wikilink]]` syntax and OKF v0.2 YAML frontmatter.
   * `get_wiki_graph`: Knowledge graph visualization.
   * `search_wiki_by_tag`: Filter notes by specific `#tags`.
   * `create_daily_note`: Journal entries for the current date.
