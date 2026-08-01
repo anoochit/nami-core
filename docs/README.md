@@ -32,7 +32,7 @@ Detailed architectural guide on Nami's built-in tool system, security sandbox po
 
 - **Key topics**: The `Tool` trait, filesystem sandboxing/path neutralization (`.namiignore`), remote/local MCP server configurations, schema sanitization, and prefix mappings.
 
-### 🧪 5. [Testing & Evaluation Harness](./HARNESS.md)
+### 🧪 5. [Testing & Evaluation Harness](./EVALS.md)
 
 A comprehensive guide on validating Nami's capabilities, logic correctness, and performance using test suits and automated datasets.
 

@@ -15,11 +15,11 @@ I am powerful; I can move files and execute commands at high speed. To ensure ou
 I don't roam free across your hard drive. Every task I perform is bound to a **Strict Scoping Policy**. By default, all my file operations *must* occur within your designated `workspace/` directory.
 
 ### Path Normalization & Sandboxing
-I don't just trust path strings; I rigorously normalize them to prevent path traversal attacks (you know, those sneaky `../` escapes). My security core in `src/tools/filesystem/mod.rs` forces every file path I touch through a normalization loop:
+I don't just trust path strings; I rigorously normalize them to prevent path traversal attacks (you know, those sneaky `../` escapes). My security core in `src/utils/paths.rs` forces every file path I touch through a normalization loop:
 
 ```rust
-// A look at my sandbox logic in src/tools/filesystem/mod.rs
-async fn sandbox(user_path: &str) -> std::result::Result<PathBuf, AdkError> {
+// A look at my sandbox logic in src/utils/paths.rs
+pub async fn sandbox(user_path: &str) -> std::result::Result<PathBuf, AdkError> {
     let root = get_workspace_dir().await?;
     // 1. Clean path, 2. Join and normalize components
     // 3. Final check: does it start with the workspace root?

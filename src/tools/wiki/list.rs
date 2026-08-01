@@ -9,9 +9,9 @@ use super::{
     ListWikiPagesArgs, GetWikiGraphArgs, GetBacklinksArgs, CheckBrokenLinksArgs,
 };
 
-/// Lists all available wiki pages recursively from Cache.
+/// Lists all available wiki pages recursively from Cache, supporting OKF v0.2 filtering.
 #[tool]
-async fn list_wiki_pages(_args: ListWikiPagesArgs) -> std::result::Result<Value, AdkError> {
+async fn list_wiki_pages(args: ListWikiPagesArgs) -> std::result::Result<Value, AdkError> {
     let wiki_dir = get_wiki_dir().await?;
     ensure_cache_initialized(&wiki_dir).await?;
 
@@ -19,10 +19,26 @@ async fn list_wiki_pages(_args: ListWikiPagesArgs) -> std::result::Result<Value,
     {
         let cache = get_cache().read().map_err(|e| AdkError::tool(format!("Failed to acquire cache read lock: {}", e)))?;
         for (title, page) in &cache.pages {
+            if let Some(ref req_type) = args.r#type
+                && !page.okf.r#type.eq_ignore_ascii_case(req_type)
+            {
+                continue;
+            }
+            if let Some(ref req_status) = args.status
+                && !page.okf.status.eq_ignore_ascii_case(req_status)
+            {
+                continue;
+            }
+
             let relative_path = page.path.strip_prefix(&wiki_dir).unwrap_or(&page.path).to_string_lossy().replace("\\", "/");
             pages.push(json!({
                 "title": title,
                 "path": format!("wiki/{}", relative_path),
+                "type": page.okf.r#type,
+                "description": page.okf.description,
+                "status": page.okf.status,
+                "trust_tier": page.trust_tier,
+                "is_stale": page.is_stale,
                 "tags": page.tags
             }));
         }

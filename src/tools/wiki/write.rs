@@ -42,16 +42,21 @@ async fn add_wiki_page(args: AddWikiArgs) -> std::result::Result<Value, AdkError
         let mut final_content = args.content.trim().to_string();
 
         if !final_content.starts_with("---") {
-            let today = Utc::now();
-            let date_str = format!("{}-{:02}-{:02}", today.year(), today.month(), today.day());
+            let today_iso = Utc::now().to_rfc3339_opts(chrono::SecondsFormat::Secs, true);
             let title_basename = Path::new(&sanitized_title)
                 .file_stem()
                 .unwrap_or_default()
                 .to_string_lossy();
+            let concept_type = args.r#type.as_deref().unwrap_or("Concept");
+            let desc_line = if let Some(ref desc) = args.description {
+                format!("description: \"{}\"\n", desc.replace('"', "\\\""))
+            } else {
+                String::new()
+            };
 
             let frontmatter = format!(
-                "---\ntitle: {}\ndate: {}\ntags: []\n---\n\n",
-                title_basename, date_str
+                "---\ntype: {}\ntitle: \"{}\"\n{}status: stable\ngenerated: {{ by: \"agent:nami\", at: \"{}\" }}\ntags: []\n---\n\n",
+                concept_type, title_basename, desc_line, today_iso
             );
 
             if !final_content.starts_with('#') && !final_content.is_empty() {
@@ -69,10 +74,10 @@ async fn add_wiki_page(args: AddWikiArgs) -> std::result::Result<Value, AdkError
     }
 
     // Parse and update cache synchronously to avoid locks across awaits
-    if let Ok(metadata) = parse_wiki_file_sync(&wiki_dir, &path) {
-        if let Ok(mut cache) = get_cache().write() {
-            cache.pages.insert(sanitized_title.clone(), metadata);
-        }
+    if let Ok(metadata) = parse_wiki_file_sync(&wiki_dir, &path)
+        && let Ok(mut cache) = get_cache().write()
+    {
+        cache.pages.insert(sanitized_title.clone(), metadata);
     }
 
     // Git auto commit
@@ -115,6 +120,8 @@ async fn create_daily_note(args: CreateDailyNoteArgs) -> std::result::Result<Val
     let add_args = AddWikiArgs {
         title: title.clone(),
         content: final_content,
+        r#type: Some("Concept".to_string()),
+        description: None,
         append: Some(false),
     };
 
@@ -143,6 +150,8 @@ async fn apply_template(args: ApplyTemplateArgs) -> std::result::Result<Value, A
     let add_args = AddWikiArgs {
         title: args.title.clone(),
         content: final_content,
+        r#type: Some("Concept".to_string()),
+        description: None,
         append: Some(false),
     };
 

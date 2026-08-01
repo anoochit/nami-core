@@ -18,27 +18,29 @@ Technically, a Skill is a **Schema + Logic** pairing:
 - **The Schema:** A JSON description (following standard function-calling formats) that tells me *what* the skill does and *what arguments* I need.
 - **The Logic:** The actual code (Rust, Python, etc.) that executes the task.
 
-## 2. Bundling: The "Toolset" Concept
+## 2. Bundling: Modular Toolsets & Skill Discovery
 
-I don't just throw raw functions at the wall! To keep my context window clean and my processing efficient, I use **Skill Toolsets**.
+I don't just throw raw functions at the wall! To keep my context window clean and processing efficient, Nami Core manages capabilities through **Modular Toolsets** and **Prioritized Skill Discovery**.
 
-Bundling lets me load specific "profiles" depending on the task. Why carry a soldering iron to a poetry slam?
+Bundling lets me load specific tool categories depending on configuration, while dynamically discovering executable domain skills from local and global repositories.
 
-### My Toolset Manifest
-Every Toolset contains a `manifest.yaml` that defines its scope.
+### Modular Core Toolsets
+Core tools are organized into logical domain categories configured in `config.toml` via `ToolFactoryConfig`:
 
-```yaml
-toolset_id: "dev_ops_plus"
-version: "1.2.0"
-capabilities:
- - file_write
- - git_commit
- - docker_status
- - log_parser
-dependencies: ["python-docker-sdk", "gitpython"]
+```toml
+[tools]
+enabled_categories = ["filesystem", "web_fetch", "search", "shell", "generation", "memory", "wiki"]
 ```
 
-When you ask me to "Deploy the app," I swap to the `DevOps` bundle. If you ask for a report, I switch to `OfficeSuite`. It keeps me fast and focused!
+When initialized, Nami's `create_core_tools` factory dynamically instantiates the enabled tool modules (such as `filesystem`, `web_fetch`, `image_generator`, `video_generator`, `audio_generator`, `shell`, `wiki`, `memory`, `scheduler`, `todo`, `evolution`).
+
+### Executable Agent Skills
+Beyond compiled Rust tools, Nami automatically discovers standalone Markdown agent skills (`SKILL.md`) following the `agentskills.io` specification in strict priority order:
+1. `<workspace>/.agents/skills` (Workspace-specific overrides — highest priority)
+2. `~/.agents/skills` (Agent global skills)
+3. `~/.nami/skills` (Nami global skills)
+
+This keeps me lightweight, modular, and instantly adaptable to project-specific requirements!
 
 ## 3. The Trigger: From Intent to Action
 

@@ -1,5 +1,5 @@
 use adk_rust::Tool;
-use adk_rust::serde::Deserialize;
+use adk_rust::serde::{Deserialize, Serialize};
 use adk_tool::AdkError;
 use chrono::{Datelike, Timelike, Utc};
 use regex::Regex;
@@ -17,7 +17,7 @@ mod misc;
 
 #[derive(Deserialize, JsonSchema)]
 struct WikiPageArgs {
-    /// The title of the wiki page (e.g., 'project-notes'). This will be used as the filename.
+    /// The title of the wiki page/concept (e.g., 'project-notes'). This will be used as the filename.
     title: String,
     /// Optional: The starting line number to read (1-indexed, inclusive).
     start_line: Option<usize>,
@@ -27,10 +27,14 @@ struct WikiPageArgs {
 
 #[derive(Deserialize, JsonSchema)]
 struct AddWikiArgs {
-    /// The title of the wiki page.
+    /// The title of the wiki page/concept.
     title: String,
-    /// The content in Markdown format.
+    /// The content in Markdown format (including OKF v0.2 frontmatter if applicable).
     content: String,
+    /// Optional: Concept type according to OKF v0.2 specification (e.g., 'Concept', 'Playbook', 'Metric', 'Attested Computation'). Defaults to 'Concept'.
+    r#type: Option<String>,
+    /// Optional: Brief description of the concept for OKF v0.2 metadata.
+    description: Option<String>,
     /// If true, appends to the existing page instead of overwriting.
     append: Option<bool>,
 }
@@ -43,6 +47,10 @@ struct SearchWikiArgs {
     use_regex: Option<bool>,
     /// Optional: If true, searches only within YAML frontmatter and Markdown headers.
     headers_only: Option<bool>,
+    /// Optional: Filter results by OKF concept type (e.g., 'Playbook', 'Metric', 'Concept').
+    r#type: Option<String>,
+    /// Optional: Filter results by OKF status ('draft', 'stable', 'deprecated').
+    status: Option<String>,
     /// Optional: Maximum number of search results to return (defaults to 50).
     limit: Option<usize>,
 }
@@ -60,7 +68,12 @@ struct GlobFindWikiArgs {
 }
 
 #[derive(Deserialize, JsonSchema)]
-struct ListWikiPagesArgs {}
+struct ListWikiPagesArgs {
+    /// Optional: Filter listed pages by OKF concept type (e.g., 'Concept', 'Metric', 'Playbook', 'Attested Computation').
+    r#type: Option<String>,
+    /// Optional: Filter listed pages by OKF status ('draft', 'stable', 'deprecated').
+    status: Option<String>,
+}
 
 #[derive(Deserialize, JsonSchema)]
 struct GetWikiGraphArgs {}
@@ -104,17 +117,145 @@ struct ApplyTemplateArgs {
 #[derive(Deserialize, JsonSchema, Debug)]
 struct SummarizeWikiArgs {}
 
+// --- OKF v0.2 DATA STRUCTURES ---
+
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
+pub struct OkfGenerated {
+    pub by: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub at: Option<String>,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
+pub struct OkfVerifiedItem {
+    pub by: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub at: Option<String>,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(untagged)]
+pub enum OkfVerified {
+    Single(OkfVerifiedItem),
+    List(Vec<OkfVerifiedItem>),
+}
+
+impl OkfVerified {
+    pub fn as_list(&self) -> Vec<OkfVerifiedItem> {
+        match self {
+            OkfVerified::Single(item) => vec![item.clone()],
+            OkfVerified::List(list) => list.clone(),
+        }
+    }
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
+pub struct OkfSource {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub id: Option<String>,
+    pub resource: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub title: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub author: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub usage_count: Option<u64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub last_modified: Option<String>,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
+pub struct OkfUsageWindow {
+    pub from: String,
+    pub to: String,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct OkfFrontmatter {
+    /// REQUIRED by OKF v0.2 (§4.1). Defaults to "Concept" for untagged legacy docs.
+    #[serde(default = "default_concept_type")]
+    pub r#type: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub title: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub description: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub resource: Option<String>,
+    #[serde(default)]
+    pub tags: Vec<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub sources: Option<Vec<OkfSource>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub usage_window: Option<OkfUsageWindow>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub generated: Option<OkfGenerated>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub verified: Option<OkfVerified>,
+    /// status: draft | stable | deprecated (default: stable)
+    #[serde(default = "default_status")]
+    pub status: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub stale_after: Option<String>,
+    // Attested Computation fields (§10)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub runtime: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub parameters: Option<serde_json::Value>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub computation: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub executor: Option<serde_json::Value>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub attester: Option<serde_json::Value>,
+    #[serde(flatten)]
+    pub extra: HashMap<String, serde_yaml::Value>,
+}
+
+impl Default for OkfFrontmatter {
+    fn default() -> Self {
+        Self {
+            r#type: default_concept_type(),
+            title: None,
+            description: None,
+            resource: None,
+            tags: Vec::new(),
+            sources: None,
+            usage_window: None,
+            generated: None,
+            verified: None,
+            status: default_status(),
+            stale_after: None,
+            runtime: None,
+            parameters: None,
+            computation: None,
+            executor: None,
+            attester: None,
+            extra: HashMap::new(),
+        }
+    }
+}
+
+fn default_concept_type() -> String {
+    "Concept".to_string()
+}
+
+fn default_status() -> String {
+    "stable".to_string()
+}
+
 // --- CACHING STRUCTURES ---
 
 #[derive(Clone, Debug)]
-struct WikiPageMetadata {
-    #[allow(dead_code)]
-    title: String,
-    path: PathBuf,
-    tags: Vec<String>,
-    links: Vec<String>, // Wikilinks parsed from the content: [[PageTitle]]
-    frontmatter: HashMap<String, String>,
-    content: Option<String>,
+pub struct WikiPageMetadata {
+    pub title: String,
+    pub path: PathBuf,
+    pub tags: Vec<String>,
+    pub links: Vec<String>, // Links parsed from content: both standard [Label](/concept.md) and [[wikilinks]]
+    pub frontmatter: HashMap<String, String>,
+    pub okf: OkfFrontmatter,
+    pub trust_tier: String, // "unverified", "machine-confirmed", "human-reviewed"
+    pub is_stale: bool,
+    pub content: Option<String>,
 }
 
 struct WikiCache {
@@ -166,13 +307,22 @@ fn parse_wiki_file_sync(wiki_dir: &Path, path: &Path) -> anyhow::Result<WikiPage
     let mut tags = Vec::new();
     let mut links = Vec::new();
     let mut frontmatter = HashMap::new();
+    let mut okf = OkfFrontmatter::default();
 
     let mut main_content = &content[..];
-    if content.starts_with("---") {
-        if let Some(end_idx) = content[3..].find("---") {
-            let fm_content = &content[3..end_idx + 3];
-            main_content = &content[end_idx + 6..];
-            for line in fm_content.lines() {
+    if let Some(rest) = content.strip_prefix("---")
+        && let Some(end_idx) = rest.find("---")
+    {
+        let fm_str = &rest[..end_idx];
+        main_content = &rest[end_idx + 3..];
+
+        // Attempt full OKF YAML frontmatter deserialization
+        if let Ok(parsed_okf) = serde_yaml::from_str::<OkfFrontmatter>(fm_str) {
+            okf = parsed_okf;
+        }
+
+            // Also populate legacy frontmatter map for backward compatibility
+            for line in fm_str.lines() {
                 if let Some((key, val)) = line.split_once(':') {
                     let k = key.trim().to_lowercase();
                     let v = val.trim().trim_matches('"').trim_matches('\'').to_string();
@@ -203,9 +353,30 @@ fn parse_wiki_file_sync(wiki_dir: &Path, path: &Path) -> anyhow::Result<WikiPage
                 }
             }
         }
+
+    // Merge OKF tags into tag list
+    for okf_tag in &okf.tags {
+        let t = okf_tag.to_lowercase();
+        if !tags.contains(&t) {
+            tags.push(t);
+        }
     }
 
-    // Parse wikilinks
+    // Parse Markdown standard links: [Label](/path.md) or [Label](path.md)
+    let md_link_re = Regex::new(r"\[([^\]]+)\]\(([^)]+)\)").unwrap();
+    for cap in md_link_re.captures_iter(main_content) {
+        let link_path = cap[2].trim();
+        // Ignore external HTTP/HTTPS links
+        if !link_path.starts_with("http://") && !link_path.starts_with("https://") && !link_path.starts_with('#') {
+            let clean_link = link_path.trim_start_matches('/').trim_end_matches(".md");
+            let target = sanitize_title(clean_link);
+            if !target.is_empty() && !links.contains(&target) {
+                links.push(target);
+            }
+        }
+    }
+
+    // Parse wikilinks: [[PageTitle]] or [[PageTitle|Alias]]
     let link_re = Regex::new(r"\[\[([^\]|]+)(?:\|[^\]]+)?\]\]").unwrap();
     for cap in link_re.captures_iter(main_content) {
         let link_target = sanitize_title(&cap[1]);
@@ -223,12 +394,38 @@ fn parse_wiki_file_sync(wiki_dir: &Path, path: &Path) -> anyhow::Result<WikiPage
         }
     }
 
+    // Derive trust tier according to OKF §5.3
+    let trust_tier = match &okf.verified {
+        None => "unverified".to_string(),
+        Some(v) => {
+            let list = v.as_list();
+            if list.is_empty() {
+                "unverified".to_string()
+            } else if list.iter().any(|item| item.by.starts_with("human:")) {
+                "human-reviewed".to_string()
+            } else {
+                "machine-confirmed".to_string()
+            }
+        }
+    };
+
+    // Calculate staleness according to OKF §5.5
+    let is_stale = if let Some(ref stale_date) = okf.stale_after {
+        let today = Utc::now().format("%Y-%m-%d").to_string();
+        today >= *stale_date
+    } else {
+        false
+    };
+
     Ok(WikiPageMetadata {
         title,
         path: path.to_path_buf(),
         tags,
         links,
         frontmatter,
+        okf,
+        trust_tier,
+        is_stale,
         content: Some(content),
     })
 }
@@ -348,4 +545,93 @@ pub fn wiki_tools() -> Vec<Arc<dyn Tool>> {
     all.extend(list::tools());
     all.extend(misc::tools());
     all
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn create_test_dir(label: &str) -> PathBuf {
+        let dir = std::env::temp_dir().join(format!("nami-okf-test-{}", label));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        dir
+    }
+
+    #[test]
+    fn parses_okf_v02_frontmatter_and_derives_metadata() {
+        let wiki_dir = create_test_dir("okf-parse");
+        let concept_file = wiki_dir.join("revenue.md");
+
+        let okf_md = r#"---
+type: Attested Computation
+title: Revenue for fiscal year
+description: Recognized revenue for a fiscal year.
+status: stable
+runtime: bigquery
+stale_after: 2099-12-31
+generated:
+  by: reference_agent/gemini-2.5-pro
+  at: 2026-06-20T22:53:05Z
+verified:
+  - by: human:ahormati
+    at: 2026-06-25T09:00:00Z
+sources:
+  - id: rev-policy
+    resource: https://wiki.acme/finance/revenue-recognition
+    title: Revenue recognition policy
+tags: [finance, revenue]
+---
+
+# Computation
+
+    SELECT SUM(amount) AS revenue
+    FROM finance.recognized_revenue
+
+See also [Customers Table](/tables/customers.md) or [[Orders Page]].
+"#;
+
+        std::fs::write(&concept_file, okf_md).unwrap();
+
+        let metadata = parse_wiki_file_sync(&wiki_dir, &concept_file).unwrap();
+
+        assert_eq!(metadata.okf.r#type, "Attested Computation");
+        assert_eq!(metadata.okf.title.as_deref(), Some("Revenue for fiscal year"));
+        assert_eq!(metadata.okf.description.as_deref(), Some("Recognized revenue for a fiscal year."));
+        assert_eq!(metadata.okf.status, "stable");
+        assert_eq!(metadata.okf.runtime.as_deref(), Some("bigquery"));
+        assert_eq!(metadata.trust_tier, "human-reviewed");
+        assert_eq!(metadata.is_stale, false);
+        assert!(metadata.tags.contains(&"finance".to_string()));
+        assert!(metadata.tags.contains(&"revenue".to_string()));
+        assert!(metadata.links.iter().any(|l| l.to_lowercase().contains("customers")));
+        assert!(metadata.links.iter().any(|l| l.to_lowercase().contains("orders")));
+
+        let _ = std::fs::remove_dir_all(&wiki_dir);
+    }
+
+    #[test]
+    fn parses_unverified_untyped_concept_fallback() {
+        let wiki_dir = create_test_dir("okf-fallback");
+        let concept_file = wiki_dir.join("note.md");
+
+        let legacy_md = r#"---
+title: Quick Note
+tags: [ideas]
+---
+
+Just a simple note.
+"#;
+
+        std::fs::write(&concept_file, legacy_md).unwrap();
+
+        let metadata = parse_wiki_file_sync(&wiki_dir, &concept_file).unwrap();
+
+        assert_eq!(metadata.okf.r#type, "Concept");
+        assert_eq!(metadata.okf.status, "stable");
+        assert_eq!(metadata.trust_tier, "unverified");
+        assert_eq!(metadata.is_stale, false);
+
+        let _ = std::fs::remove_dir_all(&wiki_dir);
+    }
 }

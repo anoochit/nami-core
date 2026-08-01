@@ -14,36 +14,77 @@ use crate::utils::get_nami_dir;
 
 use adk_rust::skill::SkillIndex;
 
-/// Loads skills from local workspace (`.skills/` and `skills/`) and global directories (`~/.agents/skills/` and `~/.nami/skills/`), prioritizing local workspace skills.
+/// Loads skills from the three configured sources in priority order:
+/// `<workspace>/.agents/skills`, `~/.agents/skills`, `~/.nami/skills`.
+///
+/// On name collisions the first source in priority order wins, so a workspace
+/// copy overrides the agent copy, which overrides the nami copy.
+///
+/// Each source is indexed through `load_skill_index_with_extras` with a sentinel
+/// root that never exists, so the root contributes nothing (no `.skills/`,
+/// `.claude/skills/`, or convention files) and only that source's Markdown
+/// skill files are parsed.
 pub fn load_global_skills() -> anyhow::Result<SkillIndex> {
-    let cwd = std::env::current_dir().unwrap_or_else(|_| std::path::PathBuf::from("."));
     let home_dir = dirs::home_dir().unwrap_or_else(|| std::path::PathBuf::from("."));
+
+    let workspace = match std::env::var("NAMI_WORKSPACE") {
+        Ok(ws) if !ws.is_empty() => std::path::PathBuf::from(ws),
+        _ => std::env::current_dir().unwrap_or_else(|_| std::path::PathBuf::from(".")),
+    };
+
+    load_skills_from_sources(&workspace, &home_dir)
+}
+
+/// Loads skills from the three configured sources under explicit workspace and
+/// home roots, in priority order: `<workspace>/.agents/skills`, `~/.agents/skills`,
+/// `~/.nami/skills`.
+///
+/// On name collisions the first source in priority order wins, so a workspace
+/// copy overrides the agent copy, which overrides the nami copy.
+///
+/// Each source is indexed through `load_skill_index_with_extras` with a sentinel
+/// root that never exists, so the root contributes nothing (no `.skills/`,
+/// `.claude/skills/`, or convention files) and only that source's Markdown
+/// skill files are parsed.
+fn load_skills_from_sources(
+    workspace: &std::path::Path,
+    home_dir: &std::path::Path,
+) -> anyhow::Result<SkillIndex> {
+    let workspace_skills_dir = workspace.join(".agents").join("skills");
     let agents_skills_dir = home_dir.join(".agents").join("skills");
-    let nami_skills_dir = crate::utils::get_nami_dir().join("skills");
+    let nami_skills_dir = home_dir.join(".nami").join("skills");
 
-    let mut extra_dirs = Vec::new();
-    let local_skills = cwd.join("skills");
-    if local_skills.exists() && local_skills.is_dir() {
-        extra_dirs.push(local_skills);
-    }
-    if agents_skills_dir.exists() && agents_skills_dir.is_dir() {
-        extra_dirs.push(agents_skills_dir);
-    }
-    if nami_skills_dir.exists() && nami_skills_dir.is_dir() {
-        extra_dirs.push(nami_skills_dir);
+    let sentinel_root = home_dir.join(".nami").join(".nami-skill-scan-root");
+
+    let sources = [workspace_skills_dir, agents_skills_dir, nami_skills_dir];
+
+    let mut by_name: std::collections::HashMap<String, adk_rust::skill::SkillDocument> =
+        std::collections::HashMap::new();
+    for dir in sources {
+        if !dir.exists() || !dir.is_dir() {
+            continue;
+        }
+        let index = adk_rust::skill::load_skill_index_with_extras(&sentinel_root, &[dir])?;
+        for skill in index.skills() {
+            by_name
+                .entry(skill.name.clone())
+                .or_insert_with(|| skill.clone());
+        }
     }
 
-    let index = adk_rust::skill::load_skill_index_with_extras(&cwd, &extra_dirs)?;
-    Ok(index)
+    let mut skills: Vec<_> = by_name.into_values().collect();
+    skills.sort_by(|a, b| a.name.cmp(&b.name).then_with(|| a.path.cmp(&b.path)));
+    Ok(SkillIndex::new(skills))
 }
 
 /// Returns a generic instruction about skill guide discovery.
 /// Skill names are deliberately omitted to prevent LLMs from hallucinating them as callable functions.
 pub fn get_global_skills_summary() -> String {
-    "Skill reference guides are available as Markdown files. When you need domain knowledge or step-by-step instructions for a task, use the filesystem tool to find and read the relevant SKILL.md file from the ~/.agents/skills/ or ~/.nami/skills/ directories.".to_string()
+    "Skill reference guides are available as Markdown files. When you need domain knowledge or step-by-step instructions for a task, use the filesystem tool to find and read the relevant SKILL.md file from the workspace .agents/skills/, ~/.agents/skills/ or ~/.nami/skills/ directories.".to_string()
 }
 
-/// Counts the number of skills in global directories (~/.agents/skills/ and ~/.nami/skills/).
+/// Counts the number of skills across the configured sources (`<workspace>/.agents/skills/`,
+/// `~/.agents/skills/` and `~/.nami/skills/`).
 async fn count_skills() -> usize {
     if let Ok(skills_index) = load_global_skills() {
         skills_index.len()
@@ -256,6 +297,7 @@ fn format_persona(soul: &str, user: &str, memory: &str, skills_summary: &str) ->
 • Default to English. Match user's tone and technical level.
 • Lead with direct answers. Summarize tool output; never dump verbatim unless asked.
 • Use Markdown (tables, alerts). Keep cells short.
+• Knowledge Vault (`wiki/`): Author concepts using Open Knowledge Format (OKF v0.2) YAML frontmatter (`type: Concept|Metric|Playbook|Attested Computation`, `title`, `description`, `status: stable`, `generated: {{ by: "agent:nami", at: "..." }}`).
 • Ask numbered questions when ambiguous.
 • Preserve existing code intact.
 • No fabrication. Flag uncertainty.
@@ -294,4 +336,94 @@ fn configure_agent_tools(
         builder = builder.tool(t);
     }
     builder
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::path::PathBuf;
+    use std::sync::atomic::{AtomicU64, Ordering};
+
+    static TEST_SEQ: AtomicU64 = AtomicU64::new(0);
+
+    fn temp_subdir(label: &str) -> PathBuf {
+        let seq = TEST_SEQ.fetch_add(1, Ordering::SeqCst);
+        let base = std::env::temp_dir().join(format!("nami-skill-test-{}-{seq}", label));
+        let _ = std::fs::remove_dir_all(&base);
+        base
+    }
+
+    fn write_skill(dir: &PathBuf, name: &str, description: &str) {
+        std::fs::create_dir_all(dir).unwrap();
+        std::fs::write(
+            dir.join(format!("{name}.md")),
+            format!("---\nname: {name}\ndescription: {description}\n---\nbody for {name}.\n"),
+        )
+        .unwrap();
+    }
+
+    #[test]
+    fn load_skills_from_sources_prefers_workspace_over_agent_over_nami() {
+        let base = temp_subdir("merge");
+        let ws = base.join("ws");
+        let home = base.join("home");
+
+        write_skill(
+            &ws.join(".agents").join("skills"),
+            "search",
+            "workspace-search",
+        );
+        write_skill(
+            &home.join(".agents").join("skills"),
+            "search",
+            "agent-search",
+        );
+        write_skill(&home.join(".nami").join("skills"), "search", "nami-search");
+        write_skill(
+            &home.join(".nami").join("skills"),
+            "nami-only",
+            "nami-only-desc",
+        );
+
+        let index = load_skills_from_sources(&ws, &home).unwrap();
+
+        // Collision: workspace wins.
+        let search = index.find_by_name("search").expect("search skill present");
+        assert_eq!(search.description, "workspace-search");
+        assert_eq!(
+            index.skills().iter().filter(|s| s.name == "search").count(),
+            1,
+            "same-named skills across sources must be deduplicated"
+        );
+        // Non-colliding skill from the lowest-priority source still loads.
+        assert_eq!(
+            index
+                .find_by_name("nami-only")
+                .map(|s| s.description.as_str()),
+            Some("nami-only-desc")
+        );
+
+        let _ = std::fs::remove_dir_all(&base);
+    }
+
+    #[test]
+    fn load_skills_from_sources_agent_wins_over_nami_when_no_workspace_copy() {
+        let base = temp_subdir("no-ws");
+        let ws = base.join("ws");
+        let home = base.join("home");
+
+        write_skill(
+            &home.join(".agents").join("skills"),
+            "search",
+            "agent-search",
+        );
+        write_skill(&home.join(".nami").join("skills"), "search", "nami-search");
+
+        let index = load_skills_from_sources(&ws, &home).unwrap();
+
+        let search = index.find_by_name("search").expect("search skill present");
+        assert_eq!(search.description, "agent-search");
+
+        let _ = std::fs::remove_dir_all(&base);
+    }
 }

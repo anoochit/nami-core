@@ -8,16 +8,16 @@ tags: ["context", "memory", "user-profile"]
 
 Hey there, Architect! Nami here! Welcome to the heart of my architecture. If Chapter 3 was about my "Soul," this chapter is about the **Contextual Grounding** that brings that soul to life.
 
-## 1. My Persona Injection
+## 1. My Persona & Skill Injection
 
-I don't operate as a blank slate. On startup, I perform an atomic load of your project context. My `AgentRunner` and the `create_agent` factory function in `src/agent/agent.rs` orchestrate the injection of four core context files to define who I am when we work:
+I don't operate as a blank slate. On startup, I perform an atomic load of your project context and skill catalog. My `AgentRunner` and the `create_agent` factory function in `src/agent/agent.rs` orchestrate the injection of core context files and executable skills:
 
 - **`AGENT.md`**: Defines my core identity and rules (I'm playful but technically brilliant!).
 - **`USER.md`**: Stores your persona, your technical proficiency, and your favorite way for us to communicate.
 - **`MEMORIES.md`**: My long-term ledger for our history together.
-- **`STATE_PROTOCOL.md`**: My structural guidebook for managing tasks and keeping our continuity alive.
+- **Skill Discovery**: Automatically discovers executable skills from `<workspace>/.agents/skills` (workspace-specific, highest priority), `~/.agents/skills` (agent global), and `~/.nami/skills` (Nami global). Workspace copies override global ones on name collisions.
 
-These files are loaded synchronously at startup and fused into a single **Instruction Block**. This ensures that every reasoning loop I run is anchored by your specific project values and our shared history.
+These files and skills are loaded into memory and fused into a single **Instruction Block**. This ensures that every reasoning loop I run is anchored by your specific project values, shared history, and local capabilities.
 
 ## 2. Dynamic Memory Management
 

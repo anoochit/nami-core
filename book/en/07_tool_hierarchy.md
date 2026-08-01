@@ -23,14 +23,20 @@ These are my custom Rust functions, defined with my `#[tool]` macro. They're my 
 ### 3. The High-Tier: Integrated APIs & Specialist Agents
 This is where I reach out to the world using traditional APIs and my **Specialist Agents**.
 
-- **Specialist Agents (`src/agent/specialists.rs`):** I maintain a roster of expert sub-agents, each with a unique instruction set and focus:
-    - **`coder`**: My partner for complex debugging and refactoring.
-    - **`researcher`**: My deep-dive analyst for docs and data.
-    - **`writer`**: My expert technical writer for content.
-    - **`generalist`**: My high-efficiency partner for batch tasks.
-    - **`ralph`**: My playful, persistent partner for autonomous goal-seeking!
+- **Specialist Agents (`src/agent/specialists.rs`):** I maintain a roster of expert sub-agents, each with a unique instruction set, model overrides, and focus:
+    - **`generalist`**: High-efficiency partner for batch data processing pipelines.
+    - **`coder`**: Partner for system design, complex debugging, and full-stack software development.
+    - **`researcher`**: Deep-dive analyst for documentation synthesis and data research.
+    - **`writer`**: Technical writer for specifications, guides, and user documentation.
+    - **`ralph`**: Playful, persistent loop agent that iterates until goals are achieved.
+    - **`verifier`**: Review specialist that validates results against test schemas and filesystem structures.
+    - **`designer`**: High-fidelity frontend developer specializing in responsive utility-first Tailwind CSS, custom aesthetic themes, and micro-interactions.
+    - **Custom Specialists**: Arbitrary custom specialists can also be dynamically configured under `[specialists.custom]` in `config.toml`.
 
-- **Parallel Task Orchestration (`/parallel`):** When you give me multiple distinct tasks, I don't do them sequentially like a slow computer. I use my `/parallel` slash command to trigger the `parallel_tasks` tool. I’ll assign each sub-task to the right specialist and we’ll execute them all at once to keep your latency low!
+- **Delegation & Task Orchestration:**
+    - **`invoke_agent`**: Invokes a single specialist sub-agent by name with a prompt.
+    - **`parallel_tasks`**: Triggered via `/parallel` to assign independent sub-tasks to multiple specialists concurrently.
+    - **`supervised_delegate`**: Formulates complex multi-part goals into a Directed Acyclic Graph (DAG) of specialized subtasks, executes independent branches concurrently, and runs a QA self-correction loop.
 
 - **Resident Utility Agents:** Beyond the specialists, I have resident tools that manage my own state:
     - **Soul Tool (`update_user_memory`):** Lets me learn your preferences so I can be a better partner over time.

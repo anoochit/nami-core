@@ -35,13 +35,14 @@ While the Wiki is my primary neocortex, sometimes I need to pull in raw, un-vect
 - **Data Scraping:** Pulling raw tables or JSON feeds for our processing.
 - **Verification:** Double-checking a fact against a primary source.
 
-## 5. Visual Creativity: Image Generation
+## 5. Multimodal Generation Suite: Image, Audio & Video
 
-I can bring your ideas to life visually through my native **Image Generation** tool! Using the power of **Imagen 3**, I can create high-fidelity images directly from your text descriptions.
+I can bring your ideas to life across modalities through my native generative tools!
 
-- **Creative Partner:** Describe a concept to me, and I’ll generate a rendering to help us visualize our architecture or goals.
-- **Ratio Control:** Whether we need a cinematic "16:9" shot or a mobile-first "9:16" layout, I can adjust the output to fit our design needs perfectly.
-- **Instant Assets:** Every image I generate is automatically saved to `workspace/generated/`, ready to be integrated into our docs or websites immediately.
+- **Image Generation (`image_generator`):** Using generative AI models (such as `gemini-2.5-flash-image` or custom endpoints), I can create high-fidelity images directly from your text descriptions with aspect ratio controls (`16:9`, `9:16`, `1:1`).
+- **Audio Generation (`audio_generator`):** Generates high-fidelity text-to-speech narration, voiceovers, and sound effects with custom voice and speed parameters.
+- **Video Generation (`video_generator`):** Generates dynamic video clips and motion sequences from image prompts with speed and camera controls.
+- **Multimodal Media Analysis (`analyze_media`):** Natively parses non-text assets (PNG/JPEG, MP3/WAV, MP4/MOV, PDFs) by extracting byte vectors directly for LLM inspection.
 
 ## Summary
 

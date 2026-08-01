@@ -4,17 +4,18 @@ use adk_tool::{AdkError, tool};
 use regex::Regex;
 use serde_json::{Value, json};
 use std::sync::Arc;
-use tokio::fs;
 use walkdir::WalkDir;
 use super::{
     get_relative_title, ensure_cache_initialized, get_cache,
     SearchWikiArgs, SearchWikiByTagArgs, GlobFindWikiArgs,
 };
 
-/// Searches for a keyword across all wiki pages recursively with caps.
+/// Searches for a keyword across all wiki/OKF concept pages recursively, supporting OKF v0.2 filters.
 #[tool]
 async fn search_wiki(args: SearchWikiArgs) -> std::result::Result<Value, AdkError> {
     let wiki_dir = get_wiki_dir().await?;
+    ensure_cache_initialized(&wiki_dir).await?;
+
     let mut matches = Vec::new();
     let query_lower = args.query.to_lowercase();
     let limit = args.limit.unwrap_or(50);
@@ -27,16 +28,28 @@ async fn search_wiki(args: SearchWikiArgs) -> std::result::Result<Value, AdkErro
 
     let headers_only = args.headers_only.unwrap_or(false);
 
-    for entry in WalkDir::new(&wiki_dir).into_iter().filter_map(|e| e.ok()) {
-        if matches.len() >= limit {
-            break;
-        }
+    {
+        let cache = get_cache().read().map_err(|e| AdkError::tool(format!("Failed to acquire cache read lock: {}", e)))?;
+        for (title, page) in &cache.pages {
+            if matches.len() >= limit {
+                break;
+            }
 
-        let path = entry.path();
-        if path.is_file() && path.extension().and_then(|s| s.to_str()) == Some("md") {
-            let content = fs::read_to_string(&path).await.unwrap_or_default();
+            if let Some(ref req_type) = args.r#type
+                && !page.okf.r#type.eq_ignore_ascii_case(req_type)
+            {
+                continue;
+            }
+
+            if let Some(ref req_status) = args.status
+                && !page.okf.status.eq_ignore_ascii_case(req_status)
+            {
+                continue;
+            }
+
+            let content = page.content.clone().unwrap_or_else(|| std::fs::read_to_string(&page.path).unwrap_or_default());
+
             let mut found = false;
-
             if headers_only {
                 for line in content.lines() {
                     if line.starts_with('#') || line.starts_with("---") {
@@ -51,28 +64,31 @@ async fn search_wiki(args: SearchWikiArgs) -> std::result::Result<Value, AdkErro
                         }
                     }
                 }
-            } else {
-                if let Some(ref re) = regex_pattern {
-                    if re.is_match(&content) {
-                        found = true;
-                    }
-                } else if content.to_lowercase().contains(&query_lower) {
+            } else if let Some(ref re) = regex_pattern {
+                if re.is_match(&content) {
                     found = true;
                 }
+            } else if content.to_lowercase().contains(&query_lower) {
+                found = true;
             }
 
             if found {
-                let relative_path = path.strip_prefix(&wiki_dir).unwrap_or(path).to_string_lossy().replace("\\", "/");
+                let relative_path = page.path.strip_prefix(&wiki_dir).unwrap_or(&page.path).to_string_lossy().replace("\\", "/");
                 matches.push(json!({
-                    "title": get_relative_title(&wiki_dir, path),
-                    "path": format!("wiki/{}", relative_path)
+                    "title": title,
+                    "path": format!("wiki/{}", relative_path),
+                    "type": page.okf.r#type,
+                    "description": page.okf.description,
+                    "status": page.okf.status,
+                    "trust_tier": page.trust_tier,
+                    "is_stale": page.is_stale,
                 }));
             }
         }
     }
 
     if matches.is_empty() {
-        Ok(json!({ "message": "No matches found in wiki." }))
+        Ok(json!({ "message": "No matches found in wiki/OKF concepts." }))
     } else {
         Ok(json!({ "matches": matches, "limit_applied": limit }))
     }

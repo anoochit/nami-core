@@ -13,15 +13,15 @@ The `AgentRunner` is the main orchestration struct used across all interaction m
 - **Event Compaction**: Automatically summarizes conversation history when context window limits are approached, using the `EventsCompactionConfig`.
 - **Streaming**: Provides a clean interface for handling asynchronous event streams from the ADK runner.
 
-### 2. The Agent Core (`src/agent/agent.rs`)
+### 2. The Agent Core (`src/agent/agent.rs`, `src/agent/config.rs`)
 
-The `Agent` is the central brain and identity of the system, constructed via `build_agent()`.
+The `Agent` is the central brain and identity of the system, constructed via `build_agent()`. Configuration structures are defined in `config.rs`.
 
 - **Persona Loading**: Dynamically constructs the system prompt by reading:
   - `AGENT.md`: Core identity, tone, and behavioral rules.
   - `USER.md`: User profile and customized preferences.
   - `MEMORIES.md`: Synthesized long-term facts.
-- **Skill Discovery**: Automatically loads "Skills" (standalone agent executable logic) from the `workspace/` directory using `with_skills_from_root`.
+- **Skill Discovery**: Automatically loads "Skills" (standalone agent executable logic) from the configured sources in priority order — `<workspace>/.agents/skills`, `~/.agents/skills`, then `~/.nami/skills` — with workspace copies overriding global ones on name collisions.
 - **Specialists**: Manages a set of specialized sub-agents (e.g., Coder, Researcher) that can be invoked dynamically for specific workloads.
 
 ### 3. Shared Dependencies (`src/modes/startup.rs`)
@@ -144,26 +144,21 @@ Nami is structured into four primary modules under `src/`. Below is a detailed b
 
 #### Built-in Toolsets
 
-- **`analyze_media/`**: Unified multimodal tool designed to natively parse and reason over non-text resources (such as PNG/JPEG, MP3/WAV, MP4/MOV, and PDFs) by extracting inline raw byte vectors directly into multimodal-capable model APIs.
-- **`audio_generator/` / `video_generator/`**: High-fidelity tools enabling generative text-to-speech/sound effects and image-to-video production with detailed voice, camera, speed, and motion controls.
-- **`current_datetime/`**: Provides the current date, time, and timezone offset information using system clock calculations.
+- **`audio_generator/` / `video_generator/` / `image_generator/`**: Generative AI tools for text-to-speech, sound effects, image generation, and video production with fine-grained parameter controls.
+- **`current_datetime/`**: Provides date, time, and timezone offset information using system clock calculations.
 - **`evolution/`**: Periodically updates internal `MEMORIES.md` and `AGENT.md` instructions using global sandboxed directory paths via `get_nami_dir()`.
-- **`filesystem/`**: Provides sandboxed file system operations (read, write, list, delete) safely within the workspace with cleaned execution response metrics.
-- **`image_generator/`**: Native AI image generation capabilities with exposed JSON parameter schema and absolute local output file path translations.
-- **`invoke_agent/`**: Invokes a single specialist agent (e.g., coder, researcher, writer) by name with a given prompt to delegate tasks.
+- **`filesystem/`**: Sandboxed file system operations (`read_file`, `write_file`, `list_files`, `search_files`, `delete_file`), plus multimodal media parsing (`analyze_media` in `media.rs`).
+- **`invoke_agent/` & `parallel_tasks/`**: Delegation tools for invoking individual specialist sub-agents or executing multiple specialists in parallel.
 - **`memory/`**: Vector-searchable long-term memory operations (`add_memory`, `recall_memory`) backed by SQLite.
-- **`parallel_tasks/`**: Orchestration logic to run multiple specialist agents concurrently.
-- **`plan/`**: Integrated Autonomous Planner-Executor-Verifier toolset. Supports structured implementation planning (`plan_create` with custom pre-synthesized steps, `plan_show`, `plan_list`, `plan_delete`, `plan_update`), interactive plan alignment (`PlanGrill` helper for CLI and conversational Q&A-driven planning), and complete autonomous plan execution (`plan_execute`) with self-healing, critic verification, and dynamic replanning.
 - **`scheduler/`**: Background task scheduler running operations based on cron expressions.
-- **`search/`**: Web search integration using external APIs (e.g., Serper.dev) for real-time information retrieval.
-- **`shell/`**: Executes shell commands with structured validation controls, including customizable `security_level` limits, `allowed_commands` whitelists, `blocked_commands` restrictions, and path traversal validation checks.
-- **`soul/`**: Tools for managing and updating the agent's internal persona/soul and user memory.
-- **`supervised_delegate/`**: Concurrent multi-agent supervisor orchestrator. Formulates complex goals into a Directed Acyclic Graph (DAG) of specialized subtasks, executes independent DAG branches concurrently via `tokio::spawn`, runs an autonomous QA self-correction loop, and generates a master synthesized final report.
-- **`system_status/`**: Monitors and reports system health (CPU, memory, general performance metrics, and network latency checks).
-- **`todo/`**: A simple task/TODO list manager that persists items to `todos.json` in the workspace.
-- **`weather/`**: Queries real-time weather forecasts and conditions with multi-day metrics.
-- **`web_fetch/`**: Fetches content from arbitrary URLs, automatically converting fetched HTML to markdown utilizing the `html2md` module to improve LLM reading quality and reduce downstream token usage.
+- **`search/`**: Web search integration for real-time information retrieval.
+- **`shell/`**: Executes shell commands with security controls (`security_level`, `allowed_commands`, `blocked_commands`).
+- **`soul/`**: Tools for updating the agent's internal persona/soul (`update_agent_soul`) and user memory (`update_user_memory`).
+- **`supervised_delegate/`**: Concurrent multi-agent supervisor orchestrator using Directed Acyclic Graph (DAG) subtask structures, parallel execution, and self-correction loops.
+- **`todo/`**: A task/TODO manager that persists items to `todos.json` in the workspace.
+- **`web_fetch/`**: Fetches content from URLs and converts HTML to markdown via `html2md` to reduce LLM token usage.
 - **`wiki/`**: Knowledge management system tools for Obsidian-style Markdown manipulation, backlinks, and autogenerated graphs.
+- **`LoadArtifactsTool`**: Re-exported from `adk_tool`, allows the agent to dynamically load versioned binary artifact files.
 
 #### Key Entry Points & Maintenance
 

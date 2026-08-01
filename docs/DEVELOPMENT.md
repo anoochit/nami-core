@@ -21,7 +21,7 @@ Welcome to the Nami development guide. This document outlines the standards and 
 
 ## 🧪 Testing Workflow
 
-Refer to [HARNESS.md](./HARNESS.md) for a deep dive into the testing infrastructure.
+Refer to [EVALS.md](./EVALS.md) for a deep dive into the testing infrastructure.
 
 - **Unit Tests**: Add tests in `#[cfg(test)]` modules at the bottom of the implementation file.
 - **Integration Tests**: Add end-to-end tests in the `tests/` directory.

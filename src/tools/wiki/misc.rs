@@ -12,7 +12,7 @@ use super::{
     get_cache, git_auto_commit, SummarizeWikiArgs, SanitizeWikiVaultArgs,
 };
 
-/// Generates a 'SUMMARY.md' file indexing all pages recursively from the Cache.
+/// Generates 'index.md' (and 'SUMMARY.md') indexing all concept pages recursively per OKF v0.2 §8.
 #[tool]
 async fn summarize_wiki(_args: SummarizeWikiArgs) -> std::result::Result<Value, AdkError> {
     let wiki_dir = get_wiki_dir().await?;
@@ -22,28 +22,29 @@ async fn summarize_wiki(_args: SummarizeWikiArgs) -> std::result::Result<Value, 
     {
         let cache = get_cache().read().map_err(|e| AdkError::tool(format!("Failed to acquire cache read lock: {}", e)))?;
         for (title, page) in &cache.pages {
-            if title == "SUMMARY" {
+            if title == "SUMMARY" || title == "index" || title == "log" {
                 continue;
             }
+            let concept_type = page.okf.r#type.clone();
             pages_to_read.push((
                 title.clone(),
                 page.path.clone(),
-                page.frontmatter.get("title").cloned().unwrap_or_else(|| title.clone()),
-                page.frontmatter.get("description").cloned()
+                page.okf.title.clone().unwrap_or_else(|| title.clone()),
+                page.okf.description.clone(),
+                concept_type,
             ));
         }
     }
 
     let mut pages_info = Vec::new();
-    for (title, path, display_title, description_opt) in pages_to_read {
+    for (title, path, display_title, description_opt, concept_type) in pages_to_read {
         let content = fs::read_to_string(&path).await.unwrap_or_default();
         let mut description = description_opt.unwrap_or_else(|| "No description available.".to_string());
 
         if description == "No description available." {
             let first_line = content
                 .lines()
-                .skip_while(|l| l.starts_with("---") || l.trim().is_empty())
-                .next()
+                .find(|l| !l.starts_with("---") && !l.trim().is_empty())
                 .unwrap_or("No content")
                 .trim_start_matches('#')
                 .trim();
@@ -52,22 +53,27 @@ async fn summarize_wiki(_args: SummarizeWikiArgs) -> std::result::Result<Value, 
             }
         }
 
-        pages_info.push((title, display_title, description));
+        pages_info.push((title, display_title, description, concept_type));
     }
 
     pages_info.sort_by(|a, b| a.0.cmp(&b.0));
 
-    let mut summary_content = "# Wiki Summary Index\n\nGenerated automatically by Nami.\n\n".to_string();
-    for (path, display, desc) in pages_info {
-        summary_content.push_str(&format!("- **[{}]({})**: {}\n", display, path, desc));
+    let mut index_content = "---\nokf_version: \"0.2\"\n---\n\n# Knowledge Index\n\nGenerated automatically by Nami per Open Knowledge Format (OKF v0.2).\n\n".to_string();
+    for (path, display, desc, ctype) in pages_info {
+        index_content.push_str(&format!("- **[{}]({})** (`{}`): {}\n", display, path, ctype, desc));
     }
 
+    let index_path = wiki_dir.join("index.md");
+    fs::write(&index_path, &index_content)
+        .await
+        .map_err(|e| AdkError::tool(format!("Failed to write index.md: {}", e)))?;
+
     let summary_path = wiki_dir.join("SUMMARY.md");
-    fs::write(&summary_path, &summary_content)
+    fs::write(&summary_path, &index_content)
         .await
         .map_err(|e| AdkError::tool(format!("Failed to write SUMMARY.md: {}", e)))?;
 
-    Ok(json!({"status": "success", "message": "Wiki summary (SUMMARY.md) has been updated!"}))
+    Ok(json!({"status": "success", "message": "Knowledge Index (index.md & SUMMARY.md) updated per OKF v0.2!"}))
 }
 
 /// Sanitizes wiki vault titles and pages from Cache.

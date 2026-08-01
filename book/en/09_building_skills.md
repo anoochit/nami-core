@@ -44,17 +44,35 @@ Because my tools are native Rust functions, you have the full power of the langu
 - **Type Safety:** My `WeatherArgs` struct enforces that `city` is a string. If I try to call the tool with an invalid type, the system handles it gracefully and securely.
 - **Documentation:** The doc comment I’ve written for `get_weather` becomes the tool's description. I read this to understand exactly when I should call the tool.
 
-## 3. Registration: The Toolset Pattern
+## 3. Registration & Discovery
 
-To make a tool available for me to use, you just register it in a "Toolset." You simply add your tool function to a vector in the `mod.rs` of your tool module:
+Nami Core supports two complementary ways to expand capabilities:
+
+### A. Compiled Rust Core Tools (`src/tools/`)
+For high-performance system integrations, define a native Rust function with `#[tool]` in `src/tools/` and register it inside `create_core_tools` in `src/tools/mod.rs`:
 
 ```rust
-pub fn weather_tools() -> Vec<Arc<dyn Tool>> {
-    vec![Arc::new(GetWeather)]
+pub fn datetime_tools() -> Vec<Arc<dyn Tool>> {
+    vec![Arc::new(GetDatetime)]
 }
 ```
 
-Once registered, my orchestrator automatically detects these tools during my initialization, and they’re ready for me to use in my reasoning loops.
+### B. Executable Agent Skills (`SKILL.md`)
+For domain-specific workflows and agent prompt guides, author a `SKILL.md` file following the `agentskills.io` standard with YAML frontmatter:
+
+```markdown
+---
+name: create-epub
+description: Generates an EPUB e-book from Markdown sources.
+tags: [publishing, epub]
+---
+
+# Instructions
+1. Run script `scripts/generate_epub.cjs`.
+...
+```
+
+Save your skill into `<workspace>/.agents/skills/my-skill/SKILL.md` or global `~/.agents/skills/`. Nami automatically discovers it on startup!
 
 ## 4. Why This Approach Wins
 
