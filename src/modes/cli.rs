@@ -9,8 +9,7 @@ use std::time::Instant;
 use termimad::MadSkin;
 use uuid::Uuid;
 
-use crate::agent::{get_compaction_config, get_intra_compaction_config};
-use adk_rust::agent::LlmEventSummarizer;
+use crate::agent::{get_compaction_config, get_intra_compaction_config, get_intra_compaction_summarizer, load_config_sync};
 use crate::modes::command_registry::CommandRegistry;
 use crate::modes::{grill, slash_dispatcher, switch};
 use crate::utils::{get_nami_dir, session};
@@ -520,15 +519,16 @@ pub async fn handle_slash_command(
             *mcp_count = fresh_mcp_count;
             *skill_count = fresh_skill_count;
 
+            let compaction_cfg = load_config_sync().ok().and_then(|c| c.compaction);
             let model_name_str = model.name();
             *runner = Runner::builder()
                 .app_name(app_name)
                 .agent(agent.clone())
                 .session_service(sessions.clone())
                 .artifact_service(artifacts.clone())
-                .compaction_config(get_compaction_config(model.clone()))
-                .intra_compaction_config(get_intra_compaction_config(&model_name_str))
-                .intra_compaction_summarizer(Arc::new(LlmEventSummarizer::new(model.clone())))
+                .compaction_config(get_compaction_config(model.clone(), &compaction_cfg))
+                .intra_compaction_config(get_intra_compaction_config(&model_name_str, &compaction_cfg))
+                .intra_compaction_summarizer(get_intra_compaction_summarizer(model.clone(), &compaction_cfg))
                 .build()?;
 
             println!("{} Successfully switched to {} using model {}!\n", 
@@ -706,12 +706,16 @@ pub async fn run_cli(
 
     session::ensure_session(&sessions, app_name, user_id, &session_id).await?;
 
+    let compaction_cfg = load_config_sync().ok().and_then(|c| c.compaction);
+    let model_name_str = model.name();
     let mut runner = Runner::builder()
         .app_name(app_name)
         .agent(agent.clone())
         .session_service(sessions.clone())
         .artifact_service(artifacts.clone())
-        .compaction_config(get_compaction_config(model.clone()))
+        .compaction_config(get_compaction_config(model.clone(), &compaction_cfg))
+        .intra_compaction_config(get_intra_compaction_config(&model_name_str, &compaction_cfg))
+        .intra_compaction_summarizer(get_intra_compaction_summarizer(model.clone(), &compaction_cfg))
         .build()?;
 
 

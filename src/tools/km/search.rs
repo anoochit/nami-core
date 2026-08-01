@@ -47,6 +47,12 @@ async fn search_km(args: SearchKmArgs) -> std::result::Result<Value, AdkError> {
                 continue;
             }
 
+            if let Some(ref req_tier) = args.trust_tier
+                && !page.trust_tier.eq_ignore_ascii_case(req_tier)
+            {
+                continue;
+            }
+
             let content = page.content.clone().unwrap_or_else(|| std::fs::read_to_string(&page.path).unwrap_or_default());
 
             let mut found = false;

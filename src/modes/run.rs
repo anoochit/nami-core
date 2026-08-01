@@ -1,4 +1,3 @@
-use adk_rust::agent::LlmEventSummarizer;
 use adk_rust::Agent;
 use adk_rust::prelude::*;
 use adk_session::SessionService;
@@ -21,14 +20,15 @@ pub async fn run_direct(
 
     session::ensure_session(&sessions, app_name, user_id, session_id).await?;
 
+    let compaction_cfg = crate::agent::load_config_sync().ok().and_then(|c| c.compaction);
     let runner = Runner::builder()
         .app_name(app_name)
         .agent(agent)
         .session_service(sessions)
         .artifact_service(artifacts)
-        .compaction_config(crate::agent::get_compaction_config(model.clone()))
-        .intra_compaction_config(crate::agent::get_intra_compaction_config(&model_name))
-        .intra_compaction_summarizer(Arc::new(LlmEventSummarizer::new(model)))
+        .compaction_config(crate::agent::get_compaction_config(model.clone(), &compaction_cfg))
+        .intra_compaction_config(crate::agent::get_intra_compaction_config(&model_name, &compaction_cfg))
+        .intra_compaction_summarizer(crate::agent::get_intra_compaction_summarizer(model, &compaction_cfg))
         .build()?;
 
     let user_content = Content::new("user").with_text(prompt);

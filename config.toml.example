@@ -152,3 +152,34 @@ enabled = false
 # # Note: Built-in safe commands (git, ls, cargo, grep, echo, etc.) are always enabled.
 # # allowed_commands = ["make", "pytest", "python"]
 
+# --- Context Compaction ---
+# Controls how Nami manages context window size during long conversations.
+# All fields are optional — missing values use sensible defaults.
+# [compaction]
+# Turns between post-invocation compactions (summarize every N agent turns).
+# Default: auto (3-6 based on model window).
+# compaction_interval = 4
+# Number of recent events preserved verbatim after post-invocation compaction.
+# Default: 2
+# overlap_size = 2
+# Percentage of the model's context window that triggers intra-compaction (0-100).
+# Default: 70
+# token_threshold_pct = 70
+# Number of recent events preserved after intra-compaction. Default: 10
+# overlap_event_count = 10
+# Heuristic characters-per-token ratio used for token estimation. Default: 4
+# chars_per_token = 4
+
+# Optional separate model for running summarization (lighter/cheaper than the main model).
+# If omitted, the main agent model is used for summarization.
+# [compaction.summarizer]
+# model_name = "gemini-2.5-flash"
+# api_key_env = "GOOGLE_API_KEY"
+
+# Optional model context window overrides (model_name pattern -> window_size in tokens).
+# Nami auto-detects window sizes for known models; use this to override or add new ones.
+# [compaction.model_context_windows]
+# "gemini-2.5-flash" = 1000000
+# "claude-3-5-sonnet" = 200000
+# "my-custom-model" = 128000
+

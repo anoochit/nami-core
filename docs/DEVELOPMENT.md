@@ -37,8 +37,8 @@ Refer to [EVALS.md](./EVALS.md) for a deep dive into the testing infrastructure.
 
 ## 📝 Retrospective Reporting
 
-To maintain our "Wiki-First" culture, all complex or non-trivial tasks should include a retrospective report.
+To maintain our "Knowledge Base-First" culture, all complex or non-trivial tasks should include a retrospective report.
 
-1. After completing a task, draft a report in `workspace/wiki/Reports/`.
-2. Use the `workspace/wiki/Templates/Task_Retrospective.md` template.
+1. After completing a task, draft a report in `km/Reports/`.
+2. Use the `km/Templates/Task-Retrospective.md` template.
 3. Ensure the retrospective includes documented insights and links to updated project documentation.

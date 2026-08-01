@@ -7,6 +7,35 @@ use std::sync::Arc;
 
 use crate::utils::get_nami_dir;
 
+/// Configuration for context compaction, loaded from `[compaction]` in config.toml.
+#[derive(Debug, Deserialize, Serialize, Clone, PartialEq)]
+pub struct CompactionConfig {
+    /// Turns between post-invocation compactions (auto if None).
+    pub compaction_interval: Option<u32>,
+    /// Events preserved after post-invocation compaction.
+    pub overlap_size: Option<usize>,
+    /// Percentage of context window to trigger intra-compaction (default 70).
+    pub token_threshold_pct: Option<u64>,
+    /// Events preserved after intra-compaction (default 10).
+    pub overlap_event_count: Option<usize>,
+    /// Chars-per-token ratio (default 4).
+    pub chars_per_token: Option<u32>,
+    /// Optional separate summarizer model.
+    pub summarizer: Option<SummarizerConfig>,
+    /// Model name -> context window size overrides.
+    #[serde(default)]
+    pub model_context_windows: Option<HashMap<String, u64>>,
+}
+
+/// Configuration for a dedicated summarizer model.
+#[derive(Debug, Deserialize, Serialize, Clone, PartialEq)]
+pub struct SummarizerConfig {
+    pub provider: Option<String>,
+    pub model_name: String,
+    pub api_key_env: Option<String>,
+    pub base_url: Option<String>,
+}
+
 /// Application configuration structure loaded from `config.toml`.
 #[derive(Debug, Deserialize, Serialize, Clone, PartialEq)]
 pub struct AppConfig {
@@ -26,6 +55,9 @@ pub struct AppConfig {
     pub embedding: Option<ModelConfig>,
     /// Optional configuration for tools, like shell command whitelist.
     pub tools: Option<ToolsConfig>,
+    /// Optional configuration for context compaction.
+    #[serde(default)]
+    pub compaction: Option<CompactionConfig>,
 }
 
 /// Configuration for tools (e.g., shell commands whitelist).

@@ -35,6 +35,10 @@ struct AddKmArgs {
     r#type: Option<String>,
     /// Optional: Brief description of the concept for OKF v0.2 metadata.
     description: Option<String>,
+    /// Optional: Tags for the knowledge page (e.g., ['rust', 'project-ideas']).
+    tags: Option<Vec<String>>,
+    /// Optional: Status according to OKF v0.2 specification ('draft', 'stable', 'deprecated'). Defaults to 'stable'.
+    status: Option<String>,
     /// If true, appends to the existing page instead of overwriting.
     append: Option<bool>,
 }
@@ -51,6 +55,8 @@ struct SearchKmArgs {
     r#type: Option<String>,
     /// Optional: Filter results by OKF status ('draft', 'stable', 'deprecated').
     status: Option<String>,
+    /// Optional: Filter results by trust tier ('unverified', 'machine-confirmed', 'human-reviewed').
+    trust_tier: Option<String>,
     /// Optional: Maximum number of search results to return (defaults to 50).
     limit: Option<usize>,
 }
@@ -243,6 +249,61 @@ fn default_status() -> String {
     "stable".to_string()
 }
 
+/// Valid OKF v0.2 concept types
+pub const VALID_OKF_TYPES: &[&str] = &[
+    "Concept",
+    "Playbook",
+    "Metric",
+    "Attested Computation",
+    "API Endpoint",
+];
+
+/// Valid OKF v0.2 status values
+pub const VALID_OKF_STATUSES: &[&str] = &["draft", "stable", "deprecated"];
+
+/// Validates an OKF v0.2 concept type
+pub fn validate_okf_type(t: &str) -> anyhow::Result<()> {
+    if VALID_OKF_TYPES.contains(&t) {
+        Ok(())
+    } else {
+        anyhow::bail!(
+            "Invalid OKF type '{}'. Valid types: {}",
+            t,
+            VALID_OKF_TYPES.join(", ")
+        )
+    }
+}
+
+/// Validates an OKF v0.2 status value
+pub fn validate_okf_status(s: &str) -> anyhow::Result<()> {
+    if VALID_OKF_STATUSES.contains(&s) {
+        Ok(())
+    } else {
+        anyhow::bail!(
+            "Invalid OKF status '{}'. Valid statuses: {}",
+            s,
+            VALID_OKF_STATUSES.join(", ")
+        )
+    }
+}
+
+// --- STATIC REGEX PATTERNS ---
+
+fn md_link_re() -> &'static Regex {
+    static RE: OnceLock<Regex> = OnceLock::new();
+    RE.get_or_init(|| Regex::new(r"\[([^\]]+)\]\(([^)]+)\)").unwrap())
+}
+
+fn wikilink_re() -> &'static Regex {
+    static RE: OnceLock<Regex> = OnceLock::new();
+    RE.get_or_init(|| Regex::new(r"\[\[([^\]|]+)(?:\|[^\]]+)?\]\]").unwrap())
+}
+
+fn inline_tag_re() -> &'static Regex {
+    static RE: OnceLock<Regex> = OnceLock::new();
+    RE.get_or_init(|| Regex::new(r"#([a-zA-Z0-9_\-]+)").unwrap())
+}
+
 // --- CACHING STRUCTURES ---
 
 #[derive(Clone, Debug)]
@@ -363,8 +424,7 @@ fn parse_km_file_sync(km_dir: &Path, path: &Path) -> anyhow::Result<KmPageMetada
     }
 
     // Parse Markdown standard links: [Label](/path.md) or [Label](path.md)
-    let md_link_re = Regex::new(r"\[([^\]]+)\]\(([^)]+)\)").unwrap();
-    for cap in md_link_re.captures_iter(main_content) {
+    for cap in md_link_re().captures_iter(main_content) {
         let link_path = cap[2].trim();
         // Ignore external HTTP/HTTPS links
         if !link_path.starts_with("http://") && !link_path.starts_with("https://") && !link_path.starts_with('#') {
@@ -377,8 +437,7 @@ fn parse_km_file_sync(km_dir: &Path, path: &Path) -> anyhow::Result<KmPageMetada
     }
 
     // Parse wikilinks: [[PageTitle]] or [[PageTitle|Alias]]
-    let link_re = Regex::new(r"\[\[([^\]|]+)(?:\|[^\]]+)?\]\]").unwrap();
-    for cap in link_re.captures_iter(main_content) {
+    for cap in wikilink_re().captures_iter(main_content) {
         let link_target = sanitize_title(&cap[1]);
         if !links.contains(&link_target) {
             links.push(link_target);
@@ -386,8 +445,7 @@ fn parse_km_file_sync(km_dir: &Path, path: &Path) -> anyhow::Result<KmPageMetada
     }
 
     // Parse inline #tags
-    let tag_re = Regex::new(r"#([a-zA-Z0-9_\-]+)").unwrap();
-    for cap in tag_re.captures_iter(main_content) {
+    for cap in inline_tag_re().captures_iter(main_content) {
         let tag = cap[1].to_lowercase();
         if !tags.contains(&tag) {
             tags.push(tag);
@@ -432,7 +490,7 @@ fn parse_km_file_sync(km_dir: &Path, path: &Path) -> anyhow::Result<KmPageMetada
 
 // --- GIT VERSIONING HELPER ---
 
-fn git_auto_commit(km_dir: &Path, file_path: &Path, action_message: &str) {
+fn git_auto_commit(km_dir: &Path, file_path: &Path, action_message: &str) -> anyhow::Result<()> {
     let git_dir = km_dir.join(".git");
     let is_git = git_dir.exists() || {
         let mut p = km_dir.to_path_buf();
@@ -447,19 +505,35 @@ fn git_auto_commit(km_dir: &Path, file_path: &Path, action_message: &str) {
     };
 
     if is_git {
-        let _ = std::process::Command::new("git")
+        let output = std::process::Command::new("git")
             .arg("add")
             .arg(file_path)
             .current_dir(km_dir)
-            .output();
+            .output()
+            .map_err(|e| anyhow::anyhow!("Failed to run git add: {}", e))?;
 
-        let _ = std::process::Command::new("git")
+        if !output.status.success() {
+            let stderr = String::from_utf8_lossy(&output.stderr);
+            eprintln!("Warning: git add failed: {}", stderr.trim());
+        }
+
+        let output = std::process::Command::new("git")
             .arg("commit")
             .arg("-m")
             .arg(action_message)
             .current_dir(km_dir)
-            .output();
+            .output()
+            .map_err(|e| anyhow::anyhow!("Failed to run git commit: {}", e))?;
+
+        if !output.status.success() {
+            let stderr = String::from_utf8_lossy(&output.stderr);
+            // "nothing to commit" is not an error
+            if !stderr.contains("nothing to commit") {
+                eprintln!("Warning: git commit failed: {}", stderr.trim());
+            }
+        }
     }
+    Ok(())
 }
 
 // --- TEMPLATE HELPER ---
@@ -477,50 +551,29 @@ fn expand_template_variables(template: &str, title: &str) -> String {
         .replace("{{week}}", &week_str)
 }
 
-// --- TITLE CASE HELPERS ---
+// --- KEBAB CASE HELPERS ---
 
-fn to_title_case(s: &str) -> String {
-    let mut result = String::new();
-    let mut capitalize_next = true;
-    let mut last_was_space = false;
-    let chars: Vec<char> = s.chars().collect();
-
-    for i in 0..chars.len() {
-        let c = chars[i];
-        let is_date_dash = c == '-'
-            && i > 0
-            && i < chars.len() - 1
-            && chars[i - 1].is_ascii_digit()
-            && chars[i + 1].is_ascii_digit();
-
-        if (c == '-' && !is_date_dash) || c == '_' || c == ' ' {
-            if !last_was_space && !result.is_empty() {
-                result.push(' ');
-                last_was_space = true;
-            }
-            capitalize_next = true;
-        } else if capitalize_next {
-            result.push(c.to_ascii_uppercase());
-            capitalize_next = false;
-            last_was_space = false;
-        } else {
-            result.push(c);
-            last_was_space = false;
-        }
-    }
-    result.trim().to_string()
+fn to_kebab_case(s: &str) -> String {
+    let invalid_chars = ['<', '>', ':', '"', '|', '?', '*'];
+    s.trim()
+        .replace('_', "-")
+        .replace(' ', "-")
+        .chars()
+        .filter(|c| !invalid_chars.contains(c))
+        .map(|c| c.to_ascii_lowercase())
+        .collect::<String>()
+        .split('-')
+        .filter(|part| !part.is_empty())
+        .collect::<Vec<_>>()
+        .join("-")
 }
 
 fn sanitize_title(title: &str) -> String {
-    let sanitized_path = title.trim().replace("\\", "/");
+    let sanitized_path = title.trim().replace('\\', "/");
     let parts: Vec<String> = sanitized_path
         .split('/')
-        .map(|part| {
-            let mut p = part.to_string();
-            let invalid_chars = ['<', '>', ':', '"', '|', '?', '*'];
-            p.retain(|c| !invalid_chars.contains(&c));
-            to_title_case(&p)
-        })
+        .map(|part| to_kebab_case(part))
+        .filter(|p| !p.is_empty())
         .collect();
 
     parts.join("/")
@@ -633,5 +686,76 @@ Just a simple note.
         assert_eq!(metadata.is_stale, false);
 
         let _ = std::fs::remove_dir_all(&km_dir);
+    }
+
+    #[test]
+    fn validates_okf_type() {
+        assert!(validate_okf_type("Concept").is_ok());
+        assert!(validate_okf_type("Playbook").is_ok());
+        assert!(validate_okf_type("Metric").is_ok());
+        assert!(validate_okf_type("Attested Computation").is_ok());
+        assert!(validate_okf_type("API Endpoint").is_ok());
+        assert!(validate_okf_type("InvalidType").is_err());
+    }
+
+    #[test]
+    fn validates_okf_status() {
+        assert!(validate_okf_status("draft").is_ok());
+        assert!(validate_okf_status("stable").is_ok());
+        assert!(validate_okf_status("deprecated").is_ok());
+        assert!(validate_okf_status("invalid").is_err());
+    }
+
+    #[test]
+    fn test_to_kebab_case() {
+        assert_eq!(to_kebab_case("Hello World"), "hello-world");
+        assert_eq!(to_kebab_case("my_project"), "my-project");
+        assert_eq!(to_kebab_case("Test"), "test");
+        assert_eq!(to_kebab_case("2024-01-15"), "2024-01-15");
+        assert_eq!(to_kebab_case("  Hello  World  "), "hello-world");
+        // Invalid chars removed, no separator → runs together
+        assert_eq!(to_kebab_case("Invalid<>Chars"), "invalidchars");
+        // With explicit separator
+        assert_eq!(to_kebab_case("hello-world"), "hello-world");
+        assert_eq!(to_kebab_case("Hello World Test"), "hello-world-test");
+    }
+
+    #[test]
+    fn test_sanitize_title() {
+        assert_eq!(sanitize_title("hello world"), "hello-world");
+        assert_eq!(sanitize_title("my/file"), "my/file");
+        assert_eq!(sanitize_title("Invalid<>Chars"), "invalidchars");
+        assert_eq!(sanitize_title("Hello World"), "hello-world");
+        assert_eq!(sanitize_title("Hello World/Test"), "hello-world/test");
+    }
+
+    #[test]
+    fn test_expand_template_variables() {
+        let template = "Date: {{date}}, Time: {{time}}, Title: {{title}}, Week: {{week}}";
+        let result = expand_template_variables(template, "My Note");
+        assert!(result.contains("Title: My Note"));
+        assert!(result.contains("Date:"));
+        assert!(result.contains("Time:"));
+    }
+
+    #[test]
+    fn test_static_regex_patterns() {
+        let md_content = "See [Example](example.md) and [[Wiki Page]] and #tag";
+        
+        // Test markdown link regex
+        let md_caps: Vec<_> = md_link_re().captures_iter(md_content).collect();
+        assert_eq!(md_caps.len(), 1);
+        assert_eq!(md_caps[0][1].to_string(), "Example");
+        assert_eq!(md_caps[0][2].to_string(), "example.md");
+
+        // Test wikilink regex
+        let wiki_caps: Vec<_> = wikilink_re().captures_iter(md_content).collect();
+        assert_eq!(wiki_caps.len(), 1);
+        assert_eq!(wiki_caps[0][1].to_string(), "Wiki Page");
+
+        // Test inline tag regex
+        let tag_caps: Vec<_> = inline_tag_re().captures_iter(md_content).collect();
+        assert_eq!(tag_caps.len(), 1);
+        assert_eq!(tag_caps[0][1].to_string(), "tag");
     }
 }

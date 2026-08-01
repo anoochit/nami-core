@@ -15,7 +15,7 @@ A modular, extensible AI-powered `Nami` built on top of [adk-rust](https://githu
 * **Agent Reflection Service**: A background service that periodically analyzes session logs to synthesize "Learnings" (facts, preferences, project context) and automatically update `MEMORIES.md` and searchable memory.
 * **AI Gateway Integration**: Support for high-availability routing via **MLflow Deployments**, enabling load balancing and fallback strategies across multiple LLM providers.
 * **Native PDF & Marp Slides Rendering**: Directly view PDF documents and render Marp Markdown presentations (using `marp: true` frontmatter) within the WebUI preview canvas.
-* **Specialist Agents**: Ecosystem of specialized agents (`coder`, `researcher`, `writer`, `generalist`, `verifier`, `ralph`) with full access to core tools (filesystem, search, knowledge base), allowing for autonomous complex task execution.
+* **Specialist Agents**: Ecosystem of specialized agents (`coder`, `researcher`, `writer`, `generalist`, `verifier`, `ralph`, `designer`) with full access to core tools (filesystem, search, knowledge base), allowing for autonomous complex task execution.
 * **Autonomous Planner (PEV Loop)**: A unified toolset (`plan_create`, `plan_execute`, etc.) that automatically generates multi-step implementation plans, delegates steps to specialized agents, verifies execution correctness via critic feedback, and triggers self-healing dynamic replanning on verification failures.
 * **Native Image Generation**: Implemented a native image generation tool using `gemini-2.5-flash-image-preview`, providing high-quality, efficient visuals directly within the agent's workflow without external script dependencies.
 * **Parallel Task Execution**: A custom `parallel_tasks` tool that orchestrates multiple specialists simultaneously for high-speed multi-tasking.
@@ -50,20 +50,30 @@ A modular, extensible AI-powered `Nami` built on top of [adk-rust](https://githu
 * **Globalized Sandbox System**: Fully migrated from purely local workspaces to a centralized, global environment residing in `~/.nami/`. Central databases, global logging, globalized skills, and system-wide state protocol tracking are securely sandboxed inside the user's home directory.
 * **Multi-Workspace Auto-Discovery**: Automatically discover, switch, and track configurations and state across multiple active project workspaces from the central system.
 * **Long-Term Searchable Memory**: Integrated `adk-memory` with a SQLite backend. This allows the agent to search past conversations for relevant facts and projects across all modes (CLI, Bot, Serve, Desktop).
-* **Obsidian-Style Knowledge Base**: A transparent, human-readable Knowledge Management system using OKF v0.2 `.md` files with strict Knowledge Base-first search prioritization and automatic external search knowledge capture.
-  * `add_km_page`: Markdown saving with `[[wikilink]]` syntax and OKF v0.2 YAML frontmatter.
-  * `get_km_graph`: Knowledge graph visualization.
+* **Obsidian-Style Knowledge Base**: A transparent, human-readable Knowledge Management system using OKF v0.2 `.md` files with strict Knowledge Base-first search prioritization and automatic external search knowledge capture. Files use kebab-case naming (`hello-world.md`).
+  * `get_km_page`: Retrieve knowledge pages with line-range pagination.
+  * `add_km_page`: Markdown saving with `[[wikilink]]` syntax, OKF v0.2 YAML frontmatter, tags, and status validation.
+  * `create_daily_note`: Journal entries for the current date with template support.
+  * `apply_template`: Apply templates to pages expanding dynamic placeholders.
+  * `rename_km_page`: Safe renaming with automatic wikilink and Markdown link updates across the vault.
+  * `delete_km_page`: Remove knowledge pages with cache and git synchronization.
+  * `search_km`: Full-text search across all knowledge pages with OKF v0.2 filters (type, status, trust_tier).
   * `search_km_by_tag`: Filter notes by specific `#tags`.
-  * `create_daily_note`: Journal entries for the current date.
+  * `glob_find_km`: Find pages matching glob patterns.
+  * `list_km_pages`: List all pages with OKF v0.2 metadata filtering.
+  * `get_km_graph`: Knowledge graph visualization with nodes and edges.
   * `get_backlinks`: List pages linking to a specific note.
-  * `rename_km_page`: Safe renaming with link updates.
+  * `check_broken_links`: Scan for wikilinks pointing to non-existent pages.
+  * `summarize_km`: Generate index.md and SUMMARY.md per OKF v0.2 §8.
+  * `sanitize_km_vault`: Clean up vault titles to kebab-case and update all internal links.
 * **Persistent Sessions**: SQLite-backed conversation history keyed by Telegram user ID.
 * **Todo Management**: Built-in task manager for tracking goals and daily items (`add_todo`, `list_todos`, `mark_todo_done`).
+* **Configurable Context Compaction**: Automatic context window management with user-configurable parameters via `[compaction]` section in `config.toml`. Supports separate summarizer models, configurable thresholds, and model-specific context window overrides.
 
 ### 🛠 Specialized Skills & Tools
 
 * **Unified Serve Server**: A consolidated HTTP serve mode (`nami serve`) combining a headless API server with a fully embedded, self-contained premium WebUI static asset delivery system, removing the need for a separate `browse` mode.
-* **Centralized Global Skill Registry**: Allows discovery, loading, and execution of modular tools and extensions globally or per-workspace, managed dynamically via the central `~/.nami/` registry.
+* **Centralized Global Skill Registry**: Allows discovery, loading, and scoring of modular tools and extensions globally or per-workspace, managed dynamically via the central `~/.nami/` registry. Skills are scored at runtime against user queries using ADK's lexical token-overlap algorithm.
 * **Publishing Skills**: Compile workspace documents into distributable formats:
   * `create-pdf`: Beautifully formatted PDF documents.
   * `create-epub`: EPUB e-books with BOM sanitization.
@@ -73,19 +83,20 @@ A modular, extensible AI-powered `Nami` built on top of [adk-rust](https://githu
 Nami Core is designed for extreme extensibility. You can add new capabilities by deploying modules to the `.skills/` directory.
 
 * **Extensibility Model**: Skills are modular components that bundle specialized scripts and configuration. They allow Nami to perform complex, domain-specific tasks without modifying core code.
+* **Dynamic Skill Selection**: At runtime, user queries are scored against the skill index using ADK's lexical token-overlap scoring. Only the best-matching skill (if any) is injected into the system instruction, keeping context window usage efficient while maintaining relevance.
 * **Skill Management**: You can manage, create, and validate skills using the `skill-creator` extension.
 * **Workspace Configuration**: The `webui/` workspace uses `pnpm` with a workspace configuration (`pnpm-workspace.yaml`) to optimize dependency management and build reproducibility for `esbuild` and other toolchains.
 
-### Currently Available Skills
+### Currently Available Skills (54 total)
 
-* **Book Mockup**: Generate photo-realistic book mockup images using the `image_generator` tool.
-* **CLI Help**: Interactive command references and usage patterns via `cli-help`.
-* **Publishing Suite**: Automate documentation delivery (`create-pdf`, `create-epub`).
-* **Infographic Creator**: Scaffolding and generation for data-rich infographics using the `image_generator` tool.
-* **Website Creator**: Scaffolding for static website projects.
-* **Nami Blog Manager**: Tools for managing blog posts, metadata, and references.
-* **Skill Creator**: Utilities for initializing, packaging, and validating new skills.
-* **System Status**: Monitor and report on system health and agent performance.
+* **Firebase Suite**: Complete Firebase integration (Auth, Firestore, Hosting, Crashlytics, Remote Config, Data Connect, AI Logic, App Hosting).
+* **Appwrite Suite**: Full Appwrite SDK support (TypeScript, Dart, Python, CLI).
+* **AI Agent Frameworks**: Pydantic AI agents, Genkit (Go/JS/Python/Dart), assistant-ui components.
+* **HyperFrames**: Video composition, animations, captions, transitions, and media preprocessing.
+* **Frontend**: Tailwind CSS v4, shadcn/ui, CSS animations, Three.js, GSAP, Anime.js, Lottie.
+* **Observability**: Logfire instrumentation, querying, and UI integration.
+* **PDF & Publishing**: PDF manipulation, form filling, Mintlify documentation.
+* **Development**: Xcode project setup, custom opencode configuration.
 
 *(To add a custom skill, check the `workspace/.skills/skill-creator` documentation for templates and packaging tools.)*
 
@@ -203,7 +214,7 @@ graph TD
     Runner --> Reflection[Reflection Service]
     
     Agent --> LLM[ThaiLLM/Gemini/OpenAI]
-    Agent --> SubAgents[Sub-Agents: Coder, Researcher, Writer, Verifier, Ralph]
+    Agent --> SubAgents[Sub-Agents: Coder, Researcher, Writer, Generalist, Verifier, Ralph, Designer]
     Agent --> Tools[Tools: Filesystem, Memory, Autonomous Planner, etc.]
     Agent --> KnowledgeBase[Obsidian-Style Knowledge Base: Graph, Tags, Daily Notes]
     Agent --> Persona[AGENT.md & USER.md]

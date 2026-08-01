@@ -12,7 +12,7 @@ use super::specialists;
 use crate::tools;
 use crate::utils::get_nami_dir;
 
-use adk_rust::skill::{load_skill_index_with_extras, SkillIndex};
+use adk_rust::skill::{load_skill_index_with_extras, select_skill_prompt_block, SelectionPolicy, SkillIndex};
 
 /// Loads skills from the three configured sources in priority order:
 /// `<workspace>/.agents/skills`, `~/.agents/skills`, `~/.nami/skills`.
@@ -104,21 +104,6 @@ fn escape_template_braces(body: &str) -> String {
     out
 }
 
-/// Returns the full skill content for injection into the system prompt.
-/// This avoids ADK's with_skills() which injects [skill:name] tags that LLMs hallucinate as callable functions.
-pub fn get_global_skills_content() -> String {
-    match load_global_skills() {
-        Ok(index) if !index.is_empty() => {
-            let skills_content: Vec<String> = index.skills()
-                .iter()
-                .map(|s| format!("## Skill: {}\n{}", s.name, escape_template_braces(&s.body)))
-                .collect();
-            skills_content.join("\n\n---\n\n")
-        }
-        _ => String::new(),
-    }
-}
-
 /// Counts the number of skills across the configured sources (`<workspace>/.agents/skills/`,
 /// `~/.agents/skills/` and `~/.nami/skills/`).
 async fn count_skills() -> usize {
@@ -129,7 +114,18 @@ async fn count_skills() -> usize {
     }
 }
 
-fn model_context_window(model_name: &str) -> u64 {
+/// Looks up model context window from config overrides, then falls back to hardcoded heuristics.
+fn model_context_window(model_name: &str, overrides: &Option<HashMap<String, u64>>) -> u64 {
+    // 1. Check config overrides (case-insensitive substring match)
+    if let Some(windows) = overrides {
+        let lower = model_name.to_lowercase();
+        for (key, &size) in windows {
+            if lower.contains(&key.to_lowercase()) {
+                return size;
+            }
+        }
+    }
+    // 2. Fall back to hardcoded heuristics
     let n = model_name.to_lowercase();
     if n.contains("gemini-2.5") || n.contains("gemini-3") || n.contains("gemini-2.0") {
         1_000_000
@@ -146,10 +142,24 @@ fn model_context_window(model_name: &str) -> u64 {
     }
 }
 
-pub fn get_compaction_config(model: Arc<dyn Llm>) -> EventsCompactionConfig {
-    let window = model_context_window(&model.name());
-    let interval = if window >= 500_000 { 6 } else if window >= 200_000 { 4 } else { 3 };
-    let overlap = 2;
+pub fn get_compaction_config(
+    model: Arc<dyn Llm>,
+    compaction_cfg: &Option<crate::agent::config::CompactionConfig>,
+) -> EventsCompactionConfig {
+    let window = model_context_window(
+        &model.name(),
+        &compaction_cfg.as_ref().and_then(|c| c.model_context_windows.clone()),
+    );
+    let interval = compaction_cfg
+        .as_ref()
+        .and_then(|c| c.compaction_interval)
+        .unwrap_or_else(|| {
+            if window >= 500_000 { 6 } else if window >= 200_000 { 4 } else { 3 }
+        });
+    let overlap = compaction_cfg
+        .as_ref()
+        .and_then(|c| c.overlap_size)
+        .unwrap_or(2) as u32;
     EventsCompactionConfig {
         compaction_interval: interval,
         overlap_size: overlap,
@@ -158,13 +168,98 @@ pub fn get_compaction_config(model: Arc<dyn Llm>) -> EventsCompactionConfig {
 }
 
 /// Generates a model-aware intra-invocation compaction config (token threshold guard).
-pub fn get_intra_compaction_config(model_name: &str) -> IntraCompactionConfig {
-    let window = model_context_window(model_name);
+pub fn get_intra_compaction_config(
+    model_name: &str,
+    compaction_cfg: &Option<crate::agent::config::CompactionConfig>,
+) -> IntraCompactionConfig {
+    let window = model_context_window(
+        model_name,
+        &compaction_cfg.as_ref().and_then(|c| c.model_context_windows.clone()),
+    );
+    let threshold_pct = compaction_cfg
+        .as_ref()
+        .and_then(|c| c.token_threshold_pct)
+        .unwrap_or(70);
+    let overlap_event_count = compaction_cfg
+        .as_ref()
+        .and_then(|c| c.overlap_event_count)
+        .unwrap_or(10);
+    let chars_per_token = compaction_cfg
+        .as_ref()
+        .and_then(|c| c.chars_per_token)
+        .unwrap_or(4);
     IntraCompactionConfig {
-        token_threshold: window * 70 / 100,
-        overlap_event_count: 10,
-        chars_per_token: 4,
+        token_threshold: window * threshold_pct / 100,
+        overlap_event_count,
+        chars_per_token,
     }
+}
+
+/// Builds the intra-compaction summarizer (may use a separate model).
+pub fn get_intra_compaction_summarizer(
+    model: Arc<dyn Llm>,
+    compaction_cfg: &Option<crate::agent::config::CompactionConfig>,
+) -> Arc<dyn adk_core::BaseEventsSummarizer> {
+    let summarizer_llm = build_summarizer_llm_sync(model, compaction_cfg);
+    Arc::new(LlmEventSummarizer::new(summarizer_llm))
+}
+
+/// Builds the summarizer LLM instance (separate model or fallback to agent model).
+/// This is the synchronous version that can be called at entry points.
+pub fn build_summarizer_llm_sync(
+    fallback_model: Arc<dyn Llm>,
+    compaction_cfg: &Option<crate::agent::config::CompactionConfig>,
+) -> Arc<dyn Llm> {
+    if let Some(cfg) = compaction_cfg {
+        if let Some(summarizer) = &cfg.summarizer {
+            let model_cfg = crate::agent::config::ModelConfig {
+                provider: summarizer.provider.clone(),
+                model_name: summarizer.model_name.clone(),
+                api_key_env: summarizer.api_key_env.clone(),
+                base_url: summarizer.base_url.clone(),
+                project_id: None,
+                location: None,
+            };
+            // Try to load the summarizer model synchronously
+            match tokio::runtime::Handle::current().block_on(
+                crate::agent::config::load_model(&model_cfg)
+            ) {
+                Ok(model) => return model,
+                Err(e) => {
+                    log::warn!("Failed to load summarizer model '{}', falling back to agent model: {}",
+                        summarizer.model_name, e);
+                }
+            }
+        }
+    }
+    fallback_model
+}
+
+/// Async version of build_summarizer_llm for use in async contexts.
+pub async fn build_summarizer_llm(
+    fallback_model: Arc<dyn Llm>,
+    compaction_cfg: &Option<crate::agent::config::CompactionConfig>,
+) -> Arc<dyn Llm> {
+    if let Some(cfg) = compaction_cfg {
+        if let Some(summarizer) = &cfg.summarizer {
+            let model_cfg = crate::agent::config::ModelConfig {
+                provider: summarizer.provider.clone(),
+                model_name: summarizer.model_name.clone(),
+                api_key_env: summarizer.api_key_env.clone(),
+                base_url: summarizer.base_url.clone(),
+                project_id: None,
+                location: None,
+            };
+            match crate::agent::config::load_model(&model_cfg).await {
+                Ok(model) => return model,
+                Err(e) => {
+                    log::warn!("Failed to load summarizer model '{}', falling back to agent model: {}",
+                        summarizer.model_name, e);
+                }
+            }
+        }
+    }
+    fallback_model
 }
 
 /// Orchestrates the building of the main AI agent, loading configuration, persona context, and setting up tools, skills, and MCP servers.
@@ -223,7 +318,6 @@ pub async fn create_agent(
     });
 
     let global_skills = load_global_skills().ok();
-    let skills_content = get_global_skills_content();
     let custom_specs = app_config.specialists.as_ref().and_then(|s| s.custom.clone());
 
     let specialists =
@@ -236,18 +330,68 @@ pub async fn create_agent(
             mcp_toolset.clone(),
         );
 
+    // Build the static persona (without skill content — skills are injected dynamically per query)
+    let static_persona = format_persona(&soul, &user, &memory, &get_global_skills_summary());
+
+    // Clone skills index for the instruction provider closure
+    let skills_index_for_provider = global_skills.clone();
+
     let mut builder = LlmAgentBuilder::new("nami")
         .description("A helpful and playful AI assistant")
-        .instruction(format_persona(
-            &soul, &user, &memory, &skills_content,
-        ))
+        .instruction_provider(Box::new(move |ctx| {
+            let persona = static_persona.clone();
+            let skills_index = skills_index_for_provider.clone();
+            Box::pin(async move {
+                // Extract user query text for skill scoring
+                let user_query = ctx.user_content().parts.iter()
+                    .filter_map(|part| match part {
+                        adk_rust::Part::Text { text } => Some(text.as_str()),
+                        _ => None,
+                    })
+                    .collect::<Vec<_>>()
+                    .join("\n");
+
+                // Dynamically select the best-matching skill at runtime
+                let skill_content = if let Some(index) = &skills_index {
+                    if let Some((_, prompt_block)) = select_skill_prompt_block(
+                        index,
+                        &user_query,
+                        &SelectionPolicy::default(),
+                        2000,
+                    ) {
+                        // Strip [skill:name] and [/skill] tags to prevent LLM hallucination
+                        let stripped = prompt_block
+                            .replace("[/skill]", "");
+                        // Extract just the content after the opening tag's closing bracket
+                        if let Some(start) = stripped.find("]\n") {
+                            let content = &stripped[start + 2..];
+                            Some(escape_template_braces(content))
+                        } else {
+                            Some(escape_template_braces(&stripped))
+                        }
+                    } else {
+                        None
+                    }
+                } else {
+                    None
+                };
+
+                // Combine static persona with dynamic skill content
+                match skill_content {
+                    Some(content) if !content.is_empty() => {
+                        Ok(format!("{persona}\n\n## Active Skill\n{content}"))
+                    }
+                    _ => Ok(persona),
+                }
+            })
+        }))
         .model(model.clone());
 
     builder = configure_agent_tools(builder, model.clone(), specialists, core_tools);
-    // NOTE: Skills are deliberately NOT registered with the ADK's with_skills().
-    // Doing so causes the ADK to inject [skill:name] tags into user messages at runtime,
-    // which LLMs consistently hallucinate as callable function calls.
-    // Instead, skill content is prepended to the system instruction via format_persona().
+    // NOTE: Skills are NOT registered with the ADK's with_skills() on the main agent.
+    // That would inject [skill:name] tags into user messages, causing LLMs to hallucinate
+    // them as callable function calls. Instead, skills are scored dynamically at runtime
+    // via instruction_provider and injected into the system instruction without tags.
     if let Some(ref ts) = mcp_toolset {
         builder = builder.toolset(ts.clone());
     }
@@ -277,6 +421,7 @@ pub async fn build_agent() -> anyhow::Result<(Arc<dyn Agent>, Arc<dyn Llm>, Stri
             reflection: None,
             embedding: None,
             tools: None,
+            compaction: None,
         }
     });
 

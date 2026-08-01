@@ -8,7 +8,9 @@ pub mod specialists;
 
 pub use agent::{
     build_agent, get_compaction_config, get_intra_compaction_config,
+    get_intra_compaction_summarizer, build_summarizer_llm,
 };
 pub use config::{
-    AppConfig, ModelConfig, load_config_sync, save_config_sync, load_model_with_fallback,
+    AppConfig, CompactionConfig, SummarizerConfig, ModelConfig,
+    load_config_sync, save_config_sync, load_model_with_fallback,
 };

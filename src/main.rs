@@ -150,6 +150,7 @@ async fn main() -> anyhow::Result<()> {
             reflection: None,
             embedding: None,
             tools: None,
+            compaction: None,
         }
     });
 

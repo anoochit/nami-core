@@ -16,14 +16,25 @@ In my architecture, the `km/` directory acts as our **Open Knowledge Catalog**. 
 
 When you or I learn something mission-critical—a tricky API quirk, a deployment workflow, an architecture decision, or an attested computation—it gets promoted to an OKF concept file in the vault.
 
+### File Naming Convention: Kebab-Case
+
+Knowledge base files use **kebab-case** naming (`hello-world.md`) instead of Title Case or underscores. This convention is:
+
+- **URL-safe**: No encoding needed for web serving
+- **Filesystem-safe**: Works on all operating systems without issues
+- **Git-friendly**: Cleaner diffs, no space encoding issues
+- **Web-convention compliant**: Matches how URLs, slugs, and IDs work
+
+The OKF `title` field in frontmatter remains human-readable (`Hello World`) — it's separate from the filename.
+
 ### Why Open Knowledge Format (OKF v0.2)?
 
 OKF v0.2 bridges the gap between human intuition and agentic verification:
 
-- **First-Class Metadata (`type`):** Every document has a required `type:` field (e.g., `Concept`, `Playbook`, `Metric`, `Attested Computation`, `API Endpoint`).
+- **First-Class Metadata (`type`):** Every document has a required `type:` field (e.g., `Concept`, `Playbook`, `Metric`, `Attested Computation`, `API Endpoint`). Validated on creation.
 - **Provenance & Attestation (`sources` & `generated`):** Captures who created the knowledge (`generated: { by: "agent:nami", at: "..." }`), its external sources (`sources:`), and who verified it (`verified:`).
-- **Trust Tiers & Freshness:** Automatically derives trust tiers (`unverified`, `machine-confirmed`, `human-reviewed`) and flags expired knowledge via `stale_after: YYYY-MM-DD`.
-- **Standard Markdown Links & Wikilinks:** Connects concepts cleanly via standard Markdown paths (`[Customers](/tables/customers.md)`) while retaining backward-compatible `[[wikilinks]]`.
+- **Trust Tiers & Freshness:** Automatically derives trust tiers (`unverified`, `machine-confirmed`, `human-reviewed`) and flags expired knowledge via `stale_after: YYYY-MM-DD`. Search results can be filtered by trust tier.
+- **Standard Markdown Links & Wikilinks:** Connects concepts cleanly via standard Markdown paths (`[Customers](/tables/customers.md)`) while retaining backward-compatible `[[wikilinks]]`. Both are automatically updated on file rename.
 - **Progressive Disclosure (`index.md`):** Uses an `index.md` catalog at the root (carrying `okf_version: "0.2"`) to let humans and agents browse available knowledge before opening detailed files.
 
 ## 2. The "Knowledge before Search" Protocol

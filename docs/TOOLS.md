@@ -41,10 +41,27 @@ Nami acts as an MCP client, allowing it to connect to external tool servers.
 ## 📦 Built-in Tools
 
 - **Filesystem**: `read_file`, `write_file`, `list_files`, `search_files`, `delete_file`, `analyze_media` (natively processes images, audio, video, and PDFs).
-- **Web**: `web_fetch` (automatically parses raw HTML to markdown format utilizing `html2md`), `wiki` (manages knowledge base).
+- **Web**: `web_fetch` (automatically parses raw HTML to markdown format utilizing `html2md`), `km` (manages OKF v0.2 knowledge base with kebab-case naming).
 - **Memory**: `recall_memory`, `add_memory`.
 - **Generators**: `image_generator`, `audio_generator`, `video_generator`.
 - **System**: `execute_shell` (bound by security configurations), `current_datetime`, `scheduler`, `todo`.
 - **Delegation**: `supervised_delegate` (DAG task orchestration), `invoke_agent` (single specialist delegation), `parallel_tasks` (parallel multi-specialist execution).
 - **Soul & Evolution**: `update_user_memory` (updates agent's view of the user), `update_agent_soul` (evolves agent instructions/personality), `evolution`.
 - **Artifacts**: `load_artifacts` (loads versioned binary files).
+
+## 📚 Knowledge Base Tools (`src/tools/km/`)
+
+The Knowledge Base uses OKF v0.2 compliant `.md` files with **kebab-case** naming (`hello-world.md`). All tools support frontmatter validation, trust tier filtering, and automatic link updates.
+
+- **`add_km_page`**: Creates/updates pages with OKF v0.2 frontmatter. Supports `tags`, `status` (`draft`/`stable`/`deprecated`), and `type` (`Concept`/`Playbook`/`Metric`/`Attested Computation`/`API Endpoint`) validation.
+- **`get_km_page`**: Reads pages with line-range pagination (max 800 lines per read).
+- **`search_km`**: Full-text search with filters for `type`, `status`, and `trust_tier` (`unverified`/`machine-confirmed`/`human-reviewed`).
+- **`search_km_by_tag`**: Finds pages by OKF tags.
+- **`rename_km_page`**: Renames files and updates both `[[wikilinks]]` and `[Label](path.md)` standard Markdown links across the vault.
+- **`delete_km_page`**: Removes pages with cache and git synchronization.
+- **`list_km_pages`**: Lists all pages with OKF v0.2 metadata filtering.
+- **`get_km_graph`**: Knowledge graph visualization with nodes and edges.
+- **`get_backlinks`**: Finds pages linking to a specific note.
+- **`check_broken_links`**: Scans for broken wikilinks and standard Markdown links.
+- **`summarize_km`**: Generates `index.md` and `SUMMARY.md` per OKF v0.2 §8.
+- **`sanitize_km_vault`**: Migrates files to kebab-case and updates all internal links.

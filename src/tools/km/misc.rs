@@ -8,7 +8,7 @@ use std::sync::Arc;
 use tokio::fs;
 use walkdir::WalkDir;
 use super::{
-    get_relative_title, to_title_case, ensure_cache_initialized,
+    get_relative_title, to_kebab_case, ensure_cache_initialized,
     get_cache, git_auto_commit, SummarizeKmArgs, SanitizeKmVaultArgs,
 };
 
@@ -90,7 +90,7 @@ async fn sanitize_km_vault(_args: SanitizeKmVaultArgs) -> std::result::Result<Va
             files_to_process.push(path.to_path_buf());
 
             let file_stem = path.file_stem().unwrap_or_default().to_string_lossy().to_string();
-            let new_stem = to_title_case(&file_stem);
+            let new_stem = to_kebab_case(&file_stem);
 
             if file_stem != new_stem {
                 let mut new_title = relative_title.clone();
@@ -114,8 +114,8 @@ async fn sanitize_km_vault(_args: SanitizeKmVaultArgs) -> std::result::Result<Va
                 AdkError::tool(format!("Failed to rename {:?} to {:?}: {}", old_path, new_path, e))
             })?;
             renamed_count += 1;
-            git_auto_commit(&km_dir, &old_path, &format!("km: sanitize rename delete {}", old_title));
-            git_auto_commit(&km_dir, &new_path, &format!("km: sanitize rename create {}", new_title));
+            let _ = git_auto_commit(&km_dir, &old_path, &format!("km: sanitize rename delete {}", old_title));
+            let _ = git_auto_commit(&km_dir, &new_path, &format!("km: sanitize rename create {}", new_title));
         }
     }
 
@@ -137,10 +137,19 @@ async fn sanitize_km_vault(_args: SanitizeKmVaultArgs) -> std::result::Result<Va
             let mut new_content = content.clone();
 
             for (old_title, new_title) in &rename_map {
+                // Update wikilinks
                 let old_link = format!("[[{}]]", old_title);
                 let new_link = format!("[[{}]]", new_title);
                 if new_content.contains(&old_link) {
                     new_content = new_content.replace(&old_link, &new_link);
+                    links_updated_count += 1;
+                }
+
+                // Update standard Markdown links
+                let old_md_link = format!("]({}.md)", old_title);
+                let new_md_link = format!("]({}.md)", new_title);
+                if new_content.contains(&old_md_link) {
+                    new_content = new_content.replace(&old_md_link, &new_md_link);
                     links_updated_count += 1;
                 }
             }
@@ -149,7 +158,7 @@ async fn sanitize_km_vault(_args: SanitizeKmVaultArgs) -> std::result::Result<Va
                 fs::write(&path, new_content).await.map_err(|e| {
                     AdkError::tool(format!("Failed to update links in {:?}: {}", path, e))
                 })?;
-                git_auto_commit(&km_dir, &path, "km: sanitize update links");
+                let _ = git_auto_commit(&km_dir, &path, "km: sanitize update links");
             }
         }
     }

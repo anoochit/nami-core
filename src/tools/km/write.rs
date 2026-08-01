@@ -10,6 +10,7 @@ use walkdir::WalkDir;
 use super::{
     sanitize_title, parse_km_file_sync, get_cache, git_auto_commit,
     expand_template_variables, ensure_cache_initialized,
+    validate_okf_type, validate_okf_status,
     AddKmArgs, KmPageArgs, CreateDailyNoteArgs,
     ApplyTemplateArgs, RenameKmPageArgs,
 };
@@ -17,6 +18,14 @@ use super::{
 /// Adds or updates a knowledge page in the 'km/' directory. Supports nested folders.
 #[tool]
 async fn add_km_page(args: AddKmArgs) -> std::result::Result<Value, AdkError> {
+    // Validate OKF fields
+    if let Some(ref t) = args.r#type {
+        validate_okf_type(t).map_err(|e| AdkError::tool(e.to_string()))?;
+    }
+    if let Some(ref status) = args.status {
+        validate_okf_status(status).map_err(|e| AdkError::tool(e.to_string()))?;
+    }
+
     let km_dir = get_km_dir().await?;
     let sanitized_title = sanitize_title(&args.title);
     let filename = format!("{}.md", sanitized_title);
@@ -48,15 +57,26 @@ async fn add_km_page(args: AddKmArgs) -> std::result::Result<Value, AdkError> {
                 .unwrap_or_default()
                 .to_string_lossy();
             let concept_type = args.r#type.as_deref().unwrap_or("Concept");
+            let status_val = args.status.as_deref().unwrap_or("stable");
             let desc_line = if let Some(ref desc) = args.description {
                 format!("description: \"{}\"\n", desc.replace('"', "\\\""))
             } else {
                 String::new()
             };
+            let tags_line = if let Some(ref tags) = args.tags {
+                if tags.is_empty() {
+                    "tags: []".to_string()
+                } else {
+                    let tags_yaml: Vec<String> = tags.iter().map(|t| format!("\"{}\"", t.replace('"', "\\\""))).collect();
+                    format!("tags: [{}]", tags_yaml.join(", "))
+                }
+            } else {
+                "tags: []".to_string()
+            };
 
             let frontmatter = format!(
-                "---\ntype: {}\ntitle: \"{}\"\n{}status: stable\ngenerated: {{ by: \"agent:nami\", at: \"{}\" }}\ntags: []\n---\n\n",
-                concept_type, title_basename, desc_line, today_iso
+                "---\ntype: {}\ntitle: \"{}\"\n{}status: {}\ngenerated: {{ by: \"agent:nami\", at: \"{}\" }}\n{}\n---\n\n",
+                concept_type, title_basename, desc_line, status_val, today_iso, tags_line
             );
 
             if !final_content.starts_with('#') && !final_content.is_empty() {
@@ -86,7 +106,7 @@ async fn add_km_page(args: AddKmArgs) -> std::result::Result<Value, AdkError> {
     } else {
         format!("km: update {}", sanitized_title)
     };
-    git_auto_commit(&km_dir, &path, &action_msg);
+    let _ = git_auto_commit(&km_dir, &path, &action_msg);
 
     Ok(json!({
         "status": "success",
@@ -122,6 +142,8 @@ async fn create_daily_note(args: CreateDailyNoteArgs) -> std::result::Result<Val
         content: final_content,
         r#type: Some("Concept".to_string()),
         description: None,
+        tags: None,
+        status: None,
         append: Some(false),
     };
 
@@ -152,6 +174,8 @@ async fn apply_template(args: ApplyTemplateArgs) -> std::result::Result<Value, A
         content: final_content,
         r#type: Some("Concept".to_string()),
         description: None,
+        tags: None,
+        status: None,
         append: Some(false),
     };
 
@@ -201,12 +225,19 @@ async fn rename_km_page(args: RenameKmPageArgs) -> std::result::Result<Value, Ad
     let old_link_short = format!("[[{}]]", old_filename);
     let new_link = format!("[[{}]]", args.new_title);
 
+    // Standard Markdown link patterns
+    let old_md_link_exact = format!("]({}.md)", args.old_title);
+    let old_md_link_sanitized = format!("]({}.md)", old_sanitized);
+    let old_md_link_short = format!("]({}.md)", old_filename);
+    let new_md_link = format!("]({}.md)", args.new_title);
+
     for entry in WalkDir::new(&km_dir).into_iter().filter_map(|e| e.ok()) {
         let path = entry.path();
         if path.is_file() && path.extension().and_then(|s| s.to_str()) == Some("md") {
             let content = fs::read_to_string(&path).await.unwrap_or_default();
             let mut new_content = content.clone();
 
+            // Update wikilinks
             if new_content.contains(&old_link_exact) {
                 new_content = new_content.replace(&old_link_exact, &new_link);
             }
@@ -218,6 +249,20 @@ async fn rename_km_page(args: RenameKmPageArgs) -> std::result::Result<Value, Ad
                 && old_link_sanitized != old_link_short
             {
                 new_content = new_content.replace(&old_link_short, &new_link);
+            }
+
+            // Update standard Markdown links
+            if new_content.contains(&old_md_link_exact) {
+                new_content = new_content.replace(&old_md_link_exact, &new_md_link);
+            }
+            if new_content.contains(&old_md_link_sanitized) && old_md_link_exact != old_md_link_sanitized {
+                new_content = new_content.replace(&old_md_link_sanitized, &new_md_link);
+            }
+            if new_content.contains(&old_md_link_short)
+                && old_md_link_exact != old_md_link_short
+                && old_md_link_sanitized != old_md_link_short
+            {
+                new_content = new_content.replace(&old_md_link_short, &new_md_link);
             }
 
             if content != new_content {
@@ -236,8 +281,8 @@ async fn rename_km_page(args: RenameKmPageArgs) -> std::result::Result<Value, Ad
     let _ = ensure_cache_initialized(&km_dir).await;
 
     // Git commits
-    git_auto_commit(&km_dir, &old_path, &format!("km: rename delete {}", old_sanitized));
-    git_auto_commit(&km_dir, &new_path, &format!("km: rename create {}", new_sanitized));
+    let _ = git_auto_commit(&km_dir, &old_path, &format!("km: rename delete {}", old_sanitized));
+    let _ = git_auto_commit(&km_dir, &new_path, &format!("km: rename create {}", new_sanitized));
 
     Ok(json!({
         "status": "success",
@@ -266,7 +311,7 @@ async fn delete_km_page(args: KmPageArgs) -> std::result::Result<Value, AdkError
         cache.pages.remove(&sanitized_title);
     }
 
-    git_auto_commit(&km_dir, &path, &format!("km: delete {}", sanitized_title));
+    let _ = git_auto_commit(&km_dir, &path, &format!("km: delete {}", sanitized_title));
 
     Ok(json!({
         "status": "success",

@@ -1,4 +1,4 @@
-use crate::agent::get_compaction_config;
+use crate::agent::{get_compaction_config, load_config_sync};
 use crate::modes::command_registry::CommandRegistry;
 use crate::modes::slash_dispatcher::{self, SlashAction, SlashRequest};
 use crate::utils::get_nami_dir;
@@ -41,9 +41,13 @@ pub async fn run_serve(
         .allow_methods([Method::GET, Method::POST, Method::DELETE, Method::OPTIONS])
         .allow_headers([header::CONTENT_TYPE, header::HeaderName::from_static("x-api-key")]);
 
+    // Note: Intra-compaction is not yet supported in serve mode due to Launcher limitations.
+    // The Launcher only exposes with_compaction() for post-invocation compaction.
+    // TODO: Add intra-compaction support when adk-cli::Launcher gains the necessary API.
+    let compaction_cfg = load_config_sync().ok().and_then(|c| c.compaction);
     let app = Launcher::new(agent)
         .app_name("serve")
-        .with_compaction(get_compaction_config(model))
+        .with_compaction(get_compaction_config(model, &compaction_cfg))
         .with_session_service(session)
         .with_memory_service(memory)
         .with_artifact_service(artifacts)

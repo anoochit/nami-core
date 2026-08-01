@@ -1,15 +1,49 @@
 # Changelog
 
-## [0.9.50] - 2026-08-01
-
-### Fixed
-
-- **Template Placeholder Injection in Skill Bodies**: Skill files containing `{identifier}` patterns (e.g. JavaScript template literals like `${deepLink}`) no longer cause `State variable 'deepLink' not found` errors. Added `escape_template_braces()` to sanitize skill body content before injection into the instruction template processed by ADK's `inject_session_state`.
-
-## [0.9.49] - 2026-08-01
+## [0.9.52] - 2026-08-01
 
 ### Changed
 
+- **Kebab-Case File Naming**: Knowledge base files now use kebab-case (`hello-world.md`) instead of Title Case (`Hello World.md`). URL-safe, filesystem-safe, and web-convention compliant.
+- **Tool-Aware Regex Compilation**: Replaced per-call `Regex::new()` with static `OnceLock<Regex>` patterns for markdown links, wikilinks, and inline tags — eliminating regex recompilation on every file parse.
+- **Git Auto-Commit Error Handling**: `git_auto_commit()` now returns `Result` and logs warnings via `eprintln!` instead of silently swallowing errors.
+
+### Added
+
+- **Tags Argument for `add_km_page`**: Added optional `tags: Vec<String>` parameter to embed OKF v0.2 tags directly in frontmatter without manual content editing.
+- **Status Argument for `add_km_page`**: Added optional `status` parameter (`draft`, `stable`, `deprecated`) to control OKF v0.2 status on creation.
+- **OKF v0.2 Frontmatter Validation**: Added `validate_okf_type()` and `validate_okf_status()` functions with constants `VALID_OKF_TYPES` and `VALID_OKF_STATUSES` — invalid types/statuses now return clear error messages.
+- **Trust Tier Filter in `search_km`**: Added `trust_tier` parameter to filter search results by `unverified`, `machine-confirmed`, or `human-reviewed`.
+- **Standard Markdown Link Updates on Rename**: `rename_km_page` now updates both `[[wikilinks]]` and `[Label](old.md)` standard Markdown links across the vault.
+- **KM Tool Unit Tests**: Added 6 new tests: `validates_okf_type`, `validates_okf_status`, `test_to_kebab_case`, `test_sanitize_title`, `test_expand_template_variables`, `test_static_regex_patterns`.
+
+### Removed
+
+- **Dead `get_context_compaction_config()` Function**: Removed feature-gated function and `#[cfg(feature = "context-compaction")]` that referenced unavailable `adk-runner` types — eliminated compiler warning.
+
+## [0.9.51] - 2026-08-01
+
+### Changed
+
+- **Hybrid Skills Loading**: Replaced static injection of all 85 skill bodies into the system instruction with dynamic per-query skill scoring using ADK's `select_skill_prompt_block`. At runtime, the user query is scored against the skill index and only the best-matching skill (if any) is injected into the instruction. This reduces context window bloat from ~large to ~2000 chars per request while maintaining relevance.
+- **Config-Driven Context Compaction**: All compaction parameters are now configurable via `[compaction]` section in `config.toml` instead of being hardcoded. Parameters include `compaction_interval`, `overlap_size`, `token_threshold_pct`, `overlap_event_count`, `chars_per_token`, and `model_context_windows` overrides.
+- **Tool-Aware Summaries**: Context compaction summaries now include function calls and tool results, preserving critical tool context across compaction boundaries instead of only summarizing text parts.
+
+### Added
+
+- **`instruction_provider` on Main Agent**: Uses ADK's `SelectionPolicy` and `select_skill_prompt_block` to dynamically select and inject the best-matching skill at runtime, stripping `[skill:name]` tags to prevent LLM hallucination.
+- **Convention File Discovery**: Enabled discovery of ADK convention files (AGENTS.md, CLAUDE.md, GEMINI.md, etc.) from `<workspace>/.agents/skills`, `~/.agents/skills`, and `~/.nami/skills` directories via `load_skill_index_with_extras()`.
+- **Separate Summarizer Model**: Added `compaction.summarizer` config option to use a cheaper/faster model for compaction summaries instead of the primary agent model.
+- **Configurable Model Context Windows**: Added `compaction.model_context_windows` config option to override context window sizes for custom/fine-tuned models.
+
+### Removed
+
+- **`get_global_skills_content()`**: No longer needed. Skill content is now injected dynamically per query instead of statically at build time.
+- **`with_skills()` from Specialists**: Removed ADK's `with_skills()` from both built-in and custom specialist builders to eliminate `[skill:name]` tag hallucination risk.
+
+### Fixed
+
+- **Template Placeholder Injection in Skill Bodies**: Skill files containing `{identifier}` patterns (e.g. JavaScript template literals like `${deepLink}`) no longer cause `State variable 'deepLink' not found` errors. Added `escape_template_braces()` to sanitize skill body content before injection.
 - **Wiki → Knowledge Base (km) Rename**: Renamed the `wiki/` directory to `km/` (Knowledge Base) with full tool and API updates:
   - Directory rename: `src/tools/wiki/` → `src/tools/km/`
   - Tool functions: `add_wiki_page` → `add_km_page`, `get_wiki_page` → `get_km_page`, `search_wiki` → `search_km`, etc.
@@ -20,13 +54,12 @@
   - Config files: scheduler.json, task_states.json updated
   - Documentation: README.md, CHANGELOG.md, persona files updated
 
-### Added
+### Documentation
 
-- **Convention File Discovery**: Enabled discovery of ADK convention files (AGENTS.md, CLAUDE.md, GEMINI.md, etc.) from `<workspace>/.agents/skills`, `~/.agents/skills`, and `~/.nami/skills` directories via `load_skill_index_with_extras()`.
-
-### Fixed
-
-- **Template Placeholder Injection in Skill Bodies**: Skill files containing `{identifier}` patterns (e.g. JavaScript template literals like `${deepLink}`) no longer cause `State variable 'deepLink' not found` errors. Added `escape_template_braces()` to sanitize skill body content before injection into the instruction template processed by ADK's `inject_session_state`.
+- **README Documentation Fixes**: Corrected discrepancies between README and actual codebase:
+  - Added missing `designer` specialist to specialist list and architecture diagram
+  - Updated knowledge base tools from 6 to 15 tools (all actual tools now documented)
+  - Updated skills list from 8 placeholder skills to actual 54 skills with categories
 
 ## [0.9.48] - 2026-08-01
 

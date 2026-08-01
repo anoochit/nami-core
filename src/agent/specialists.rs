@@ -261,7 +261,7 @@ pub fn get_specialists(
     specific_models: std::collections::HashMap<String, Arc<dyn Llm>>,
     tools: Vec<Arc<dyn Tool>>,
     custom_specs: Option<HashMap<String, super::agent::CustomSpecialistConfig>>,
-    skills: Option<adk_rust::skill::SkillIndex>,
+    _skills: Option<adk_rust::skill::SkillIndex>,
     mcp_toolset: Option<Arc<dyn Toolset>>,
 ) -> HashMap<String, Arc<dyn Tool>> {
     let get_model = |name: &str| {
@@ -283,9 +283,8 @@ pub fn get_specialists(
         for t in &tools {
             builder = builder.tool(t.clone());
         }
-        if let Some(ref s) = skills {
-            builder = builder.with_skills(s.clone());
-        }
+        // NOTE: Skills are NOT registered with with_skills() to avoid [skill:name] tag
+        // hallucination. Specialists use static instruction only.
         if let Some(ref m) = mcp_toolset {
             builder = builder.toolset(m.clone());
         }
@@ -317,9 +316,6 @@ pub fn get_specialists(
                 } else {
                     agent_builder = agent_builder.tool(t.clone());
                 }
-            }
-            if let Some(ref s) = skills {
-                agent_builder = agent_builder.with_skills(s.clone());
             }
             if let Some(ref m) = mcp_toolset {
                 agent_builder = agent_builder.toolset(m.clone());
