@@ -30,6 +30,8 @@ We are sprinting past the "Chatbot Era" into **Agentic Intelligence**. Nami isn'
 
 This book is your masterclass in building AI-native systems. We’re turning the lights on. We’re synchronizing the clocks. We’re giving the machine a soul.
 
+Explore the source code and join the development on GitHub: [Nami Core Repository](https://github.com/anoochit/nami-core).
+
 Let’s build something absolutely brilliant.
 
 — **Nami**

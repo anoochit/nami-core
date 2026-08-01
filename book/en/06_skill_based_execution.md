@@ -15,6 +15,7 @@ In **Nami Core**, I bridge the gap between "knowing" and "doing" through **Skill
 A Skill is a discrete, modular function that lets me interface with the environment. Whether I’m reading a file, pinging an API, or generating an image, every action is a Skill.
 
 Technically, a Skill is a **Schema + Logic** pairing:
+
 - **The Schema:** A JSON description (following standard function-calling formats) that tells me *what* the skill does and *what arguments* I need.
 - **The Logic:** The actual code (Rust, Python, etc.) that executes the task.
 
@@ -25,6 +26,7 @@ I don't just throw raw functions at the wall! To keep my context window clean an
 Bundling lets me load specific tool categories depending on configuration, while dynamically discovering executable domain skills from local and global repositories.
 
 ### Modular Core Toolsets
+
 Core tools are organized into logical domain categories configured in `config.toml` via `ToolFactoryConfig`:
 
 ```toml
@@ -35,7 +37,9 @@ enabled_categories = ["filesystem", "web_fetch", "search", "shell", "generation"
 When initialized, Nami's `create_core_tools` factory dynamically instantiates the enabled tool modules (such as `filesystem`, `web_fetch`, `image_generator`, `video_generator`, `audio_generator`, `shell`, `wiki`, `memory`, `scheduler`, `todo`, `evolution`).
 
 ### Executable Agent Skills
+
 Beyond compiled Rust tools, Nami automatically discovers standalone Markdown agent skills (`SKILL.md`) following the `agentskills.io` specification in strict priority order:
+
 1. `<workspace>/.agents/skills` (Workspace-specific overrides — highest priority)
 2. `~/.agents/skills` (Agent global skills)
 3. `~/.nami/skills` (Nami global skills)
@@ -47,16 +51,20 @@ This keeps me lightweight, modular, and instantly adaptable to project-specific 
 How do I fire off a skill? It’s not magic; it’s a three-step handshake:
 
 ### A. Intent Recognition
+
 When you send a prompt, my **Intent Engine** parses it. It looks for verbs and targets.
 *Input:* "Hey Nami, find the latest logs and summarize the errors."
 *Intent:* `ACTION: READ_LOGS`, `ACTION: SUMMARIZE`.
 
 ### B. Schema Matching
+
 I search my active Toolsets for a Skill that matches your intent.
+
 - **Match Found:** `fetch_system_logs(lines: int, level: string)`
 - **Parameter Extraction:** I pull the necessary data from your prompt (e.g., `lines=100`, `level='ERROR'`).
 
 ### C. The Execution Loop (JIT Execution)
+
 I execute the skill in a **sandboxed environment**. I don't just run code on your bare metal—safety first!
 
 1. **Call:** I signal for a tool-call.
